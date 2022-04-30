@@ -1,417 +1,26 @@
-// .jsw files enable you to write functions that run on the server side
-// Test any backend function by clicking the "Play" button on the left side of the code panel
-// About testing backend functions: https://support.wix.com/en/article/velo-testing-your-backend-functions
+// This file contains all functions specific to Customization Import.
 
+//#region Imports
+// Import Wix functions and tools.
 import wixFetch from 'wix-fetch';
 import wixData from 'wix-data';
-import {createSecret, updateSecret, getSecret, listSecretInfo} from 'wix-secrets-backend';
+import { createSecret, updateSecret, getSecret, listSecretInfo } from 'wix-secrets-backend';
 import { mediaManager } from 'wix-media-backend';
-import * as KeyConstants from 'public/KeyConstants.js';
+
+// Import Constants.
+import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
+
+import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
+import * as WeaponConstants from 'public/Constants/WeaponConstants.js';
+import * as VehicleConstants from 'public/Constants/VehicleConstants.js';
+import * as BodyAndAiConstants from 'public/Constants/BodyAndAiConstants.js';
+import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
+
+import * as KeyConstants from 'public/Constants/KeyConstants.js';
+import * as ApiConstants from 'public/Constants/ApiConstants.js';
+
+// Import helper functions.
 import * as Waypoint from 'backend/WaypointBackendFunctions.jsw';
-
-//#region Constants
-const API_URL_BASE = "https://cryptum.halodotapi.com";
-const API_KEY = "HaloDotAPIKey";
-const API_VERSION = "2.3-alpha";
-
-const PLACEHOLDER_IMAGE_URL = "wix:image://v1/ee59cf_76d024fd4c2a4cab80bda937a1e1c926~mv2.png/Placeholder%20Image.png#originWidth=275&originHeight=183";
-
-export const XUID_KEY = "Xuid";
-
-// The ITEM_TYPES constant is used to identify which type of item is being processed.
-const ITEM_TYPES = {
-	core: "core",
-	kit: "kit",
-	item: "item",
-	attachment: "attachment"
-};
-
-const WAYPOINT_URL_BASE_PROGRESSION = "https://gamecms-hacs-origin.svc.halowaypoint.com/hi/Progression/file/";
-const WAYPOINT_URL_BASE_IMAGE = "https://gamecms-hacs-origin.svc.halowaypoint.com/hi/images/file/"
-const WAYPOINT_URL_BASE_WAYPOINT = "https://gamecms-hacs-origin.svc.halowaypoint.com/hi/waypoint/file/";
-const WAYPOINT_URL_GUIDE = "https://gamecms-hacs-origin.svc.halowaypoint.com/hi/Progression/guide/xo";
-
-// If a customization category has cores, its key will be included in this array.
-export const HAS_CORE_ARRAY = [KeyConstants.ARMOR_KEY, KeyConstants.ARMOR_ATTACHMENT_KEY, KeyConstants.WEAPON_KEY, KeyConstants.VEHICLE_KEY];
-
-// If a customization type is cross-core, it will be included in an array keyed by the customization category.
-// Only keys listed in the HAS_CORE_ARRAY should be used here.
-// Also, the reason we include Core types themselves is because they aren't sorted into core-specific folders in the media files.
-export const IS_CROSS_CORE_ARRAY_DICT = {
-	[KeyConstants.ARMOR_KEY]: [KeyConstants.ARMOR_CORE_KEY, KeyConstants.ARMOR_EMBLEM_KEY, KeyConstants.ARMOR_EFFECT_KEY, KeyConstants.ARMOR_MYTHIC_EFFECT_SET_KEY],
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: [],
-	[KeyConstants.WEAPON_KEY]: [KeyConstants.WEAPON_CORE_KEY, KeyConstants.WEAPON_CHARM_KEY, KeyConstants.WEAPON_EMBLEM_KEY, KeyConstants.WEAPON_KILL_EFFECT_KEY],
-	[KeyConstants.VEHICLE_KEY]: [KeyConstants.VEHICLE_CORE_KEY, KeyConstants.VEHICLE_EMBLEM_KEY]
-}
-
-// This dictionary contains the high-level folders for each category within Customization Images.
-const CUSTOMIZATION_CATEGORY_FOLDER_DICT = {
-	[KeyConstants.ARMOR_KEY]: "Armor Customization",
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: "Armor Customization",
-	[KeyConstants.WEAPON_KEY]: "Weapon Customization",
-	[KeyConstants.VEHICLE_KEY]: "Vehicle Customization",
-	[KeyConstants.BODY_AND_AI_KEY]: "Body & AI Customization",
-	[KeyConstants.SPARTAN_ID_KEY]: "Spartan ID Customization",
-	[KeyConstants.CONSUMABLES_KEY]: "Consumables",
-	[KeyConstants.SHOP_KEY]: "Shop",
-	[KeyConstants.PASS_KEY]: "Passes",
-	[KeyConstants.EMBLEM_PALETTE_KEY]: "Emblem Palettes",
-	[KeyConstants.MANUFACTURER_KEY]: "Manufacturer Logos"
-}
-
-// This constant dict allows us to pull the URL for an item from its DB JSON.
-export const CUSTOMIZATION_CATEGORY_URL_FIELDS = {
-	[KeyConstants.ARMOR_KEY]: "link-armor-customizations-itemName",
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: "link-armor-customization-attachments-itemName",
-	[KeyConstants.WEAPON_KEY]: "link-items-title",
-	[KeyConstants.VEHICLE_KEY]: "link-vehicle-customizations-title",
-	[KeyConstants.BODY_AND_AI_KEY]: "link-body-ai-customizations-itemName-2",
-	[KeyConstants.SPARTAN_ID_KEY]: "link-presentation-customizations-title"
-}
-
-// This dictionary contains the folders for each customization type within the customization category folders.
-const CUSTOMIZATION_TYPE_FOLDER_DICT = {
-	[KeyConstants.ARMOR_KEY]: {
-		[KeyConstants.ARMOR_CORE_KEY]: "Armor Cores",
-		[KeyConstants.ARMOR_KIT_KEY]: "Armor Kits",
-		[KeyConstants.ARMOR_COATING_KEY]: "Armor Coatings",
-		[KeyConstants.ARMOR_HELMET_KEY]: "Helmets",
-		[KeyConstants.ARMOR_VISOR_KEY]: "Visors",
-		[KeyConstants.ARMOR_CHEST_KEY]: "Chests",
-		[KeyConstants.ARMOR_LEFT_SHOULDER_PAD_KEY]: "Left Shoulder Pads",
-		[KeyConstants.ARMOR_RIGHT_SHOULDER_PAD_KEY]: "Right Shoulder Pads",
-		[KeyConstants.ARMOR_GLOVES_KEY]: "Gloves",
-		[KeyConstants.ARMOR_WRIST_KEY]: "Wrists",
-		[KeyConstants.ARMOR_UTILITY_KEY]: "Utilities",
-		[KeyConstants.ARMOR_KNEE_PADS_KEY]: "Knee Pads",
-		[KeyConstants.ARMOR_EMBLEM_KEY]: "Armor Emblems",
-		[KeyConstants.ARMOR_EFFECT_KEY]: "Armor Effects",
-		[KeyConstants.ARMOR_MYTHIC_EFFECT_SET_KEY]: "Mythic Effect Sets"
-	},
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: {
-		[KeyConstants.ARMOR_HELMET_ATTACHMENT_KEY]: "Armor Attachments"
-	},
-	[KeyConstants.WEAPON_KEY]: {
-		[KeyConstants.WEAPON_CORE_KEY]: "Weapon Cores",
-		[KeyConstants.WEAPON_KIT_KEY]: "Weapon Kits",
-		[KeyConstants.WEAPON_COATING_KEY]: "Weapon Coatings",
-		[KeyConstants.WEAPON_MODEL_KEY]: "Weapon Models",
-		[KeyConstants.WEAPON_CHARM_KEY]: "Charms",
-		[KeyConstants.WEAPON_EMBLEM_KEY]: "Weapon Emblems",
-		[KeyConstants.WEAPON_KILL_EFFECT_KEY]: "Kill Effects"
-	},
-	[KeyConstants.VEHICLE_KEY]: {
-		[KeyConstants.VEHICLE_CORE_KEY]: "Vehicle Cores",
-		[KeyConstants.VEHICLE_COATING_KEY]: "Vehicle Coatings",
-		[KeyConstants.VEHICLE_MODEL_KEY]: "Vehicle Models",
-		[KeyConstants.VEHICLE_EMBLEM_KEY]: "Vehicle Emblems"
-	},
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		[KeyConstants.BODY_AND_AI_MODEL]: "AI Models",
-		[KeyConstants.BODY_AND_AI_COLOR]: "AI Colors"
-	},
-	[KeyConstants.SPARTAN_ID_KEY]: {
-		[KeyConstants.SPARTAN_ID_NAMEPLATE_KEY]: "Nameplates",
-		[KeyConstants.SPARTAN_ID_BACKDROP_KEY]: "Backdrops",
-		[KeyConstants.SPARTAN_ID_STANCE_KEY]: "Stances"
-	},
-	[KeyConstants.SHOP_KEY]: {
-		[KeyConstants.SHOP_DAILY]: "Daily",
-		[KeyConstants.SHOP_WEEKLY]: "Weekly",
-		[KeyConstants.SHOP_INDEFINITE]: "Indefinite",
-		[KeyConstants.SHOP_HCS]: "HCS"
-	},
-	[KeyConstants.PASS_KEY]: {
-		[KeyConstants.PASS_BATTLE]: "Battle Passes",
-		[KeyConstants.PASS_EVENT]: "Event Passes"
-	}
-}
-
-export const CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS = {
-	[KeyConstants.ARMOR_KEY]: {
-		"ArmorCore": KeyConstants.ARMOR_CORE_KEY,
-		"ArmorTheme": KeyConstants.ARMOR_KIT_KEY,
-		"ArmorCoating": KeyConstants.ARMOR_COATING_KEY,
-		"ArmorHelmet": KeyConstants.ARMOR_HELMET_KEY,
-		"ArmorVisor": KeyConstants.ARMOR_VISOR_KEY,
-		"ArmorChestAttachment": KeyConstants.ARMOR_CHEST_KEY,
-		"ArmorLeftShoulderPad": KeyConstants.ARMOR_LEFT_SHOULDER_PAD_KEY,
-		"ArmorRightShoulderPad": KeyConstants.ARMOR_RIGHT_SHOULDER_PAD_KEY,
-		"ArmorGlove": KeyConstants.ARMOR_GLOVES_KEY,
-		"ArmorWristAttachment": KeyConstants.ARMOR_WRIST_KEY,
-		"ArmorHipAttachment": KeyConstants.ARMOR_UTILITY_KEY,
-		"ArmorKneePad": KeyConstants.ARMOR_KNEE_PADS_KEY,
-		"ArmorEmblem": KeyConstants.ARMOR_EMBLEM_KEY,
-		"ArmorFx": KeyConstants.ARMOR_EFFECT_KEY,
-		"ArmorMythicFx": KeyConstants.ARMOR_MYTHIC_EFFECT_SET_KEY
-	},
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: {
-		"ArmorHelmetAttachment": KeyConstants.ARMOR_HELMET_ATTACHMENT_KEY
-	},
-	[KeyConstants.WEAPON_KEY]: {
-		"WeaponCore": KeyConstants.WEAPON_CORE_KEY,
-		"WeaponTheme": KeyConstants.WEAPON_KIT_KEY,
-		"WeaponCoating": KeyConstants.WEAPON_COATING_KEY,
-		"WeaponAlternateGeometryRegion": KeyConstants.WEAPON_MODEL_KEY,
-		"WeaponCharm": KeyConstants.WEAPON_CHARM_KEY,
-		"WeaponEmblem": KeyConstants.WEAPON_EMBLEM_KEY,
-		"WeaponDeathFx": KeyConstants.WEAPON_KILL_EFFECT_KEY
-	},
-	[KeyConstants.VEHICLE_KEY]: {
-		"VehicleCore": KeyConstants.VEHICLE_CORE_KEY,
-		"VehicleCoating": KeyConstants.VEHICLE_COATING_KEY,
-		"VehicleAlternateGeometryRegion": KeyConstants.VEHICLE_MODEL_KEY,
-		"VehicleEmblem": KeyConstants.VEHICLE_EMBLEM_KEY
-	},
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		"AiModel": KeyConstants.BODY_AND_AI_MODEL,
-		"AiColor": KeyConstants.BODY_AND_AI_COLOR
-	},
-	[KeyConstants.SPARTAN_ID_KEY]: {
-		"SpartanEmblem": KeyConstants.SPARTAN_ID_NAMEPLATE_KEY,
-		"SpartanBackdropImage": KeyConstants.SPARTAN_ID_BACKDROP_KEY,
-		"SpartanActionPose": KeyConstants.SPARTAN_ID_STANCE_KEY
-	},
-	[KeyConstants.SHOP_KEY]: {
-		"Daily": KeyConstants.SHOP_DAILY,
-		"Weekly": KeyConstants.SHOP_WEEKLY,
-		"": KeyConstants.SHOP_INDEFINITE,
-		"HCS": KeyConstants.SHOP_HCS // This needs to be supplied manually when querying this JSON structure. Does not come directly from Waypoint like the others.
-	}
-}
-
-export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
-	[KeyConstants.ARMOR_KEY]: {
-		"SocketDb": KeyConstants.ARMOR_SOCKET_DB,
-		"SocketNameField": "name",
-		"CoreDb": KeyConstants.ARMOR_CORE_DB,
-		"CoreNameField": "name",
-		"CustomizationDb": KeyConstants.ARMOR_CUSTOMIZATION_DB,
-		"CustomizationNameField": "itemName",
-		"CustomizationSocketReferenceField": KeyConstants.ARMOR_SOCKET_REFERENCE_FIELD,
-		"CustomizationCoreReferenceField": KeyConstants.ARMOR_CORE_REFERENCE_FIELD,
-		"CustomizationImageField": "image",
-		"CustomizationQualityReferenceField": "qualityReference",
-		"CustomizationLoreField": "flavorText",
-		"CustomizationManufacturerReferenceField": "manufacturerReference",
-		"CustomizationReleaseReferenceField": "releaseReference",
-		"CustomizationSourceField": "source",
-		"CustomizationAttachmentReferenceField": "ArmorCustomizationAttachments",
-		"CustomizationKitItemReferenceField": "adi4LightHalfMiddleTitles",
-		"CustomizationKitAttachmentReferenceField": "ArmorCustomizationAttachments-1",
-		"EmblemPaletteReferenceField": "emblemPalettes"
-	},
-
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: {
-		"CustomizationDb": KeyConstants.ARMOR_CUSTOMIZATION_ATTACHMENTS_DB,
-		"CustomizationNameField": "itemName",
-		"CustomizationImageField": "image",
-		"CustomizationQualityReferenceField": "qualityReference",
-		"CustomizationLoreField": "flavorText",
-		"CustomizationManufacturerReferenceField": "manufacturerReference",
-		"CustomizationReleaseReferenceField": "releaseReference",
-		"CustomizationSourceField": "source",
-		"ParentKey": KeyConstants.ARMOR_KEY
-	},
-
-	[KeyConstants.WEAPON_KEY]: {
-		"SocketDb": KeyConstants.WEAPON_SOCKET_DB,
-		"SocketNameField": "name",
-		"CoreDb": KeyConstants.WEAPON_CORE_DB,
-		"CoreNameField": "name",
-		"CustomizationDb": KeyConstants.WEAPON_CUSTOMIZATION_DB,
-		"CustomizationNameField": "itemName",
-		"CustomizationSocketReferenceField": KeyConstants.WEAPON_SOCKET_REFERENCE_FIELD,
-		"CustomizationCoreReferenceField": KeyConstants.WEAPON_CORE_REFERENCE_FIELD,
-		"CustomizationImageField": "image",
-		"CustomizationQualityReferenceField": "qualityReference",
-		"CustomizationLoreField": "flavorText",
-		"CustomizationManufacturerReferenceField": "manufacturerReference",
-		"CustomizationReleaseReferenceField": "releaseReference",
-		"CustomizationSourceField": "source",
-		"CustomizationKitItemReferenceField": "Items",
-		"EmblemPaletteReferenceField": "emblemPalettes"
-	},
-
-	[KeyConstants.VEHICLE_KEY]: {
-		"SocketDb": KeyConstants.VEHICLE_SOCKET_DB,
-		"SocketNameField": "name",
-		"CoreDb": KeyConstants.VEHICLE_CORE_DB,
-		"CoreNameField": "name",
-		"CustomizationDb": KeyConstants.VEHICLE_CUSTOMIZATION_DB,
-		"CustomizationNameField": "itemName",
-		"CustomizationSocketReferenceField": KeyConstants.VEHICLE_SOCKET_REFERENCE_FIELD,
-		"CustomizationCoreReferenceField": KeyConstants.VEHICLE_CORE_REFERENCE_FIELD,
-		"CustomizationImageField": "image",
-		"CustomizationQualityReferenceField": "qualityReference",
-		"CustomizationLoreField": "flavorText",
-		"CustomizationManufacturerReferenceField": "manufacturerReference",
-		"CustomizationReleaseReferenceField": "releaseReference",
-		"CustomizationSourceField": "source",
-		"EmblemPaletteReferenceField": "emblemPalettes"
-	},
-
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		"SocketDb": KeyConstants.BODY_AND_AI_SOCKET_DB,
-		"SocketNameField": "name",
-		"CustomizationDb": KeyConstants.BODY_AND_AI_CUSTOMIZATION_DB,
-		"CustomizationNameField": "itemName",
-		"CustomizationSocketReferenceField": KeyConstants.BODY_AND_AI_SOCKET_REFERENCE_FIELD,
-		"CustomizationImageField": "image",
-		"CustomizationQualityReferenceField": "qualityReference",
-		"CustomizationLoreField": "flavorText",
-		"CustomizationManufacturerReferenceField": "manufacturerReference",
-		"CustomizationReleaseReferenceField": "releaseReference",
-		"CustomizationSourceField": "source"
-	},
-
-	[KeyConstants.SPARTAN_ID_KEY]: {
-		"SocketDb": KeyConstants.SPARTAN_ID_SOCKET_DB,
-		"SocketNameField": "name",
-		"CustomizationDb": KeyConstants.SPARTAN_ID_CUSTOMIZATION_DB,
-		"CustomizationNameField": "itemName",
-		"CustomizationSocketReferenceField": KeyConstants.SPARTAN_ID_SOCKET_REFERENCE_FIELD,
-		"CustomizationImageField": "image",
-		"CustomizationQualityReferenceField": "qualityReference",
-		"CustomizationLoreField": "flavorText",
-		"CustomizationManufacturerReferenceField": "manufacturerReference",
-		"CustomizationReleaseReferenceField": "releaseReference",
-		"CustomizationSourceField": "source",
-		"EmblemPaletteReferenceField": "emblemPalettes"
-	}
-};
-
-const CORE_CATEGORY_SPECIFIC_VARS = {
-	[KeyConstants.ARMOR_KEY]: {
-		"SocketDb": KeyConstants.ARMOR_SOCKET_DB,
-		"SocketNameField": "name",
-		"CoreDb": KeyConstants.ARMOR_CORE_DB,
-		"CoreNameField": "name",
-		"CoreImageField": "image",
-		"CoreQualityReferenceField": "qualityReference",
-		"CoreLoreField": "lore",
-		"CoreManufacturerReferenceField": "manufacturerReference",
-		"CoreReleaseReferenceField": "releaseReference",
-		"CoreSourceField": "source"
-	},
-
-	[KeyConstants.WEAPON_KEY]: {
-		"SocketDb": KeyConstants.WEAPON_SOCKET_DB,
-		"SocketNameField": "name",
-		"CoreDb": KeyConstants.WEAPON_CORE_DB,
-		"CoreNameField": "name",
-		"CoreImageField": "image",
-		"CoreQualityReferenceField": "qualityReference",
-		"CoreLoreField": "lore",
-		"CoreManufacturerReferenceField": "manufacturerReference",
-		"CoreReleaseReferenceField": "releaseReference",
-		"CoreSourceField": "source"
-	},
-
-	[KeyConstants.VEHICLE_KEY]: {
-		"SocketDb": KeyConstants.VEHICLE_SOCKET_DB,
-		"SocketNameField": "name",
-		"CoreDb": KeyConstants.VEHICLE_CORE_DB,
-		"CoreNameField": "name",
-		"CoreImageField": "image",
-		"CoreQualityReferenceField": "qualityReference",
-		"CoreLoreField": "lore",
-		"CoreManufacturerReferenceField": "manufacturerReference",
-		"CoreReleaseReferenceField": "releaseReference",
-		"CoreSourceField": "source"
-	}
-};
-
-// This is a bit special since we also have a true/false value telling whether the customization group type has attachments or not.
-const CUSTOMIZATION_WAYPOINT_GROUP_TYPES = {
-	[KeyConstants.ARMOR_KEY]: {
-		"Coatings": false,
-		"Helmets": true,
-		"Visors": false,
-		"LeftShoulderPads": false,
-		"RightShoulderPads": false,
-		"Gloves": false,
-		"KneePads": false,
-		"ChestAttachments": false,
-		"WristAttachments": false,
-		"HipAttachments": false,
-		"Emblems": false,
-		"ArmorFx": false,
-		"MythicFx": false
-	},
-	[KeyConstants.WEAPON_KEY]: {
-		"Coatings": false,
-		"StatTrackers": false,
-		"WeaponCharms": false,
-		"AmmoCounterColors": false,
-		"DeathFx": false,
-		"Emblems": false,
-		"AlternateGeometryRegions": false
-	},
-	[KeyConstants.VEHICLE_KEY]: {
-		"Coatings": false,
-		"Emblems": false,
-		"VehicleFx": false,
-		"VehicleCharms": false,
-		"Horns": false,
-		"AlternateGeometryRegions": false
-	},
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		"Models": false,
-		"Colors": false
-	}
-};
-
-const CUSTOMIZATION_WAYPOINT_GROUP_TYPE_TO_WAYPOINT_TYPE = {
-	[KeyConstants.ARMOR_KEY]: {
-		"Coatings": "ArmorCoating",
-		"Helmets": "ArmorHelmet",
-		"Visors": "ArmorVisor",
-		"LeftShoulderPads": "ArmorLeftShoulderPad",
-		"RightShoulderPads": "ArmorRightShoulderPad",
-		"Gloves": "ArmorGlove",
-		"KneePads": "ArmorKneePad",
-		"ChestAttachments": "ArmorChestAttachment",
-		"WristAttachments": "ArmorWristAttachment",
-		"HipAttachments": "ArmorHipAttachment",
-		"Emblems": "ArmorEmblem",
-		"ArmorFx": "ArmorFx",
-		"MythicFx": "ArmorMythicFx"
-	},
-	[KeyConstants.WEAPON_KEY]: {
-		"Coatings": "WeaponCoating",
-		"StatTrackers": "WeaponStatTracker",
-		"WeaponCharms": "WeaponCharm",
-		"AmmoCounterColors": "WeaponAmmoCounterColor",
-		"DeathFx": "WeaponDeathFx",
-		"Emblems": "WeaponEmblem",
-		"AlternateGeometryRegions": "WeaponAlternateGeometryRegion"
-	},
-	[KeyConstants.VEHICLE_KEY]: {
-		"Coatings": "VehicleCoating",
-		"Emblems": "VehicleEmblem",
-		"VehicleFx": "VehicleFx",
-		"VehicleCharms": "VehicleCharm",
-		"Horns": "VehicleHorn",
-		"AlternateGeometryRegions": "VehicleAlternateGeometryRegion"
-	},
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		"Models": "AiModel",
-		"Colors": "AiColor"
-	}
-};
-
-// If a Customization Category has a type with attachments, it can be referenced here.
-const CUSTOMIZATION_TYPES_WITH_ATTACHMENTS = {
-	[KeyConstants.ARMOR_KEY]: [KeyConstants.ARMOR_HELMET_KEY]
-};
-
-// If a Customization Category features Kits, it will be listed here.
-
-const CUSTOMIZATION_TYPES_WITH_KITS = {
-	[KeyConstants.ARMOR_KEY]: [KeyConstants.ARMOR_KIT_KEY],
-	[KeyConstants.WEAPON_KEY]: [KeyConstants.WEAPON_KIT_KEY]
-};
 //#endregion
 
 // Retrieves the Spartan Token, either from HaloDotAPI or the SpartanToken secret with the following value format:
@@ -422,15 +31,13 @@ const CUSTOMIZATION_TYPES_WITH_KITS = {
 	}
 */
 export async function getSpartanToken(refresh = true) { // The refresh argument is true by default and forces a new SpartanToken to be retrieved from the API.
-	const SPARTAN_TOKEN_KEY = "SpartanToken";
-
 	let spartanTokenJson; // This variable will contain the Json from our stored secret. 
 	let tokenNeededFromApi = false; // If true, we need to get a new token from the API.
-	let spartanToken = null; // This variable stores the return value for our
+	let spartanToken = null; // This variable stores the returned token.
 	
 	// If it exists and hasn't expired, we can just return the token. If it has expired, we need to get a new one.
 	try {
-		spartanTokenJson = JSON.parse(await getSecret(SPARTAN_TOKEN_KEY));
+		spartanTokenJson = JSON.parse(await getSecret(ApiConstants.SECRETS_SPARTAN_TOKEN_KEY));
 		let expirationDatetime = new Date(spartanTokenJson.Expiration); // The expiration datetime is stored within the JSON.
 		let currentDatetimePlusTenMin = new Date((new Date()).getTime() + 60000); // We add 10 minute to the current datetime to make sure the expiration isn't coming immediately.
 
@@ -456,33 +63,33 @@ export async function getSpartanToken(refresh = true) { // The refresh argument 
 			"identifier": "hi",
 			"env": "prod",
 			"version": 4
-		}
+		};
 
 		// We use the API Key stored in our secrets to query the API.
-		const apiKey = await getSecret(API_KEY);
+		const apiKey = await getSecret(ApiConstants.SECRETS_API_KEY);
 
 		// Query the API. Note that the Authorization, Content-Type, and Cryptum-API-Version must all be provided in the headers.
 		await wixFetch
-			.fetch(API_URL_BASE + "/partners/tooling/waypoint/spartan-token", {
+			.fetch(ApiConstants.API_URL_BASE + "/partners/tooling/waypoint/spartan-token", {
 				"method": "post",
 				"headers": {
 					"Authorization": apiKey,
 					"Content-Type": "application/json",
-					"Cryptum-API-Version": API_VERSION
+					"Cryptum-API-Version": ApiConstants.API_VERSION
 				},
 				"body": JSON.stringify(body) // Body must be a string.
 			})
-			.then( (httpResponse) => {
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					return httpResponse.json();
 				} else {
 					return Promise.reject("Fetch did not succeed. Got HTTP Response: " + httpResponse.status);
 				}
-			} )
+			})
 			.then((json) => {
 				// Now that we have our Spartan Token, we need to add it to the Secrets so we don't always have to perform this query.
 				let secret = {
-					name: SPARTAN_TOKEN_KEY,
+					name: ApiConstants.SECRETS_SPARTAN_TOKEN_KEY,
 					value: JSON.stringify({
 						"Token": json.data.token,
 						"Expiration": json.data.expiration.date
@@ -496,7 +103,7 @@ export async function getSpartanToken(refresh = true) { // The refresh argument 
 					.then((secrets) => {
 						let spartanTokenId = null;
 						secrets.forEach(element => {
-							if (element.name == SPARTAN_TOKEN_KEY) {
+							if (element.name == ApiConstants.SECRETS_SPARTAN_TOKEN_KEY) {
 								//console.log("Found Spartan Token");
 								//console.log("Returning " + element.id);
 								spartanTokenId = element.id;
@@ -539,16 +146,16 @@ export async function getClearance() {
 	}
 
 	// We use the API Key stored in our secrets to query the API.
-	const apiKey = await getSecret(API_KEY);
+	const apiKey = await getSecret(ApiConstants.SECRETS_API_KEY);
 
 	// Query the API. Note that the Authorization, Content-Type, and Cryptum-API-Version must all be provided.
-	return wixFetch
-		.fetch(API_URL_BASE + "/partners/tooling/waypoint/clearance", {
+	return await wixFetch
+		.fetch(ApiConstants.API_URL_BASE + "/partners/tooling/waypoint/clearance", {
 			"method": "post",
 			"headers": {
 				"Authorization": apiKey,
 				"Content-Type": "application/json",
-				"Cryptum-API-Version": API_VERSION
+				"Cryptum-API-Version": ApiConstants.API_VERSION
 			},
 			"body": JSON.stringify(body)
 		})
@@ -573,8 +180,8 @@ export async function makeWaypointHeaders() {
 	let clearance = await getClearance();
 
 	return {
-		"X-343-Authorization-Spartan": spartanToken,
-		"343-Clearance": clearance,
+		[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER]: spartanToken,
+		[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER]: clearance,
 		"accept-language": "en-US,en;q=0.9"
 	}
 }
@@ -590,7 +197,7 @@ export async function getCustomizationItem(headers, path) {
 	const maxRetries = 10; 
 
 	while (retry && retryCount < maxRetries) {
-		waypointJson = await wixFetch.fetch(WAYPOINT_URL_BASE_PROGRESSION + path, {
+		waypointJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_BASE_PROGRESSION + path, {
 				"method": "get",
 				"headers": headers
 			})
@@ -617,8 +224,8 @@ export async function getCustomizationItem(headers, path) {
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
 			
-			headers["X-343-Authorization-Spartan"] = spartanToken;
-			headers["343-Clearance"] = clearance;
+			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
+			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			headerFailure = false;
 		}
@@ -634,7 +241,7 @@ async function getArmorCoreList(headers) {
 	let waypointJson = {};
 
 	while (retry) {
-		waypointJson = await wixFetch.fetch(WAYPOINT_URL_BASE_WAYPOINT + "armor-core-list.json", {
+		waypointJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_BASE_WAYPOINT + ApiConstants.WAYPOINT_URL_SUFFIX_WAYPOINT_ARMOR_CORE_LIST, {
 				"method": "get",
 				"headers": headers
 			})
@@ -660,8 +267,8 @@ async function getArmorCoreList(headers) {
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
 			
-			headers["X-343-Authorization-Spartan"] = spartanToken;
-			headers["343-Clearance"] = clearance;
+			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
+			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
@@ -670,15 +277,18 @@ async function getArmorCoreList(headers) {
 	return waypointJson;
 }
 
-// Retrieves a list of paths to owned Cores from the Waypoint API matching the customizationCategory. Without a way to see all the cores available in each section (or view the Spartan ID stuff), this is the best I've got.
+// Retrieves a list of paths to owned Cores from the Waypoint API matching the customizationCategory. Ownership of Weapon, Vehicle, and AI Cores is guaranteed.
 async function getCoreList(headers, customizationCategory) {
-	const XUID = await getSecret(XUID_KEY);
+	const XUID = await getSecret(ApiConstants.SECRETS_XUID_KEY);
 
 	let retry = true;
 	let inventoryJson = {};
 
+	let url = ApiConstants.WAYPOINT_URL_BASE_ECONOMY + ApiConstants.WAYPOINT_URL_XUID_PREFIX + XUID + ApiConstants.WAYPOINT_URL_XUID_SUFFIX +
+		ApiConstants.WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY;
+
 	while (retry) {
-		inventoryJson = await wixFetch.fetch("https://economy.svc.halowaypoint.com/hi/players/xuid(" + XUID + ")/inventory", {
+		inventoryJson = await wixFetch.fetch(url, {
 				"method": "get",
 				"headers": headers
 			})
@@ -704,8 +314,8 @@ async function getCoreList(headers, customizationCategory) {
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
 			
-			headers["X-343-Authorization-Spartan"] = spartanToken;
-			headers["343-Clearance"] = clearance;
+			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
+			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
@@ -714,12 +324,12 @@ async function getCoreList(headers, customizationCategory) {
 	// We have a list of every owned theme and a bunch of other owned items. Cores aren't really included in this, so we have to be clever. Let's get a list of matching themes first.
 	let typeToFind = "";
 	switch (customizationCategory) {
-		case KeyConstants.WEAPON_KEY: 
-			typeToFind = "WeaponTheme";
+		case WeaponConstants.WEAPON_KEY: 
+			typeToFind = WeaponConstants.WEAPON_THEME_WAYPOINT_TYPE;
 			break;
 
-		case KeyConstants.VEHICLE_KEY:
-			typeToFind = "VehicleTheme";
+		case VehicleConstants.VEHICLE_KEY:
+			typeToFind = VehicleConstants.VEHICLE_THEME_WAYPOINT_TYPE;
 			break;
 		
 		default:
@@ -753,15 +363,18 @@ async function getCoreList(headers, customizationCategory) {
 
 }
 
-// This function returns a list of themes for customization categories with no cores (currently can only access Body And AI).
+// This function returns a list of themes for customization categories with no cores (currently only Body & AI).
 async function getThemeList(headers, customizationCategory) {
-	const XUID = await getSecret(XUID_KEY);
+	const XUID = await getSecret(ApiConstants.SECRETS_XUID_KEY);
 
 	let retry = true;
 	let inventoryJson = {};
 
+	let url = ApiConstants.WAYPOINT_URL_BASE_ECONOMY + ApiConstants.WAYPOINT_URL_XUID_PREFIX + XUID + ApiConstants.WAYPOINT_URL_XUID_SUFFIX +
+		ApiConstants.WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY;
+
 	while (retry) {
-		inventoryJson = await wixFetch.fetch("https://economy.svc.halowaypoint.com/hi/players/xuid(" + XUID + ")/inventory", {
+		inventoryJson = await wixFetch.fetch(url, {
 				"method": "get",
 				"headers": headers
 			})
@@ -787,19 +400,19 @@ async function getThemeList(headers, customizationCategory) {
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
 			
-			headers["X-343-Authorization-Spartan"] = spartanToken;
-			headers["343-Clearance"] = clearance;
+			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
+			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
 	}
 	
 
-	// We have a list of every owned theme and a bunch of other owned items. Cores aren't really included in this, so we have to be clever. Let's get a list of matching themes first.
+	// We have a list of every owned theme and a bunch of other owned items. Let's get a list of matching themes first.
 	let typeToFind = "";
 	switch (customizationCategory) {
-		case KeyConstants.BODY_AND_AI_KEY: 
-			typeToFind = "AiTheme";
+		case BodyAndAiConstants.BODY_AND_AI_KEY: 
+			typeToFind = BodyAndAiConstants.BODY_AND_AI_THEME_WAYPOINT_TYPE;
 			break;
 		
 		default:
@@ -817,79 +430,26 @@ async function getThemeList(headers, customizationCategory) {
 	return themeArray;
 }
 
-export async function getSpartanIdPathList(headers) {
+export async function getSpartanIdPathList(headers, categorySpecificDictsAndArrays) {
 	// Query the Waypoint API.
+	if (!(categorySpecificDictsAndArrays) || categorySpecificDictsAndArrays.length != 2) { // We expect 2 dicts/arrays in this construct.
+		console.error("Unexpected length for categorySpecificDictsAndArrays. Expected 2, got ", categorySpecificDictsAndArrays.length);
+	}
 
-	let inventoryCatalogJson = await getCustomizationItem(headers, "inventory/catalog/inventory_catalog.json");
+	let customizationTypeArray = categorySpecificDictsAndArrays[0]; // 
+
+	let inventoryCatalogJson = await getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
 	let itemList = inventoryCatalogJson.Items;
 
 	let spartanIdPathArray = [];
 	for (let i = 0; i < itemList.length; ++i) {
-		if (itemList[i].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.SPARTAN_ID_KEY]) {
+		if (itemList[i].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[SpartanIdConstants.SPARTAN_ID_KEY]) {
 			spartanIdPathArray.push(itemList[i].ItemPath);
 		}
 	}
 
 	return spartanIdPathArray;
-
-	/*return new Promise ((resolve, reject) => {
-		let request = https.get(WAYPOINT_URL_GUIDE, httpOptions, (response) => {
-			let { statusCode } = response;
-			console.log(`statusCode: ${statusCode}`)
-
-			let error;
-
-			if (statusCode !== 200) {
-				error = new Error('Request Failed.\n' +
-					`Status Code: ${statusCode}`);
-			}
-
-			if (error) {
-				console.error(error.message);
-				// consume response data to free up memory
-				response.resume();
-			}
-
-			// We're expecting XML. This means we want the latin1 encoding, which replaces the legacy binary encoding.
-			response.setEncoding('latin1');
-			let responseString = '';
-
-			// Get each chunk of text from the response.
-			response.on('data', d => {
-				responseString += d;
-			});
-
-			response.on('end', () => {
-				try {
-					var waypointJson = JSON.parse(responseString);
-					let spartanIdPathArray = [];
-					//console.log(waypointJson);
-					for (let i = 0; i < waypointJson.Files.length; ++i) {
-						if (waypointJson.Files[i].Uri.Path.includes("Spartan") && !waypointJson.Files[i].Uri.Path.includes("/Voices/")) {
-							let indexOfSubPath = waypointJson.Files[i].Uri.Path.search("Inventory");
-							spartanIdPathArray.push(waypointJson.Files[i].Uri.Path.substring(indexOfSubPath));
-						}
-					}
-
-					resolve(spartanIdPathArray);
-					//var convert = require('xml-js');
-					//console.log(responseXml.length);
-					//var waypointJson = convert.xml2json(responseXml, {compact: true, spaces: 0});
-					//console.log(waypointJson);
-				}
-				catch (error) {
-					reject(`Got error: ${error.message}`)
-				}
-			})
-		});
-
-		request.on('error', error => {
-			reject(`Got error: ${error.message}`);
-		});
-
-		request.end();
-	});*/
 }
 
 // Retrieves an item's JSON file from the Waypoint API. Returns the Wix URL to the stored image. This is returned as a Promise that resolves to the URL on success.
@@ -1400,25 +960,21 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 }
 
 // This must execute only after all the cores have been added to the DB. It returns the type and core ID dicts:
-// [0]: customizationTypeIdDict
+// [0]: customizationTypeArray
 // [1]: coreIdDict
 export async function getCategorySpecificDictsAndArraysFromDbs(customizationCategory) {
-	let customizationTypeIdDict = {};
-	if (customizationCategory != KeyConstants.ARMOR_ATTACHMENT_KEY) {
-	// Time to get the ID of the matching customization type.
-	await wixData.query(CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketDb)
+	let customizationTypeArray = [];
+	// We have a bunch of useful information in the DB now. Let's get it all at once.
+	await wixData.query(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketDb)
 		.find()
 		.then((results) => {
 			if (results.items.length > 0) {
-				for (let i = 0; i < results.items.length; i++) {
-					customizationTypeIdDict[results.items[i][CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField]] = results.items[i]._id;
-				}
+				customizationTypeArray = results.items;
 			}
 			else {
 				throw "No customization types found for category " + customizationCategory;
 			}
 		});
-	}
 	
 	// Now that we have the matching customization type ID, we need to get a list of core items matching the contents of our core array.
 	// Luckily, the site and Waypoint align on the naming convention (quite intentionally).
@@ -1438,7 +994,8 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 			});
 	}
 
-	return [customizationTypeIdDict, coreIdDict];
+
+	return [customizationTypeArray, coreIdDict];
 }
 
 // This function will use the following logic:
@@ -3383,7 +2940,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		let customizationItemPathArray = await getSpartanIdPathList(headers);
 		let customizationItemPathsProcessed = [];
 
-		let spartanIdWaypointTypes = ["SpartanActionPose", "SpartanBackdropImage", "SoartanEmblem", "SpartanStance"];
+		let spartanIdWaypointTypes = ["SpartanActionPose", "SpartanBackdropImage", "SoartanEmblem"];
 
 		for (let i = 0; i < spartanIdWaypointTypes.length; ++i) {
 			let additionalItemPaths = await Waypoint.getListOfCustomizationPathsByType(spartanIdWaypointTypes[i]);
@@ -3518,8 +3075,8 @@ export function weaponImport() {
 																.then(() => console.log("Finished adding ", ["Coatings"], " for " + customizationCategoryWeapon));
 															updateDbsFromApi(headers, customizationCategoryWeapon, ["Emblems"], generalDictsAndArrays, categorySpecificDictsAndArrays)
 																.then(() => console.log("Finished adding ", ["Emblems"], " for " + customizationCategoryWeapon));
-															updateDbsFromApi(headers, customizationCategoryWeapon, ["StatTrackers", "WeaponCharms", "AmmoCounterColors", "DeathFx", "AlternateGeometryRegions"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-																.then(() => console.log("Finished adding ", ["StatTrackers", "WeaponCharms", "AmmoCounterColors", "DeathFx", "AlternateGeometryRegions"], 
+															updateDbsFromApi(headers, customizationCategoryWeapon, ["WeaponCharms", "DeathFx", "AlternateGeometryRegions"], generalDictsAndArrays, categorySpecificDictsAndArrays)
+																.then(() => console.log("Finished adding ", ["WeaponCharms", "DeathFx", "AlternateGeometryRegions"], 
 																	" for " + customizationCategoryWeapon));
 														}
 														else {
@@ -3557,8 +3114,8 @@ export function vehicleImport() {
 													.then(() => console.log("Finished adding ", ["Coatings"], " for " + customizationCategoryVehicle));
 												updateDbsFromApi(headers, customizationCategoryVehicle, ["Emblems"], generalDictsAndArrays, categorySpecificDictsAndArrays)
 													.then(() => console.log("Finished adding ", ["Emblems"], " for " + customizationCategoryVehicle));
-												updateDbsFromApi(headers, customizationCategoryVehicle, ["VehicleFx", "VehicleCharms", "Horns", "AlternateGeometryRegions"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-													.then(() => console.log("Finished adding ", ["VehicleFx", "VehicleCharms", "Horns", "AlternateGeometryRegions"], " for " + customizationCategoryVehicle));
+												updateDbsFromApi(headers, customizationCategoryVehicle, ["AlternateGeometryRegions"], generalDictsAndArrays, categorySpecificDictsAndArrays)
+													.then(() => console.log("Finished adding ", ["AlternateGeometryRegions"], " for " + customizationCategoryVehicle));
 											});
 									}
 									else {
