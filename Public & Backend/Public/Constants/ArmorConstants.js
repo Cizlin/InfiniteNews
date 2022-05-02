@@ -3,8 +3,9 @@
 // These constants are used to identify the "Any" Core and Socket options for Armor, as well as define the Armor customization section.
 export const ARMOR_KEY = "Armor";
 export const ARMOR_ATTACHMENT_KEY = "ArmorAttachments"
-export const ANY_ARMOR_CORE_ID = "25d0be25-e9dc-4b45-8e39-52b13fe29c11"; // TODO: Remove need for this constant.
-export const ANY_ARMOR_SOCKET_ID = "3bdaaf99-03cf-4d6d-93b0-b89b9cf3ccd7"; // TODO: Remove need for this constant.
+export const ANY_ARMOR_CORE_ID = "25d0be25-e9dc-4b45-8e39-52b13fe29c11";
+export const ANY_ARMOR_SOCKET_ID = "3bdaaf99-03cf-4d6d-93b0-b89b9cf3ccd7";
+export const ANY_ARMOR_ATTACHMENT_SOCKET_ID = "5783f4ba-d6ea-42be-ba82-17f202e5edee";
 export const ARMOR_CORE_CUSTOMIZATION_SECTION = "Armor Cores";
 export const ARMOR_CUSTOMIZATION_SECTION = "Armor Hall";
 export const ARMOR_CORE_DB = "ArmorCores";

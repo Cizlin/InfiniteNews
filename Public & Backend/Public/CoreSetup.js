@@ -1,16 +1,15 @@
 // Filename: public/CoreSetup.js
 // This code is designed to run on all Core selection pages (Armor Cores, Weapon Cores, and Vehicle Cores).
 
-import {session} from 'wix-storage';
-import * as KeyConstants from 'public/KeyConstants.js';
-import * as URLConstants from 'public/URLConstants.js';
+import { session } from 'wix-storage';
 
-// TODO: On each Core page, rename:
-// - button2 to coreDetailsButton
-// - text16 to coreDescription
-// - button1 to coreButton
+import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
+import * as WeaponConstants from 'public/Constants/WeaponConstants.js';
+import * as VehicleConstants from 'public/Constants/VehicleConstants.js';
 
-export function coreSetup($item, itemData, customizationSection) {
+import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
+
+export function coreSetup($item, itemData, customizationCategory) {
     //#region Setting image fitMode.
 	$item("#image2").fitMode = "fit"; // We want the images selected to fit within the image containers.
     //#endregion
@@ -23,34 +22,33 @@ export function coreSetup($item, itemData, customizationSection) {
     let socketURL; // The URL slug of the Sockets page.
     let coreURLParam; // The URL parameter for the Core.
 
-    switch (customizationSection) {
-        case KeyConstants.ARMOR_CUSTOMIZATION_SECTION:
-            anyCoreID = KeyConstants.ANY_ARMOR_CORE_ID;
-            socketURL = URLConstants.URL_ARMOR_SOCKETS;
-            coreURLParam = URLConstants.URL_ARMOR_CORE_PARAM;
+    switch (customizationCategory) {
+        case ArmorConstants.ARMOR_KEY:
+            anyCoreID = ArmorConstants.ANY_ARMOR_CORE_ID;
+            socketURL = GeneralConstants.URL_ARMOR_SOCKETS;
+            coreURLParam = GeneralConstants.URL_ARMOR_CORE_PARAM;
             break; 
 
-        case KeyConstants.WEAPON_CUSTOMIZATION_SECTION:
+        case WeaponConstants.WEAPON_KEY:
             anyCoreID = KeyConstants.ANY_WEAPON_CORE_ID;
-            socketURL = URLConstants.URL_WEAPON_SOCKETS;
-            coreURLParam = URLConstants.URL_WEAPON_CORE_PARAM;
+            socketURL = GeneralConstants.URL_WEAPON_SOCKETS;
+            coreURLParam = GeneralConstants.URL_WEAPON_CORE_PARAM;
             break; 
         
-        case KeyConstants.VEHICLE_CUSTOMIZATION_SECTION:
+        case VehicleConstants.VEHICLE_KEY:
             anyCoreID = KeyConstants.ANY_VEHICLE_CORE_ID;
-            socketURL = URLConstants.URL_VEHICLE_SOCKETS;
-            coreURLParam = URLConstants.URL_VEHICLE_CORE_PARAM;
+            socketURL = GeneralConstants.URL_VEHICLE_SOCKETS;
+            coreURLParam = GeneralConstants.URL_VEHICLE_CORE_PARAM;
             break; 
             
         default:
-            console.error("coreSetup: Failed to find matching customization section. Was given " + customizationSection);
+            console.error("coreSetup: Failed to find matching customization section. Was given " + customizationCategory);
             return;
     }
 
     // We have two cases for the URL link.
     if (itemData._id != anyCoreID) { // Armor Core specified
-        buttonLink = socketURL 
-            + "?" + coreURLParam + "=" + itemData._id;
+        buttonLink = socketURL + "?" + coreURLParam + "=" + itemData._id;
     }
     else { // Nothing specified.
         buttonLink = socketURL;

@@ -10,7 +10,10 @@ export const AVAILABLE_KEY = "availableKey";
 export const RELEASE_KEY = "releaseKey";
 export const HIDDEN_KEY = "hiddenKey";
 export const QUICK_SEARCH_KEY = "quickSearchKey";
+
 export const DEFAULT_FILTER_VALUE = "Any";
+export const DEFAULT_HIDDEN_FILTER_VALUE = "No Hidden";
+export const DEFAULT_QUICK_SEARCH_VALUE = "";
 
 export const TIMEFRAME_KEY = "timeframeKey";
 export const SHOP_TYPE_KEY = "shopTypeKey";

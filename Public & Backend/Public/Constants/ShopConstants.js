@@ -22,7 +22,6 @@ export const SHOP_AVAILABLE_DATE_ARRAY_FIELD = "availableDateArray";
 export const SHOP_PRICE_HISTORY_ARRAY_FIELD = "priceHistoryArray";
 
 export const SHOP_URL_FIELD = "link-shop-listings-itemName";
-
 export const SHOP_LISTINGS_URL_SUFFIX = "/shop-listings";
 
 export const SHOP_NUMBER_OF_CHALLENGE_SWAPS_FIELD = "numberOfChallengeSwaps";

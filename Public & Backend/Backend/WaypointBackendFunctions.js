@@ -1605,7 +1605,8 @@ export async function refreshCapstoneChallenge() {
 						newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD] =
 							item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD] || [];
 						newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD].unshift(
-							newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_LAST_AVAILABLE_DATETIME_FIELD]); // We have to add this here because we need the existing array of datetimes.
+							newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_LAST_AVAILABLE_DATETIME_FIELD]);
+						// We have to add this here because we need the existing array of datetimes.
 
 						// Add or update the available Season array.
 						let currentSeasonNum = -1; // The Season in which we are currently.
@@ -1620,7 +1621,8 @@ export async function refreshCapstoneChallenge() {
 
 							if (currentSeasonNum != previousChallengeSeason && previousChallengeSeason != -1) { 
 								// If we have a legitimate previousChallengeSeason that doesn't match.
-								// Note that this means we might transition to a different season and have the season number fail to update, but this is less likely than unintentionally resetting the week number.
+								// Note that this means we might transition to a different season and have the season number fail to update.
+								// This is less likely than unintentionally resetting the week number.
 								previousChallengeWeek = 0;
 							}
 						}
@@ -1675,7 +1677,8 @@ export async function refreshCapstoneChallenge() {
 
 							if (currentSeasonNum != previousChallengeSeason && previousChallengeSeason != -1) { 
 								// If we have a legitimate previousChallengeSeason that doesn't match.
-								// Note that this means we might transition to a different season and have the season number fail to update, but this is less likely than unintentionally resetting the week number.
+								// Note that this means we might transition to a different season and have the season number fail to update.
+								// This is less likely than unintentionally resetting the week number.
 								previousChallengeWeek = 0;
 							}
 						}
