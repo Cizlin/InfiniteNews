@@ -14,4 +14,6 @@ export const CONSUMABLES_XP_GRANT_PATH_CONTENTS = "xpgrant.json";
 export const CONSUMABLES_CREDITS_PATH_CONTENTS = "cR.json";
 
 export const CONSUMABLES_XP_BOOST_NAME = "XP Boost";
+export const CONSUMABLES_XP_GRANT_NAME = "XP Grant";
+export const CONSUMABLES_CREDITS_NAME = "Credits";
 export const CONSUMABLES_CHALLENGE_SWAP_NAME = "Challenge Swap";

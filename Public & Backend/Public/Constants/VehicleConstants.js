@@ -7,6 +7,7 @@ export const ANY_VEHICLE_SOCKET_ID = "aeba44f4-28d3-4553-9688-8940069ca118"; // 
 export const VEHICLE_CORE_CUSTOMIZATION_SECTION = "Vehicle Cores";
 export const VEHICLE_CUSTOMIZATION_SECTION = "Vehicle Bay";
 export const VEHICLE_CORE_DB = "VehicleCores";
+export const VEHICLE_CORE_WAYPOINT_ID = "VehicleCore";
 export const VEHICLE_SOCKET_DB = "VehicleSockets";
 export const VEHICLE_CUSTOMIZATION_DB = "VehicleCustomizations";
 export const VEHICLE_CORE_REFERENCE_FIELD = "vehicleCoreReferences"; // The name of the Core reference field within the Customization DB.

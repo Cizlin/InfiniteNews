@@ -110,8 +110,8 @@ export async function getMainShopListFromWaypoint(headers) {
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await getSpartanToken();
-			let clearance = await getClearance();
+			let spartanToken = await CustomizationFunctions.getSpartanToken();
+			let clearance = await CustomizationFunctions.getClearance();
 
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
@@ -157,8 +157,8 @@ export async function getHcsShopListFromWaypoint(headers) {
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await getSpartanToken();
-			let clearance = await getClearance();
+			let spartanToken = await CustomizationFunctions.getSpartanToken();
+			let clearance = await CustomizationFunctions.getClearance();
 			
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
@@ -394,6 +394,7 @@ export async function getConvertedShopList() {
 					let includedItemsArray = mainShopWaypointArray[i].IncludedItems;
 
 					for (let j = 0; j < includedItemsArray.length; j++) {
+						let foundType = false; // Should become true if the type is found.
 						for (typeCategory in typeDict) {
 							if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
 								let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
@@ -405,11 +406,16 @@ export async function getConvertedShopList() {
 									mainShopSiteJson[ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].push(SHOP_ITEM_REFERENCE_FIELD);
 								}
 
-								continue;
+								break;
                             }
 						}
 
-						console.warn("Discovered item with type " + includedItemsArray[j].ItemType + " that does not fit within an expected category.");
+						if (foundType) {
+							continue;
+						}
+						else {
+							console.warn("Discovered item with type " + includedItemsArray[j].ItemType + " that does not fit within an expected category.");
+						}
 
 						/*if (includedItemsArray[j].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.ARMOR_KEY]) {
 							let itemJson = await getCustomizationItem(headers, includedItemsArray[j].ItemPath);

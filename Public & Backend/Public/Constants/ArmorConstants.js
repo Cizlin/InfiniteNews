@@ -8,6 +8,7 @@ export const ANY_ARMOR_SOCKET_ID = "3bdaaf99-03cf-4d6d-93b0-b89b9cf3ccd7"; // TO
 export const ARMOR_CORE_CUSTOMIZATION_SECTION = "Armor Cores";
 export const ARMOR_CUSTOMIZATION_SECTION = "Armor Hall";
 export const ARMOR_CORE_DB = "ArmorCores";
+export const ARMOR_CORE_WAYPOINT_ID = "ArmorCore";
 export const ARMOR_SOCKET_DB = "ArmorSockets";
 export const ARMOR_CUSTOMIZATION_DB = "adi4LightHalfMiddleTitles";
 export const ARMOR_CUSTOMIZATION_ATTACHMENTS_DB = "ArmorCustomizationAttachments";

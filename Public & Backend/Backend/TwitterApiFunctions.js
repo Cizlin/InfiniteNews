@@ -3,14 +3,14 @@ import {getSecret} from 'wix-secrets-backend';
 
 export async function sendTweet(tweetBody, parentId = null) {
 	// Generate and send post
-	const client = new Twitter({
+	const CLIENT = new Twitter({
 		consumer_key: await getSecret("TwitterApiKey"),
 		consumer_secret: await getSecret("TwitterApiKeySecret"),
 		access_token_key: await getSecret("TwitterAccessToken"),
 		access_token_secret: await getSecret("TwitterAccessTokenSecret")
 	});
 
-	return await client.post("statuses/update", { status: tweetBody, in_reply_to_status_id: parentId, auto_populate_reply_metadata: true })
+	return await CLIENT.post("statuses/update", { status: tweetBody, in_reply_to_status_id: parentId, auto_populate_reply_metadata: true })
 		.then((tweet, error, response) => {
 			if (error) {
 				console.error(error);

@@ -7,6 +7,7 @@ export const ANY_WEAPON_SOCKET_ID = "aeba44f4-28d3-4553-9688-8940069ca118"; // T
 export const WEAPON_CORE_CUSTOMIZATION_SECTION = "Weapon Cores";
 export const WEAPON_CUSTOMIZATION_SECTION = "Weapons Bench";
 export const WEAPON_CORE_DB = "WeaponCores";
+export const WEAPON_CORE_WAYPOINT_ID = "WeaponCore";
 export const WEAPON_SOCKET_DB = "WeaponSockets";
 export const WEAPON_CUSTOMIZATION_DB = "Items";
 export const WEAPON_CORE_REFERENCE_FIELD = "weaponCoreReferences"; // The name of the Core reference field within the Customization DB.

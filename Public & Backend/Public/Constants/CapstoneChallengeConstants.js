@@ -7,6 +7,14 @@ export const CAPSTONE_CHALLENGE_SECTION = "CapstoneChallenges";
 export const CAPSTONE_CHALLENGE_CURRENTLY_AVAILABLE_FIELD = "currentlyAvailable";
 export const CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD = "fieldsWithItems";
 export const CAPSTONE_CHALLENGE_NAME_FIELD = "title";
+export const CAPSTONE_CHALLENGE_DESCRIPTION_FIELD = "description";
+export const CAPSTONE_CHALLENGE_LAST_AVAILABLE_DATETIME_FIELD = "lastAvailableDatetime";
+export const CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD = "completionThreshold";
+export const CAPSTONE_CHALLENGE_XP_REWARD_FIELD = "xpReward";
+
+export const CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD = "availableDateArray";
+export const CAPSTONE_CHALLENGE_AVAILABLE_SEASON_ARRAY_FIELD = "availableSeasonArray";
+export const CAPSTONE_CHALLENGE_AVAILABLE_WEEK_ARRAY_FIELD = "availableWeekArray";
 
 export const CAPSTONE_CHALLENGE_ARMOR_REFERENCE_FIELD = "armorItems";
 export const CAPSTONE_CHALLENGE_ARMOR_ATTACHMENT_REFERENCE_FIELD = "armorAttachmentItems";

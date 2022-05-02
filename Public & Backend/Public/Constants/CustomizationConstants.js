@@ -9,6 +9,7 @@ import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
 
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
+import * as PassConstants from 'public/Constants/PassConstants.js';
 
 // File system constants.
 export const PLACEHOLDER_IMAGE_URL = "wix:image://v1/ee59cf_76d024fd4c2a4cab80bda937a1e1c926~mv2.png/Placeholder%20Image.png#originWidth=275&originHeight=183";
@@ -23,6 +24,8 @@ export const MANUFACTURER_IMAGE_FIELD = "image";
 export const MANUFACTURER_KEY = "Manufacturer";
 
 export const RELEASE_DB = "Releases";
+export const RELEASE_IS_CURRENT_FIELD = "isCurrent";
+export const RELEASE_ORDINAL_FIELD = "ordinal";
 
 // Normally we wouldn't want to include DB IDs in these config files, but in this case, it's for performance.
 export const SOURCE_TYPE_DB = "Sources";
@@ -32,6 +35,10 @@ export const SOURCE_TYPE_PENDING_ID = "682d9532-14a9-4f27-9454-6c0d2275a4f4";
 export const SOURCE_TYPE_SHOP = "Shop";
 export const SOURCE_TYPE_SHOP_ID = "6f04a49e-7817-408c-aea9-ef7155f0df99";
 export const SOURCE_TYPE_KIT_ITEM = "Kit Item"; // The name of the Kit Item Source Type.
+export const SOURCE_TYPE_BATTLE_PASS_FREE_ID = "bbdf3b9b-ef04-498c-8b22-ac20ae5db98a";
+export const SOURCE_TYPE_BATTLE_PASS_PAID_ID = "eb4a06fa-423a-49ac-ba87-dab281442fa5";
+export const SOURCE_TYPE_EVENT_PASS_ID = "bbff99ba-c34a-46f0-adcd-a5dab25a1f65";
+export const SOURCE_TYPE_CAPSTONE_CHALLENGE_ID = "f473441a-a02f-4c96-bf99-8324d1bb23cb";
 
 // These constant define the DB name and key for the Emblem Palette DB.
 export const EMBLEM_PALETTE_DB = "EmblemPalettes";
@@ -95,6 +102,12 @@ export const IS_CUSTOMIZATION_ARRAY = [
 	BodyAndAiConstants.BODY_AND_AI_KEY,
 	SpartanIdConstants.SPARTAN_ID_KEY
 ];
+
+export const CATEGORY_TO_CORE_WAYPOINT_ID_DICT = {
+	[ArmorConstants.ARMOR_KEY]: ArmorConstants.ARMOR_CORE_WAYPOINT_ID,
+	[WeaponConstants.WEAPON_KEY]: WeaponConstants.WEAPON_CORE_WAYPOINT_ID,
+	[VehicleConstants.VEHICLE_KEY]: VehicleConstants.VEHICLE_CORE_WAYPOINT_ID
+}
 
 // If a customization type is cross-core, it will be included in an array keyed by the customization category.
 // Only keys listed in the HAS_CORE_ARRAY should be used here.
@@ -212,7 +225,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationAltTextField": "altText",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
-		"ShopReferenceField": ShopConstants.SHOP_ARMOR_REFERENCE_FIELD
+		"ShopReferenceField": ShopConstants.SHOP_ARMOR_REFERENCE_FIELD,
+		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_REFERENCE_FIELD
 	},
 
 	[ArmorConstants.ARMOR_ATTACHMENT_KEY]: {
@@ -243,7 +257,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationAltTextField": "altText",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"ParentKey": ArmorConstants.ARMOR_KEY,
-		"ShopReferenceField": ShopConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD
+		"ShopReferenceField": ShopConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD,
+		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_ATTACHMENT_REFERENCE_FIELD
 	},
 
 	[WeaponConstants.WEAPON_KEY]: {
@@ -281,7 +296,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationAltTextField": "altText",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
-		"ShopReferenceField": ShopConstants.SHOP_WEAPON_REFERENCE_FIELD
+		"ShopReferenceField": ShopConstants.SHOP_WEAPON_REFERENCE_FIELD,
+		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_WEAPON_REFERENCE_FIELD
 	},
 
 	[VehicleConstants.VEHICLE_KEY]: {
@@ -317,7 +333,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationAltTextField": "altText",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
-		"ShopReferenceField": ShopConstants.SHOP_VEHICLE_REFERENCE_FIELD
+		"ShopReferenceField": ShopConstants.SHOP_VEHICLE_REFERENCE_FIELD,
+		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_VEHICLE_REFERENCE_FIELD
 	},
 
 	[BodyAndAiConstants.BODY_AND_AI_KEY]: {
@@ -346,7 +363,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
-		"ShopReferenceField": ShopConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD
+		"ShopReferenceField": ShopConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD,
+		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_BODY_AND_AI_REFERENCE_FIELD
 	},
 
 	[SpartanIdConstants.SPARTAN_ID_KEY]: {
@@ -375,7 +393,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
-		"ShopReferenceField": ShopConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD
+		"ShopReferenceField": ShopConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD,
+		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_SPARTAN_ID_REFERENCE_FIELD
 	}
 };
 
@@ -466,9 +485,25 @@ export const CAPSTONE_CHALLENGE_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT = {
 	[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_WEAPON_REFERENCE_FIELD]: WeaponConstants.WEAPON_KEY,
 	[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_VEHICLE_REFERENCE_FIELD]: VehicleConstants.VEHICLE_KEY,
 	[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_BODY_AND_AI_REFERENCE_FIELD]: BodyAndAiConstants.BODY_AND_AI_KEY,
-	[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_SPARTAN_ID_REFERENCE_FIELD]: SpartanIdConstants.SPARTAN_ID_KEY,
-	[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_CONSUMABLE_REFERENCE_FIELD]: ConsumablesConstants.CONSUMABLES_KEY
+	[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_SPARTAN_ID_REFERENCE_FIELD]: SpartanIdConstants.SPARTAN_ID_KEY
 }
+
+export const CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT = {
+	[ArmorConstants.ARMOR_KEY]: PassConstants.PASS_RANK_ARMOR_REFERENCE_FIELD,
+	[ArmorConstants.ARMOR_ATTACHMENT_KEY]: PassConstants.PASS_RANK_ARMOR_ATTACHMENT_REFERENCE_FIELD,
+	[WeaponConstants.WEAPON_KEY]: PassConstants.PASS_RANK_WEAPON_REFERENCE_FIELD,
+	[VehicleConstants.VEHICLE_KEY]: PassConstants.PASS_RANK_VEHICLE_REFERENCE_FIELD,
+	[BodyAndAiConstants.BODY_AND_AI_KEY]: PassConstants.PASS_RANK_BODY_AND_AI_REFERENCE_FIELD,
+	[SpartanIdConstants.SPARTAN_ID_KEY]: PassConstants.PASS_RANK_SPARTAN_ID_REFERENCE_FIELD,
+	[ConsumablesConstants.CONSUMABLES_KEY]: PassConstants.PASS_RANK_CONSUMABLE_REFERENCE_FIELD
+};
+
+
+export const CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT = {
+	[ArmorConstants.ARMOR_KEY]: PassConstants.PASS_RANK_ARMOR_CORE_REFERENCE_FIELD,
+	[WeaponConstants.WEAPON_KEY]: PassConstants.PASS_RANK_WEAPON_CORE_REFERENCE_FIELD,
+	[VehicleConstants.VEHICLE_KEY]: PassConstants.PASS_RANK_VEHICLE_CORE_REFERENCE_FIELD,
+};
 
 // This is a bit special since we also have a true/false value telling whether the customization group type has attachments or not.
 // MOVED TO waypointField AND hasAttachments IN * Sockets AND * Sections

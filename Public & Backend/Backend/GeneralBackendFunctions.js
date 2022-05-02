@@ -8,7 +8,7 @@ import * as CustomizationConstants from 'public/Constants/CustomizationConstants
     ...
 }
 */
-export async function generateTypeDict() {
+export async function generateTypeDict(includeCores = false) { // If includeCores is true, we manually add the core WaypointIds.
     let typeDict = {}
 
     CustomizationConstants.IS_CUSTOMIZATION_ARRAY.forEach((category) => {
@@ -28,7 +28,11 @@ export async function generateTypeDict() {
 
                     results.items.forEach((type) => {
                         waypointIdArray.push(type[WAYPOINT_ID_FIELD]);
-                    })
+                    });
+
+                    if (includeCores) {
+                        waypointIdArray.push(CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT[category]);
+                    }
 
                     return waypointIdArray;
                 })
