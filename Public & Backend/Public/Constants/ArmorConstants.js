@@ -12,6 +12,7 @@ export const ARMOR_SOCKET_DB = "ArmorSockets";
 export const ARMOR_CUSTOMIZATION_DB = "adi4LightHalfMiddleTitles";
 export const ARMOR_CUSTOMIZATION_ATTACHMENTS_DB = "ArmorCustomizationAttachments";
 export const ARMOR_ATTACHMENT_SOCKET_DB = "ArmorAttachmentSockets";
+export const ARMOR_ATTACHMENT_SOCKET_REFERENCE_FIELD = "attachmentType"; // The name of the socket reference field within the Customization DB
 export const ARMOR_CORE_REFERENCE_FIELD = "armorCoreReferences"; // The name of the Core reference field within the Customization DB.
 export const ARMOR_SOCKET_REFERENCE_FIELD = "customizationTypeReference"; // The name of the socket reference field within the Customization DB
 export const ARMOR_SOCKET_CORE_REFERENCE_FIELD = "coreReference"; // The name of the Core reference field within the Socket DB.

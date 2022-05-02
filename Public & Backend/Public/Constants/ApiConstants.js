@@ -14,6 +14,7 @@ export const WAYPOINT_URL_BASE_ECONOMY = "https://economy.svc.halowaypoint.com/h
 
 // Use with PROGRESSION base.
 export const WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG = "inventory/catalog/inventory_catalog.json";
+export const WAYPOINT_URL_SUFFIX_PROGRESSION_METADATA = "Metadata/Metadata.json";
 
 // Use with WAYPOINT base.
 export const WAYPOINT_URL_SUFFIX_WAYPOINT_ARMOR_CORE_LIST = "armor-core-list.json";
@@ -22,6 +23,8 @@ export const WAYPOINT_URL_SUFFIX_WAYPOINT_ARMOR_CORE_LIST = "armor-core-list.jso
 export const WAYPOINT_URL_XUID_PREFIX = "xuid(";
 export const WAYPOINT_URL_XUID_SUFFIX = ")/";
 export const WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY = "inventory";
+export const WAYPOINT_URL_SUFFIX_ECONOMY_STORE_MAIN = "stores/Main";
+export const WAYPOINT_URL_SUFFIX_ECONOMY_STORE_HCS = "stores/Hcs";
 
 export const WAYPOINT_URL_GUIDE = "https://gamecms-hacs-origin.svc.halowaypoint.com/hi/Progression/guide/xo";
 

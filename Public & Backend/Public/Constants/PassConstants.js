@@ -17,7 +17,7 @@ export const PASS_VEHICLE_CORE_REFERENCE_FIELD = "vehicleCores";
 export const PASS_FOLDER = "Passes";
 
 // This dictionary contains the folders for each Pass type within the /Customization Images/Passes/ folder.
-export const SHOP_TYPE_FOLDER_DICT = {
+export const PASS_TYPE_FOLDER_DICT = {
 	[PASS_BATTLE]: "Battle Passes",
 	[PASS_EVENT]: "Event Passes"
 }

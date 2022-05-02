@@ -1,0 +1,48 @@
+import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
+
+// The type dictionary will be of the form:
+/*
+{
+    [ArmorConstants.ARMOR_KEY]: armorTypeWaypointIdArray,
+    [WeaponConstants.WEAPON_KEY]: weaponTypeWaypointIdArray,
+    ...
+}
+*/
+export async function generateTypeDict() {
+    let typeDict = {}
+
+    CustomizationConstants.IS_CUSTOMIZATION_ARRAY.forEach((category) => {
+        let retry = true;
+        let retryCount = 0;
+        const MAX_RETRIES = 10;
+
+        while (retry && retryCount < MAX_RETRIES) {
+            typeDict[category] = await wixData.query(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SocketDb)
+                .find()
+                .then((results) => {
+                    retry = false;
+
+                    let waypointIdArray = [];
+
+                    const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SocketWaypointIdField;
+
+                    results.items.forEach((type) => {
+                        waypointIdArray.push(type[WAYPOINT_ID_FIELD]);
+                    })
+
+                    return waypointIdArray;
+                })
+                .catch((error) => {
+                    console.error(error + " occurred while fetching list of customization types for " + category + "." +
+                        ((retry) ? ("Try " + (++retryCount) + " of " + MAX_RETRIES + "...") : ""));
+                    return -1;
+                });
+        }
+
+        if (retry) { // If we exceeded the max number of retries.
+            throw "Unable to get list of customization types from DB. Exiting...";
+        }
+    });
+
+    return typeDict;
+}

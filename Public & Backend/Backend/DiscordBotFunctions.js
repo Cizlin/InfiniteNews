@@ -1,6 +1,6 @@
 import {getSecret} from 'wix-secrets-backend';
 
-const channelNameToId = {
+const CHANNEL_NAME_TO_ID = {
     "shop": "926520859772981288",
     "promotions": "926524772538523668",
     "news": "926524570779926558",
@@ -8,7 +8,7 @@ const channelNameToId = {
     "test": "926520307014049792"
 };
 
-const channelNameToNotifRole = {
+const CHANNEL_NAME_TO_NOTIF_ROLE = {
     "shop": "941847238085341245",
     "promotions": "941847068434112552",
     "news": "941846560814293062",
@@ -27,11 +27,11 @@ export async function sendDiscordMessage(channel, messageText, notify = false) {
         }
     });
 
-    const channel_id = channelNameToId[channel];
+    const CHANNEL_ID = CHANNEL_NAME_TO_ID[channel];
 
     await bot.message({
-        channel: channel_id,
-        content: messageText + ((notify) ? ("\n<@&" + channelNameToNotifRole[channel] + ">") : "")
+        channel: CHANNEL_ID,
+        content: messageText + ((notify) ? ("\n<@&" + CHANNEL_NAME_TO_NOTIF_ROLE[channel] + ">") : "")
     }).then(({ status, headers, response }) => {
         console.log(status);
         console.log(headers);
@@ -48,11 +48,11 @@ export async function sendDiscordNotification(channel) {
         }
     });
 
-    const channel_id = channelNameToId[channel];
+    const CHANNEL_ID = CHANNEL_NAME_TO_ID[channel];
 
     await bot.message({
-        channel: channel_id,
-        content: "<@&" + channelNameToNotifRole[channel] + ">"
+        channel: CHANNEL_ID,
+        content: "<@&" + CHANNEL_NAME_TO_NOTIF_ROLE[channel] + ">"
     }).then(({ status, headers, response }) => {
         console.log(status);
         console.log(headers);
