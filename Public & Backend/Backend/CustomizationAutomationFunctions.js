@@ -38,7 +38,7 @@ export async function getSpartanToken(refresh = true) { // The refresh argument 
 	let spartanTokenJson; // This variable will contain the Json from our stored secret. 
 	let tokenNeededFromApi = false; // If true, we need to get a new token from the API.
 	let spartanToken = null; // This variable stores the returned token.
-	
+
 	// If it exists and hasn't expired, we can just return the token. If it has expired, we need to get a new one.
 	try {
 		spartanTokenJson = JSON.parse(await getSecret(ApiConstants.SECRETS_SPARTAN_TOKEN_KEY));
@@ -58,7 +58,7 @@ export async function getSpartanToken(refresh = true) { // The refresh argument 
 		console.warn(exception);
 		tokenNeededFromApi = true;
 	}
-	
+
 	//console.log("Token flag value: " + tokenNeededFromApi);
 
 	if (tokenNeededFromApi || refresh) {
@@ -130,7 +130,7 @@ export async function getSpartanToken(refresh = true) { // The refresh argument 
 					.catch((error) => {
 						console.error(error);
 					});
-				
+
 				spartanToken = json.data.token;
 			})
 			.catch(err => {
@@ -163,13 +163,13 @@ export async function getClearance() {
 			},
 			"body": JSON.stringify(body)
 		})
-		.then( (httpResponse) => {
+		.then((httpResponse) => {
 			if (httpResponse.ok) {
 				return httpResponse.json();
 			} else {
 				return Promise.reject("Fetch did not succeed. Got HTTP Response: " + httpResponse.status);
 			}
-		} )
+		})
 		.then((json) => {
 			return json.data.id;
 		})
@@ -198,24 +198,24 @@ export async function getCustomizationItem(headers, path) {
 	let waypointJson = {};
 
 	let retryCount = 0;
-	const maxRetries = 10; 
+	const maxRetries = 10;
 
 	while (retry && retryCount < maxRetries) {
 		waypointJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_BASE_PROGRESSION + path, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					headerFailure = true;
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -227,7 +227,7 @@ export async function getCustomizationItem(headers, path) {
 		if (retry && headerFailure) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
-			
+
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
@@ -246,19 +246,19 @@ async function getArmorCoreList(headers) {
 
 	while (retry) {
 		waypointJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_BASE_WAYPOINT + ApiConstants.WAYPOINT_URL_SUFFIX_WAYPOINT_ARMOR_CORE_LIST, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -270,7 +270,7 @@ async function getArmorCoreList(headers) {
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
-			
+
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
@@ -293,19 +293,19 @@ async function getCoreList(headers, customizationCategory) {
 
 	while (retry) {
 		inventoryJson = await wixFetch.fetch(url, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -313,29 +313,29 @@ async function getCoreList(headers, customizationCategory) {
 				console.error(err);
 				return {};
 			});
-		
+
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
-			
+
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
 	}
-	
+
 	// We have a list of every owned theme and a bunch of other owned items. Cores aren't really included in this, so we have to be clever. Let's get a list of matching themes first.
 	let typeToFind = "";
 	switch (customizationCategory) {
-		case WeaponConstants.WEAPON_KEY: 
+		case WeaponConstants.WEAPON_KEY:
 			typeToFind = WeaponConstants.WEAPON_THEME_WAYPOINT_TYPE;
 			break;
 
 		case VehicleConstants.VEHICLE_KEY:
 			typeToFind = VehicleConstants.VEHICLE_THEME_WAYPOINT_TYPE;
 			break;
-		
+
 		default:
 			throw customizationCategory + " is not an allowed customization category. Exiting.";
 	}
@@ -379,19 +379,19 @@ async function getThemeList(headers, customizationCategory) {
 
 	while (retry) {
 		inventoryJson = await wixFetch.fetch(url, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -399,26 +399,26 @@ async function getThemeList(headers, customizationCategory) {
 				console.error(err);
 				return {};
 			});
-		
+
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
-			
+
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
 	}
-	
+
 
 	// We have a list of every owned theme and a bunch of other owned items. Let's get a list of matching themes first.
 	let typeToFind = "";
 	switch (customizationCategory) {
-		case BodyAndAiConstants.BODY_AND_AI_KEY: 
+		case BodyAndAiConstants.BODY_AND_AI_KEY:
 			typeToFind = BodyAndAiConstants.BODY_AND_AI_THEME_WAYPOINT_TYPE;
 			break;
-		
+
 		default:
 			throw customizationCategory + " is not an allowed customization category. Exiting.";
 	}
@@ -458,9 +458,11 @@ export async function getSpartanIdPathList(headers, categorySpecificDictsAndArra
 		}
 	});
 
+	//console.log("Valid Spartan ID types for", waypointGroupsToProcess, validWaypointTypes);
+
 	let spartanIdPathArray = [];
 	for (let i = 0; i < itemList.length; ++i) {
-		if (itemList[i].ItemType in validWaypointTypes) {
+		if (validWaypointTypes.includes(itemList[i].ItemType)) {
 			spartanIdPathArray.push(itemList[i].ItemPath);
 		}
 	}
@@ -546,8 +548,8 @@ export async function generateFolderDict() {
 	// Still need to fetch the file URL, but that should be quick. Speed. I am speed.
 
 	console.log("Starting folder dict generation.");
-	let folderDict = {  
-		"/": { }
+	let folderDict = {
+		"/": {}
 	};
 
 	let rootFolderList = await mediaManager.listFolders();
@@ -575,7 +577,7 @@ export async function generateFolderDict() {
 		folderDict["/"][customizationImageFolderName + "/"][element.folderName + "/"] = { "_id": element.folderId }
 		parentFolderId = element.folderId;
 		customizationCategoryFolderName = element.folderName;
-		
+
 		// For each of these category folders, we need to get the folders within.
 		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
@@ -589,14 +591,14 @@ export async function generateFolderDict() {
 			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][typeElement.folderName + "/"] = { "_id": typeElement.folderId }
 			parentFolderId = typeElement.folderId;
 			customizationTypeFolderName = typeElement.folderName;
-			
+
 			// Same for the type folders.
 			let customizationTypeFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 			let customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
 			customizationTypeFileList.forEach((file) => {
 				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
 			});
-			
+
 			let customizationCoreFolderName;
 			for (let k = 0; k < customizationTypeFolderList.length; k++) {
 				let coreElement = customizationTypeFolderList[k];
@@ -604,7 +606,7 @@ export async function generateFolderDict() {
 				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][coreElement.folderName + "/"] = { "_id": coreElement.folderId }
 				parentFolderId = coreElement.folderId;
 				customizationCoreFolderName = coreElement.folderName;
-			
+
 				// And for attachments, the parent customization type...
 				let customizationCoreFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 				let customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
@@ -616,7 +618,7 @@ export async function generateFolderDict() {
 					let parentTypeElement = customizationCoreFolderList[l];
 					// This is actually insane at this point. Beware the giant AF line below!
 					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"] = { "_id": parentTypeElement.folderId }
-					
+
 					let customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentTypeElement.folderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT })
 					customizationParentTypeFileList.forEach((file) => {
 						// Even larger line here. :(
@@ -639,7 +641,7 @@ export async function generateFolderDict() {
 				wixData.save(KeyConstants.KEY_VALUE_DB, item);
 			}
 			else {
-				wixData.save(KeyConstants.KEY_VALUE_DB, {"key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY, "value": folderDict});
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY, "value": folderDict });
 			}
 		})
 }
@@ -692,7 +694,8 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		folderExists = false;
 	}
 
-	const CATEGORY_FOLDER = GeneralConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT[customizationCategory];
+	//console.log(customizationCategory, CustomizationConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT);
+	const CATEGORY_FOLDER = CustomizationConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT[customizationCategory];
 	if (folderExists && ((CATEGORY_FOLDER + "/") in subFolderDict)) {
 		subFolderDict = subFolderDict[CATEGORY_FOLDER + "/"];
 	}
@@ -709,7 +712,7 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		// The types listed below all use the DB to store their folder information. We only use the constant dicts if we aren't working with them.
 		if (!(CustomizationConstants.IS_CUSTOMIZATION_ARRAY.includes(customizationCategory))) {
 
-			const TYPE_FOLDER = GeneralConstants.CUSTOMIZATION_TYPE_FOLDER_DICT[customizationCategory][customizationType];
+			const TYPE_FOLDER = CustomizationConstants.CUSTOMIZATION_TYPE_FOLDER_DICT[customizationCategory][customizationType];
 			mediaPath = mediaPath + TYPE_FOLDER + "/";
 			if (folderExists && ((TYPE_FOLDER + "/") in subFolderDict)) {
 				subFolderDict = subFolderDict[TYPE_FOLDER + "/"];
@@ -804,7 +807,7 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		}
 	}
 
-	
+
 	//console.log("Item Directory Path: " + mediaPath);
 
 	let fileSystemSafeTitle = title.replace(/[\\/?:]/g, "_"); // Clean out some of the common illegal characters (\, /, ?, :).
@@ -835,25 +838,25 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 // This function compares the contents of two arrays and returns true if the contents match, regardless of order.
 // Graciously provided by Maciej Krawczyk at https://stackoverflow.com/questions/6229197/how-to-know-if-two-arrays-have-the-same-values
 function arrayCompare(_arr1, _arr2) {
-    if (
-      !Array.isArray(_arr1)
-      || !Array.isArray(_arr2)
-      || _arr1.length !== _arr2.length
-      ) {
-        return false;
-      }
-    
-    // .concat() to not mutate arguments
-    const arr1 = _arr1.concat().sort();
-    const arr2 = _arr2.concat().sort();
-    
-    for (let i = 0; i < arr1.length; i++) {
-        if (arr1[i] !== arr2[i]) {
-            return false;
-         }
-    }
-    
-    return true;
+	if (
+		!Array.isArray(_arr1)
+		|| !Array.isArray(_arr2)
+		|| _arr1.length !== _arr2.length
+	) {
+		return false;
+	}
+
+	// .concat() to not mutate arguments
+	const arr1 = _arr1.concat().sort();
+	const arr2 = _arr2.concat().sort();
+
+	for (let i = 0; i < arr1.length; i++) {
+		if (arr1[i] !== arr2[i]) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 export function getCurrentDateTimeString() {
@@ -879,7 +882,7 @@ export function getCurrentDateTimeString() {
 	while (minuteString.length < 2) {
 		minuteString = "0" + minuteString;
 	}
-	
+
 	var secondString = today.getSeconds().toString();
 	while (secondString.length < 2) {
 		secondString = "0" + secondString;
@@ -900,7 +903,7 @@ function markItemAsChanged(itemJson, originalJson, fieldChanged, customizationCa
 		needsReviewField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNeedsReviewField;
 	}
 	itemJson[needsReviewField] = true;
-	
+
 	var datetime = getCurrentDateTimeString();
 
 	let changeLogField = "";
@@ -962,7 +965,7 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 	// Finally, we do the manufacturer. This one's unique and assumes that the manufacturers returned by this query exactly match those in metadata/Metadata.json.
 	let manufacturerArray = [];
 	await wixData.query(CustomizationConstants.MANUFACTURER_DB)
-		.ascending(CustomizationConstants.MANUFACTURER_FIELD)
+		.ascending(CustomizationConstants.MANUFACTURER_ORDINAL_FIELD) // Sort by ordinal.
 		.ne(CustomizationConstants.MANUFACTURER_FIELD, "(Pending)") // These two manufacturers were added manually and should not be included.
 		.ne(CustomizationConstants.MANUFACTURER_FIELD, "N/A")
 		.find()
@@ -1004,20 +1007,20 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 	while (retry && retryCount < maxRetries) {
 		console.log("Fetching guide/xo JSON at " + ApiConstants.WAYPOINT_URL_GUIDE);
 		guideJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_GUIDE, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Try " + (++retryCount) + " of " + maxRetries + "... " +
 						"Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -1025,11 +1028,11 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 				console.error(err);
 				throw "Unable to obtain guide/xo JSON from Waypoint. Aborting...";
 			});
-		
+
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
-			
+
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 		}
@@ -1049,7 +1052,7 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 			console.log("Skipping " + file.Uri.Path);
 		}*/
 	}
-	
+
 	return [qualityDict, releaseDict, manufacturerArray, sourceTypeDict, eTagDict];
 }
 
@@ -1076,7 +1079,7 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 				throw "No customization types found for category " + customizationCategory;
 			}
 		});
-	
+
 	// Now that we have the matching customization type ID, we need to get a list of core items matching the contents of our core array.
 	// Luckily, the site and Waypoint align on the naming convention (quite intentionally).
 	let coreIdDict = {};
@@ -1141,8 +1144,9 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 // forceCheck: If this is true, then full comparison processing will be performed, even if the ETag matches (this is necessary for items with attachments since 
 // those relations aren't made in the item's JSON).
 export async function getCustomizationItemToSave(folderDict, headers, customizationCategory, customizationDetails, generalDictsAndArrays, categorySpecificDictsAndArrays, forceCheck = false) {
+	//console.log(customizationDetails);
 	// If we don't have variables defined for the customization category, we need to get out now. Everything will break otherwise.
-	if(!(customizationCategory in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS)) {
+	if (!(customizationCategory in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS)) {
 		console.error("Invalid customizationCategory value: " + customizationCategory);
 		return -1;
 	}
@@ -1206,7 +1210,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 					existingItem = null;
 				}
 			})
-			.catch ((error) => {
+			.catch((error) => {
 				console.error(error + " occurred. Try " + (++retryCount) + " of " + maxRetries + "...");
 			});
 	}
@@ -1217,15 +1221,19 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	}
 
 	// Check to see if the ETag has changed, suggesting the item itself has changed.
-	if (existingItem 
-		&& existingItem.itemETag 
-		&& existingItem.itemETag != "" 
+	if (existingItem
+		&& existingItem.itemETag
+		&& existingItem.itemETag != ""
 		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]
 		&& !forceCheck) {
-		
+
+		//console.log("Skipping " + customizationDetails.Title + ", ETag: " + existingItem.itemETag);
+
 		// The ETag is identical. No need to process further.
 		return 1;
 	}
+
+	//console.log(existingItem);
 
 	// We need to get the corresponding IDs for the reference fields. Let's begin with customizationTypeReference.
 
@@ -1250,7 +1258,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	else {
 		customizationType = { "_id": null };
 	}
-	
+
 	// Now that we have the matching customization type ID, we need to get a list of core items matching the contents of our core array.
 	let coreIdArray = [];
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory))) {
@@ -1294,7 +1302,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 							throw "Did not return any matching attachments from the attachment DB. Was looking for " + customizationDetails.Attachments.toString();
 						}
 					})
-					.catch ((error) => {
+					.catch((error) => {
 						console.error(error + " occurred. Try " + (++retryCount) + " of " + maxRetries + "...");
 					});
 			}
@@ -1388,7 +1396,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			}
 		}
 	}
-	
+
 	// We learned about the .include() function, so we can just iterate over each item in our core array to get the IDs. (Die query!!!)
 	let originalCoreIds = [];
 	if (existingItem &&
@@ -1570,7 +1578,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	// If we found an existing item, we need to compare some of the existing fields with the new ones to see if it should be added.
 	//console.log(existingItem);
 	if (existingItem) {
-		//console.log ("Updating existing item.");
+		//console.log ("Updating existing item.", existingItem);
 
 		let itemJson = structuredClone(existingItem); // We start with the original fields in the item, but we need to make a copy.
 		let changed = false; // If the item is changed this flag will be made true. Allows us to avoid adding unnecessary JSONs to our DB array.
@@ -1844,7 +1852,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			const API_LAST_UPDATED_DATETIME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationApiLastUpdatedDatetimeField;
 			itemJson[API_LAST_UPDATED_DATETIME_FIELD] = new Date();
 		}
-		
+
 		//console.log(existingItem);
 		//console.log(itemJson);
 		itemJsonToInsert = itemJson;
@@ -2042,7 +2050,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 */
 async function getCoreItemToSave(folderDict, headers, customizationCategory, customizationDetails, generalDictsAndArrays) {
 	// If we don't have variables defined for the customization category, we need to get out now. Everything will break otherwise.
-	if(!(customizationCategory in CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS)) {
+	if (!(customizationCategory in CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS)) {
 		console.error("Invalid customizationCategory value for getCoreItemToSave: " + customizationCategory);
 		return -1;
 	}
@@ -2063,8 +2071,8 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 	let eTagDict = generalDictsAndArrays[4];
 
 	// This is used for pointing out the Cores folder when adding images.
-	let siteCustomizationType = CustomizationConstants.ITEM_TYPES.core; 
-	
+	let siteCustomizationType = CustomizationConstants.ITEM_TYPES.core;
+
 	// We need to check a few things before we can see if the item already has an entry.
 	// For one, we can guarantee uniqueness by checking for items with matching name.
 	// It's already time to select the item (wow, so easy!)
@@ -2094,7 +2102,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 					existingItem = null;
 				}
 			})
-			.catch ((error) => {
+			.catch((error) => {
 				console.error(error + " occurred while fetching core matching ID " + customizationDetails.WaypointId + ". Try " + (++retryCount) + " of " + maxRetries);
 			});
 	}
@@ -2105,15 +2113,15 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 	}
 
 	// Check to see if the ETag has changed, suggesting the item itself has changed.
-	if (existingItem 
-		&& existingItem.itemETag 
-		&& existingItem.itemETag != "" 
+	if (existingItem
+		&& existingItem.itemETag
+		&& existingItem.itemETag != ""
 		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]) {
-		
+
 		// The ETag is identical. No need to process further.
 		return 1;
 	}
-	
+
 	// The next step is to compare the current item with things in our arguments, but we need to translate some name into IDs, namely for quality, manufacturer, and release.
 	// Let's start with quality.
 	let qualityId = "";
@@ -2162,7 +2170,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 			itemJson = returnedJsons[0];
 			existingItem = returnedJsons[1];
 		}
-		
+
 		let newImageUrl = await getCustomizationImageUrl(
 			folderDict,
 			headers,
@@ -2336,7 +2344,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 // isKitItem: Only true if the item belongs to a Kit.
 // kitChildItemArray: Array of Kit Items, for addition to the Kit item itself.
 // kitChildAttachmentArray: Array of Kit Attachments, for addition to the Kit item itself.
-export function getCustomizationDetailsFromWaypointJson(customizationCategory, waypointJson, options) {
+export function getCustomizationDetailsFromWaypointJson(customizationCategory, waypointJson, options = {}) {
 	// options can contain (defaults shown)
 	/* categorySpecificDictsAndArrays = null,	// Required for all non-core item additions.
 	 * itemType = null,							// Only required for core items.
@@ -2500,14 +2508,14 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 
 // Keys are Configuration IDs and values are true/false. 
 // A true value means the ID is being processed currently, and a false value or nonexistent key means the ID is free to process.
-let lockedEmblemPaletteConfigurationIdsDict = {}; 
+let lockedEmblemPaletteConfigurationIdsDict = {};
 
 // Keys are Configuration IDs and values are corresponding DB IDs.
-let processedEmblemPaletteConfigurationIdsDict = {}; 
+let processedEmblemPaletteConfigurationIdsDict = {};
 
 // This will let us sleep while waiting for a Configuration ID to be unlocked.
 function sleep(ms) {
-  	return new Promise(resolve => setTimeout(resolve, ms));
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // This function accepts the "AvailableConfigurations" array from an emblem item, adds the Emblem Palettes from the array to the DB if necessary, and returns an array of DbIds.
@@ -2527,7 +2535,7 @@ async function addEmblemPalettesToDb(emblemPalettePathArray, folderDict, headers
 		// We're doing a simple active wait to ensure a configuration ID is only processed once at a time. 
 		// This isn't perfect since the below check isn't atomic, but it should be just enough (I think...)
 		while (emblemPalettePathObject.ConfigurationId in lockedEmblemPaletteConfigurationIdsDict && lockedEmblemPaletteConfigurationIdsDict[emblemPalettePathObject.ConfigurationId]) {
-			let randSleepMs = Math.floor(Math.random() * 1000) + 1000; 
+			let randSleepMs = Math.floor(Math.random() * 1000) + 1000;
 			// Sleeping for a random amount of time gives a much smaller likelihood of two threads reprocessing simultaneously (shouldn't really matter, but it doesn't hurt to avoid it).
 			console.log("Emblem Palette Configuration ID " + emblemPalettePathObject.ConfigurationId + " is currently locked. Sleeping for " + randSleepMs + " ms.");
 			await sleep(randSleepMs);
@@ -2562,7 +2570,7 @@ async function addEmblemPalettesToDb(emblemPalettePathArray, folderDict, headers
 						}
 					})
 					.catch((error) => {
-						console.error(error + " occurred while validating emblem configuration ID " + emblemPalettePathObject.ConfigurationId + "." + 
+						console.error(error + " occurred while validating emblem configuration ID " + emblemPalettePathObject.ConfigurationId + "." +
 							((retry) ? ("Try " + (++retryCount) + " of " + maxRetries + "...") : ""));
 						return -1;
 					});
@@ -2571,7 +2579,7 @@ async function addEmblemPalettesToDb(emblemPalettePathArray, folderDict, headers
 			if (emblemPaletteDbId == -1) { // If the emblem palette config ID fetch failed.
 				throw "Failed to confirm presence of Emblem Palette Configuration ID" + emblemPalettePathObject.ConfigurationId;
 			}
-			
+
 			if (!emblemPaletteDbId) {
 				// Let's add the emblem palette. We need to get all the field data now.
 				let emblemPaletteWaypointJson = await getCustomizationItem(headers, emblemPalettePathObject.ConfigurationPath);
@@ -2612,7 +2620,7 @@ async function addEmblemPalettesToDb(emblemPalettePathArray, folderDict, headers
 							return results;
 						})
 						.catch((error) => {
-							console.error(error + " occurred while adding emblem configuration ID " + emblemPalettePathObject.ConfigurationId + " to DB." + 
+							console.error(error + " occurred while adding emblem configuration ID " + emblemPalettePathObject.ConfigurationId + " to DB." +
 								((retry) ? ("Try " + (++retryCount) + " of " + maxRetries + "...") : ""));
 							return null;
 						});
@@ -2666,7 +2674,7 @@ async function processItem(headers,
 	itemWaypointPath,
 	itemType,
 	itemPathsProcessed,
-	options) {
+	options = {}) {
 
 	/* options can contain (defaults shown here):
 	 * coreWaypointId = "",					// Required for items with cores (and attachments).
@@ -2715,7 +2723,7 @@ async function processItem(headers,
 	}
 
 	itemPathsProcessed.push(itemWaypointPath);
-	
+
 	// Get the item.
 	let itemWaypointJson = await getCustomizationItem(headers, itemWaypointPath);
 
@@ -2784,7 +2792,7 @@ async function processItem(headers,
 
 	// Get the details for the core to pass into our site JSON generation function.
 	let itemDetails;
-	
+
 	itemDetails = getCustomizationDetailsFromWaypointJson(
 		customizationCategory,
 		itemWaypointJson,
@@ -2801,10 +2809,10 @@ async function processItem(headers,
 	);
 
 	// Add the Emblem Palettes to the itemDetails JSON.
-	itemDetails.EmblemPalettes = emblemPaletteDbIds; 
+	itemDetails.EmblemPalettes = emblemPaletteDbIds;
 
 	let itemSiteJson;
-	
+
 	if (itemType == CustomizationConstants.ITEM_TYPES.core) {
 		// If we're working with a core, add the Waypoint JSON to the array, get the site JSON, and add the themes and core Waypoint ID to the dictionary.
 		if (!("coreWaypointJsonArray" in options)) {
@@ -2826,7 +2834,7 @@ async function processItem(headers,
 			itemDetails,
 			generalDictsAndArrays
 		);
-	
+
 		itemWaypointJson.Themes.OptionPaths.forEach((waypointThemePath) => {
 			options.waypointThemePathToCoreDict[waypointThemePath] = itemWaypointJson.CommonData.Id;
 		});
@@ -2868,14 +2876,14 @@ async function generateJsonsFromItemList(
 	customizationItemDbArray,
 	customizationItemPathsProcessed,
 	customizationItemPathArray,
-	options) {
+	options = {}) {
 
 	/* options can include (with defaults):
 	 * waypointThemePathToCoreDict = {},	// Required for non-cross-core items.
 	 * isKitItem = false,					// Required for kit items.
 	 * customizationWaypointIdArray = []	// Required for kit items and kits.
 	 */
-	
+
 	for (let k = 0; k < customizationItemPathArray.length; ++k) {
 		try {
 			let itemPath = customizationItemPathArray[k];
@@ -2938,7 +2946,7 @@ async function generateJsonsFromItemAndAttachmentList(
 	customizationItemPathsProcessed,
 	itemAndAttachmentsArray,
 	type,
-	options) {
+	options = {}) {
 
 	/* options can include (defaults shown here):
 	 * waypointThemePathToCoreDict = {},			// Required for non-cross-core items.
@@ -2946,12 +2954,12 @@ async function generateJsonsFromItemAndAttachmentList(
 	 * customizationWaypointIdArray = [],			// Required for kit items and kits.
 	 * customizationWaypointAttachmentIdArray = []  // Required for kit attachments, kits, and items with attachments.
 	 */
-	
+
 	// We're working with an item type that has attachments. This means it's laid out a little differently. 
 	// Before we can fetch the item details, we have to add the attachments to the DB. This is a little hacky, but what isn't at this point?
 	// We'll generate a dictionary where the path of each item points to an array of attachment names.
 	// Once we have that dictionary completed and all the attachment items added to their DB, we can proceed to work on the helmets.
-	
+
 	let parentPathToAttachmentArrayDict = {}; // The key of this dict will be the path to the attachment parent item, and its value will be an array of attachment names.
 	let attachmentPathToIdDict = {}; // The keys will be attachment paths and the values will be the corresponding Waypoint IDs.
 	let customizationItemAttachmentPathsProcessed = []; // As long as we can tie the attachment path to an ID, we don't have to process a path twice.
@@ -3083,7 +3091,7 @@ async function generateJsonsFromThemeList(
 
 	if (waypointGroupsToProcess.includes(CustomizationConstants.KIT_PROCESSING_KEY)) { // Skip the Kits if we aren't working on them.
 		let kitPathsProcessed = []; // An array of Kit paths that have already been processed.
-	
+
 		// The key of this dict will be the path to the parent kit, and its value will be another dict with "attachments" and "items" for keys, each having an array of item Waypoint IDs as the value:
 		//{
 		//	[kitPath]: {
@@ -3091,10 +3099,10 @@ async function generateJsonsFromThemeList(
 		//		items: [itemWaypointIdArray]
 		//	} 
 		//}
-		let kitPathToItemArrayDict = {}; 
+		let kitPathToItemArrayDict = {};
 		let kitItemPathsProcessed = []; // As long as we can tie the attachment path to a name, we don't have to process a path twice.
 		let kitItemDbArray = []; // These need to be added separately.
-		
+
 		for (let l = 0; l < themePathArray.length; ++l) {
 			let kitPath = themePathArray[l];
 			if (kitPathsProcessed.includes(kitPath)) {
@@ -3114,9 +3122,9 @@ async function generateJsonsFromThemeList(
 
 				let customizationTypeArray = categorySpecificDictsAndArrays[0]; // We only need this one for our purposes.
 
-				const TYPE_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS.SocketNameField;
-				const TYPE_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS.SocketWaypointFieldField;
-				const TYPE_HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS.SocketHasAttachmentsField;
+				const TYPE_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
+				const TYPE_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
+				const TYPE_HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketHasAttachmentsField;
 
 				for (let i = 0; i < customizationTypeArray.length; ++i) {
 					let type = customizationTypeArray[i];
@@ -3225,7 +3233,7 @@ async function generateJsonsFromThemeList(
 			}
 		}
 	}
-	
+
 	for (let j = 0; j < themePathArray.length; j++) { // For each theme.
 		if (customizationItemPathsProcessed.includes(themePathArray[j])) { // If we already have the path in the array, we've processed this already. No need to do it twice.
 			continue;
@@ -3241,9 +3249,9 @@ async function generateJsonsFromThemeList(
 
 			let customizationTypeArray = categorySpecificDictsAndArrays[0]; // We only need this one for our purposes.
 
-			const TYPE_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS.SocketNameField;
-			const TYPE_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS.SocketWaypointFieldField;
-			const TYPE_HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS.SocketHasAttachmentsField;
+			const TYPE_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
+			const TYPE_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
+			const TYPE_HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketHasAttachmentsField;
 
 			for (let i = 0; i < customizationTypeArray.length; ++i) {
 				let type = customizationTypeArray[i];
@@ -3252,6 +3260,7 @@ async function generateJsonsFromThemeList(
 				}
 
 				if (!waypointGroupsToProcess.includes(type[TYPE_WAYPOINT_FIELD_FIELD])) {
+					console.log(type);
 					continue; // We'll get this in a different run.
 				}
 
@@ -3273,7 +3282,7 @@ async function generateJsonsFromThemeList(
 						{
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict
 						}
-					);					
+					);
 				}
 				else {
 					// We're working with an item type that has attachments. This means it's laid out a little differently. 
@@ -3330,7 +3339,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 
 		while (retryItem && retryCount < maxRetries) {
 			await wixData.save(CUSTOMIZATION_DB, itemCopy, options)
-				.then (async (item) => {
+				.then(async (item) => {
 					retryItem = false;
 					console.log("Item added or updated: ", customizationItemDbJson);
 
@@ -3346,7 +3355,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) &&
 						CORE_REFERENCE_FIELD in customizationItemDbJson) {
 						//console.log("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
-						
+
 						let retry = true;
 						let retryCount = 0;
 
@@ -3357,7 +3366,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 									//console.log("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
-									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing core references for ", item._id, " in ", 
+									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing core references for ", item._id, " in ",
 										CUSTOMIZATION_DB, " with ", customizationItemDbJson[CORE_REFERENCE_FIELD]);
 								});
 						}
@@ -3377,7 +3386,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 									//console.log("Attachment references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
-									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing attachment references for ", item._id, 
+									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing attachment references for ", item._id,
 										" in ", CUSTOMIZATION_DB, " with ", customizationItemDbJson[ATTACHMENT_REFERENCE_FIELD]);
 								});
 						}
@@ -3449,7 +3458,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					if (CustomizationConstants.HAS_EMBLEM_PALETTES_ARRAY.includes(customizationCategory) &&
 						customizationItemDbJson[EMBLEM_PALETTE_REFERENCE_FIELD] &&
 						customizationItemDbJson[EMBLEM_PALETTE_REFERENCE_FIELD].length > 0) {
-						 // If the item has the Emblem Palette reference field, we need to insert the references.
+						// If the item has the Emblem Palette reference field, we need to insert the references.
 						//console.log("Emblem: " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has palettes ", customizationItemDbJson[emblemPaletteReferenceField]);
 						let retry = true;
 						let retryCount = 0;
@@ -3512,7 +3521,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 	else if (customizationCategory == WeaponConstants.WEAPON_KEY || customizationCategory == VehicleConstants.VEHICLE_KEY) {
 		coreList = await getCoreList(headers, customizationCategory);
 	}
-	
+
 	let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
 
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
@@ -3522,7 +3531,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		if (waypointGroupsToProcess.includes(CustomizationConstants.CORE_PROCESSING_KEY)) {
 			// We want to do two things with this iteration: get each JSON for insertion/update into the core DB, and create the waypointThemePathToCoreDict.
 			// The keys will be the Waypoint Paths to each child theme, and the values will be the corresponding core name.
-			try{
+			try {
 				let corePathsProcessed = [];
 
 				for (let i = 0; i < coreList.length; i++) {
@@ -3591,8 +3600,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 					let coreWaypointJson = await getCustomizationItem(headers, coreList[i]);
 					coreWaypointJsonArray.push(coreWaypointJson);
 					coreWaypointJson.Themes.OptionPaths.forEach((waypointThemePath) => {
-							waypointThemePathToCoreDict[waypointThemePath] = coreWaypointJson.CommonData.Id;
-						});
+						waypointThemePathToCoreDict[waypointThemePath] = coreWaypointJson.CommonData.Id;
+					});
 				}
 				catch (error) {
 					console.error("Error occurred while retrieving core list: " + error);
@@ -3606,7 +3615,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		// There's an easy way to check this with the IsKit field.
 		let customizationItemPathsProcessed = []; // If we already have a path in this array, we don't need to process it again.
 
-		try{
+		try {
 			for (let i = 0; i < coreWaypointJsonArray.length; i++) {
 				let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
 				let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
@@ -3638,6 +3647,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		let themePathArray = await getThemeList(headers, customizationCategory);
 		let customizationItemPathsProcessed = []; // If we already have a path in this array, we don't need to process it again.
 
+		console.log(themePathArray);
+
 		await generateJsonsFromThemeList(
 			headers,
 			customizationCategory,
@@ -3652,6 +3663,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 	}
 	else { // This applies for theme-less customization categories (i.e. Spartan ID).
 		let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
+		//console.log("Spartan ID Paths to Process: ", customizationItemPathArray);
 		let customizationItemPathsProcessed = [];
 
 		/*let spartanIdWaypointTypes = ["SpartanActionPose", "SpartanBackdropImage", "SpartanEmblem"];
@@ -3700,22 +3712,29 @@ export async function importManufacturers(headers) {
 
 	let manufacturerDbArray = [];
 
-	let manufacturerDbResults = await wixData.query(CustomizationConstants.MANUFACTURER_DB).find();
+	let manufacturerDbResults = await wixData.query(CustomizationConstants.MANUFACTURER_DB)
+		.ne(CustomizationConstants.MANUFACTURER_FIELD, "N/A") // We know this will be in there but don't really want it.
+		.find();
 
-	let manufacturerDbNameArray = [];
-
-	// Add the existing Manufacturer names to an array.
-	for (let i = 0; i < manufacturerDbResults.items.length; ++i){
-		manufacturerDbNameArray.push(manufacturerDbResults.items[i].manufacturer);
-	}
+	let manufacturerApiNameArray = []; // We want to know which names didn't appear in the API list.
 
 	// Manufacturer DB JSONs have two fields we're interested in adding: the name and image of the manufacturer. The manufacturers are listed alphabetically, which simplifies things.
 	for (let i = 0; i < manufacturerArray.length; ++i) {
-		if (manufacturerDbNameArray.includes(manufacturerArray[i].ManufacturerName)) { 
+		manufacturerApiNameArray.push(manufacturerArray[i].ManufacturerName);
+		/*if (manufacturerDbNameArray.includes(manufacturerArray[i].ManufacturerName)) { 
 			// We're not going to process existing manufacturers since we don't have a good way to automatically recollect the Manufacturer Image when it changes.
 			// To grab new info, delete the image from the file directory and delete the manufacturer from the DB (don't do this around 9:00 A.M. PST/8:00 A.M. PDT though.)
 			continue;
-		}
+		}*/
+
+		// We need the ID to update an existing item.
+		let existingDbId = null;
+		manufacturerDbResults.items.some((manufacturerObject) => {
+			if (manufacturerObject[CustomizationConstants.MANUFACTURER_FIELD] == manufacturerArray[i].ManufacturerName) {
+				existingDbId = manufacturerObject._id;
+				return true;
+			}
+		});
 
 		let manufacturerDbJson = {
 			[CustomizationConstants.MANUFACTURER_FIELD]: manufacturerArray[i].ManufacturerName,
@@ -3726,18 +3745,36 @@ export async function importManufacturers(headers) {
 				manufacturerArray[i].ManufacturerLogoImage,
 				"image/png",
 				CustomizationConstants.MANUFACTURER_KEY,
-				null)
+				"Manufacturer"),
+			[CustomizationConstants.MANUFACTURER_ORDINAL_FIELD]: i // We're using the index as the Manufacturer Ordinal since alphabetical order can no longer be guaranteed.
+		}
+
+		if (existingDbId) {
+			manufacturerDbJson._id = existingDbId;
 		}
 
 		manufacturerDbArray.push(manufacturerDbJson);
 	}
 
+	manufacturerDbResults.items.forEach((dbManufacturer) => {
+		if (!manufacturerApiNameArray.includes(dbManufacturer[CustomizationConstants.MANUFACTURER_FIELD])) {
+			// We already filtered out N/A, so anything that appears in our DB but not in the metadata.json is defunct. Set the ordinal to 9999 for us to delete later.
+			dbManufacturer[CustomizationConstants.MANUFACTURER_ORDINAL_FIELD] = 9999;
+			manufacturerDbArray.push(dbManufacturer);
+		}
+	});
+
 	if (manufacturerDbArray.length > 0) {
-		await wixData.bulkInsert(CustomizationConstants.MANUFACTURER_DB, manufacturerDbArray)
-		.then((results) => {
-			console.log("Manufacturers have been inserted with these results: ", results);
-		});
+		await wixData.bulkSave(CustomizationConstants.MANUFACTURER_DB, manufacturerDbArray)
+			.then((results) => {
+				console.log("Manufacturers have been saved with these results: ", results);
+			});
 	}
+	else {
+		console.log("Finished manufacturer import. No manufacturers to update");
+	}
+
+
 }
 
 export async function armorImport(headers = null, manufacturerImportCompleted = false) {
