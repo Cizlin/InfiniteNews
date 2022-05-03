@@ -500,7 +500,7 @@ export function initialItemListSetup(customizationCategory) {
                 break; 
 
             default:
-                console.error("initialItemListSetup: Failed to find matching customization section. Was given " + customizationSection);
+                console.error("initialItemListSetup: Failed to find matching customization section. Was given " + customizationCategory);
                 return -1;
         }
         //#endregion

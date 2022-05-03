@@ -396,7 +396,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"SocketWaypointFieldField": "waypointField",
 		"SocketHasAttachmentsField": "hasAttachments",
 		"SocketMediaFolderField": "mediaFolder",
-		"AnySocketId": BodyAndAiIdConstants.ANY_BODY_AND_AI_SOCKET_ID,
+		"AnySocketId": BodyAndAiConstants.ANY_BODY_AND_AI_SOCKET_ID,
 		"CustomizationDb": BodyAndAiConstants.BODY_AND_AI_CUSTOMIZATION_DB,
 		"CustomizationNameField": "itemName",
 		"CustomizationSocketReferenceField": BodyAndAiConstants.BODY_AND_AI_SOCKET_REFERENCE_FIELD,

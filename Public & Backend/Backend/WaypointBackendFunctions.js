@@ -119,9 +119,9 @@ async function getItemData(headers, path) {
 
 export async function getPassList(passPath, headers=null) {
     if (!headers) {
-		headers = await Customization.makeWaypointHeaders();
+		headers = await CustomizationFunctions.makeWaypointHeaders();
 	}
-	let passJson = await Customization.getCustomizationItem(headers, passPath);
+	let passJson = await CustomizationFunctions.getCustomizationItem(headers, passPath);
 	let rankArray = [];
 	/* Items in the rank array will be of the form {
 		rank: [rank],
@@ -344,9 +344,9 @@ export async function processRank(
 			// In order to avoid adding duplicate ranks, we need to retrieve the ID of the existing rank from the DB (if it exists). 
 			// Ranks are defined by the rank, isPremium, and parentPass fields. We need to match all three.
 			let existingRankResults = await wixData.query(PassConstants.PASS_RANK_DB)
-				.eq([PassConstants.PASS_RANK_RANK_FIELD], rankDbJson[PassConstants.PASS_RANK_RANK_FIELD])
-				.eq([PassConstants.PASS_RANK_IS_PREMIUM_FIELD], rankDbJson[PassConstants.PASS_RANK_IS_PREMIUM_FIELD])
-				.eq([PassConstants.PASS_RANK_PARENT_PASS_FIELD], rankDbJson[PassConstants.PASS_RANK_PARENT_PASS_FIELD])
+				.eq(PassConstants.PASS_RANK_RANK_FIELD, rankDbJson[PassConstants.PASS_RANK_RANK_FIELD])
+				.eq(PassConstants.PASS_RANK_IS_PREMIUM_FIELD, rankDbJson[PassConstants.PASS_RANK_IS_PREMIUM_FIELD])
+				.eq(PassConstants.PASS_RANK_PARENT_PASS_FIELD, rankDbJson[PassConstants.PASS_RANK_PARENT_PASS_FIELD])
 				.find()
 				.catch((error) => {
 					console.error(error + " occurred while looking for existing rank matching ", rankDbJson);
@@ -389,7 +389,7 @@ export async function processRank(
 
 
 				for (let k = 0; k < CustomizationConstants.IS_CUSTOMIZATION_ARRAY.length; ++k) {
-					const CUSTOMIZATION_CATEGORY = CUSTOMIZATION_CATEGORY_ARRAY[k];
+					const CUSTOMIZATION_CATEGORY = CustomizationConstants.IS_CUSTOMIZATION_ARRAY[k];
 					//if (itemType in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[CUSTOMIZATION_CATEGORY]) {
 					if (typeDict[CUSTOMIZATION_CATEGORY].includes(itemType)) {
 						itemTypeMatched = true;
@@ -537,7 +537,7 @@ export async function processRank(
 											// We just want to insert the source type in this case.
 											wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, matchingItem._id, [sourceIdToUse])
 												.then (() => {
-													console.log("Added source type reference for item " + matchingItem._id + " in DB " + customizationDb);
+													console.log("Added source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
 												})
 												.catch((error) => {
 													console.error("Error", error, "occurred while adding source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
@@ -1069,7 +1069,7 @@ export async function getListOfCustomizationPathsByType(waypointType) {
 // This function returns the JSON representation of the player's current Challenge decks.
 export async function getCurrentChallengeDecks() {
 	// The headers for this request are quite unique. If we try to pass a 343 Clearance value, it will forbid us from access. We also want to force a JSON response since it's easier for us.
-	let spartanToken = await Customization.getSpartanToken(false);
+	let spartanToken = await CustomizationFunctions.getSpartanToken(false);
 	let headers = {
 		[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER]: spartanToken,
 		"Accept": "application/json, text/plain, */*"
@@ -1176,7 +1176,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 
 	for (let j = 0; j < includedItemsArray.length; j++) {
 		let foundType = false; // Should become true if the type is found.
-		for (typeCategory in typeDict) {
+		for (let typeCategory in typeDict) {
 			if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
 				foundType = true;
 				let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPathh);
@@ -1287,7 +1287,7 @@ export async function getPreviousAvailableCapstoneChallenge() {
 		for (let j = 0; j < currentlyAvailableCapstoneChallenges[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].length; ++j) {
 			const FIELD = currentlyAvailableCapstoneChallenges[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][j];
 			currentlyAvailableCapstoneChallenges[i][FIELD] =
-				await wixData.queryReferenced(CapstonChallengeConstants.CAPSTONE_CHALLENGE_DB, currentlyAvailableCapstoneChallenges[i]._id, FIELD)
+				await wixData.queryReferenced(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB, currentlyAvailableCapstoneChallenges[i]._id, FIELD)
 				.then((results) => {
 					let idArray = [];
 					results.items.forEach((item) => {
@@ -1507,7 +1507,7 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 			updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD];
 
 		if (returning) {
-			let lastAvailableDateString = getLongMonthDayYearFromDate(lastAvailableDatetime);
+			let lastAvailableDateString = GeneralFunctions.getLongMonthDayYearFromDate(lastAvailableDatetime);
 			mainTweetText += "\n - Last Available: " + lastAvailableDateString;
 		}
 

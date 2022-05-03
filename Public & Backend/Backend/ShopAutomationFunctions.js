@@ -34,7 +34,7 @@ import {sendTweet} from 'backend/TwitterApiFunctions.jsw';
 import {sendDiscordMessage} from 'backend/DiscordBotFunctions.jsw';
 import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
-import * as GeneralBackendFunctions from 'backend/GeneralFunctions.jsw';
+import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
 
 
 // Gets a list of all currently available shop items, including the items contained within bundles.
@@ -395,7 +395,7 @@ export async function getConvertedShopList() {
 
 					for (let j = 0; j < includedItemsArray.length; j++) {
 						let foundType = false; // Should become true if the type is found.
-						for (typeCategory in typeDict) {
+						for (let typeCategory in typeDict) {
 							if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
 								let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
 
@@ -515,7 +515,7 @@ export async function getConvertedShopList() {
 				}
 				catch (error) {
 					console.error("Try " + (++retryCount) + " of " + maxRetries + ". Failed to add ", mainShopWaypointArray[i], " due to error ", error);
-					await sleep(2000);
+					await GeneralFunctions.sleep(2000);
 
 					if (retryCount >= maxRetries) {
 						throw "Exceeded max retry attempts while trying to add " + mainShopWaypointArray[i].OfferingId;
@@ -840,7 +840,7 @@ async function addBundleToDb(shopBundleJson) {
 			addedBundle._id,
 			FIELD,
 			shopBundleJson[FIELD],
-			referenceFieldToCategoryDict[FIELD],
+			CustomizationConstants.SHOP_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT[FIELD],
 			shopBundleJson[ShopConstants.SHOP_ITEM_NAME_FIELD],
 			shopBundleJson[ShopConstants.SHOP_COST_CREDITS_FIELD],
 			shopBundleJson[ShopConstants.SHOP_IS_HCS_FIELD]

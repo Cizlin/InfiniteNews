@@ -1,6 +1,5 @@
 import wixData from 'wix-data';
 
-import * as ItemSetupFunctions from 'public/ItemSetup.js';
 import * as GeneralFunctions from 'public/General.js';
 
 import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
@@ -10,7 +9,6 @@ import * as BodyAndAiConstants from 'public/Constants/BodyAndAiConstants.js';
 import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
 
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
-import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
 
 $w.onReady(async function () {
 	// Set the initial datetime to last Tuesday.

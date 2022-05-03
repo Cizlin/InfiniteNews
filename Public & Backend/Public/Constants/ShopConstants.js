@@ -54,8 +54,8 @@ export const SHOP_TYPE_FOLDER_DICT = {
 
 // This dictionary converts Waypoint Shop types to ones recognized by the site.
 export const SHOP_WAYPOINT_TO_SITE_TYPE_DICT = {
-	"Daily": KeyConstants.SHOP_DAILY,
-	"Weekly": KeyConstants.SHOP_WEEKLY,
-	"": KeyConstants.SHOP_INDEFINITE,
-	"HCS": KeyConstants.SHOP_HCS // This needs to be supplied manually when querying this JSON structure. Does not come directly from Waypoint like the others.
+	"Daily": SHOP_DAILY,
+	"Weekly": SHOP_WEEKLY,
+	"": SHOP_INDEFINITE,
+	"HCS": SHOP_HCS // This needs to be supplied manually when querying this JSON structure. Does not come directly from Waypoint like the others.
 }

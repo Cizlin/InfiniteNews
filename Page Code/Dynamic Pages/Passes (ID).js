@@ -1,7 +1,6 @@
 import wixData from 'wix-data';
 import { session } from 'wix-storage';
 
-import * as KeyConstants from 'public/KeyConstants.js';
 import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';

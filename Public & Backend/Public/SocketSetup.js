@@ -34,7 +34,7 @@ export function initialSocketSetup(customizationCategory) {
     //#endregion
 
     //#region Checking to see if Core filtering is necessary (i.e. we are working with Armor, Weapons, or Vehicles).
-    let filterByCore = (customizationCategory in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT);; // By default, we don't need to do core filtering
+    let filterByCore = (customizationCategory in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT); // By default, we don't need to do core filtering
     //#endregion
 
     if (filterByCore) {

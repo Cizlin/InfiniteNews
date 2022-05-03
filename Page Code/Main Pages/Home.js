@@ -2,6 +2,7 @@ import * as CustomizationConstants from 'public/Constants/CustomizationConstants
 import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
+import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
 
 import wixData from 'wix-data';
 
@@ -74,10 +75,10 @@ $w.onReady(async function () {
 			const CUSTOMIZATION_IMAGE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationImageField;
 			const CUSTOMIZATION_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationNameField;
 
-			$item("#ultimateChallengeButton").link = childItem[CUSTOMIZATION_URL_FIELD];
-			$item("#ultimateChallengeImage").src = childItem[CUSTOMIZATION_IMAGE_FIELD];
-			$item("#ultimateChallengeImage").fitMode = "fit";
-			$item("#ultimateChallengeRewardText").text = childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType;
+			$w("#ultimateChallengeButton").link = childItem[CUSTOMIZATION_URL_FIELD];
+			$w("#ultimateChallengeImage").src = childItem[CUSTOMIZATION_IMAGE_FIELD];
+			$w("#ultimateChallengeImage").fitMode = "fit";
+			$w("#ultimateChallengeRewardText").text = childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType;
 		}
 		else {
 			console.error("No rewards found for this capstone challenge: " + ultimateChallenge);

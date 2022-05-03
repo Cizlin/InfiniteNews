@@ -6,7 +6,7 @@ import * as CustomizationConstants from 'public/Constants/CustomizationConstants
 $w.onReady(function () {
 	//console.log("Image Credit Text has ID " + $w("#imageCreditText").id);
 	const CUSTOMIZATION_CATEGORY = ArmorConstants.ARMOR_KEY;
-	initialItemSetup(CUSTOMIZATION_CATEGORY);
+	ItemSetupFunctions.initialItemSetup(CUSTOMIZATION_CATEGORY);
 
 	const ATTACHMENT_KEY = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].AttachmentKey;
 	const ATTACHMENT_PARENT_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationParentReferenceField;

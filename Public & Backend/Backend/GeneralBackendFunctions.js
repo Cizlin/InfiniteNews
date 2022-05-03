@@ -1,5 +1,7 @@
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 
+import wixData from 'wix-data';
+
 // The type dictionary will be of the form:
 /*
 {
@@ -11,7 +13,8 @@ import * as CustomizationConstants from 'public/Constants/CustomizationConstants
 export async function generateTypeDict(includeCores = false) { // If includeCores is true, we manually add the core WaypointIds.
     let typeDict = {}
 
-    CustomizationConstants.IS_CUSTOMIZATION_ARRAY.forEach((category) => {
+    for (let i = 0; i < CustomizationConstants.IS_CUSTOMIZATION_ARRAY.length; ++i) {
+        let category = CustomizationConstants.IS_CUSTOMIZATION_ARRAY[i];
         let retry = true;
         let retryCount = 0;
         const MAX_RETRIES = 10;
@@ -46,7 +49,7 @@ export async function generateTypeDict(includeCores = false) { // If includeCore
         if (retry) { // If we exceeded the max number of retries.
             throw "Unable to get list of customization types from DB. Exiting...";
         }
-    });
+    }
 
     return typeDict;
 }
