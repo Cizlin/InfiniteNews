@@ -50,8 +50,8 @@ $w.onReady(function () {
 			"armorAttachment": ArmorConstants.ARMOR_ATTACHMENT_KEY,
 			"weapon": WeaponConstants.WEAPON_KEY,
 			"vehicle": VehicleConstants.VEHICLE_KEY,
-			"bodyAndAi": BodyAndAiConstants.BODY_AND_AI_KEY,
-			"spartanId": SpartanIdConstants.SPARTAN_ID_KEY,
+			"bodyAndAI": BodyAndAiConstants.BODY_AND_AI_KEY,
+			"spartanID": SpartanIdConstants.SPARTAN_ID_KEY,
 			"consumable": ConsumablesConstants.CONSUMABLES_KEY
 		};
 

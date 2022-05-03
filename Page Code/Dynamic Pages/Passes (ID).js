@@ -202,7 +202,7 @@ $w.onReady(function () {
 						childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]];
 
 					let sourceString = ""; // The string we'll be using for the SourceText box.
-					if (CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
+					if (!categoryIsCore && CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
 						// If we're dealing with a normal customization item or consumable(s).
 						await wixData.queryReferenced(itemDb, childItem._id, CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SourceTypeField"])
 							.then((results) => {
@@ -231,7 +231,7 @@ $w.onReady(function () {
 					$item("#" + repeaterType + "ItemSourceText").text = sourceString;
 
 					let customizationTypeString = ""; // The string we'll be using for the CustomizationTypeText box.
-					if (CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
+					if (!categoryIsCore && CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
 						if (CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
 							// Armor attachments really need to have their type added as a DB field in case more attachment types appear in the future. 
 							// For now, let's just assume they're Helmet Attachments.
@@ -255,7 +255,7 @@ $w.onReady(function () {
 						}
 						else {
 							// In general, we can just use the customization type referenced by the childItem.
-							let customizationTypeResults = await wixData.query(CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SocketDb"])
+							let customizationTypeResults = await wixData.query(CATEGORY_SPECIFIC_VARS["SocketDb"])
 								.eq("_id", childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SocketReferenceField"]])
 								.find();
 
