@@ -40,8 +40,11 @@ export const SOURCE_TYPE_SHOP = "Shop";
 export const SOURCE_TYPE_SHOP_ID = "6f04a49e-7817-408c-aea9-ef7155f0df99";
 export const SOURCE_TYPE_KIT_ITEM = "Kit Item"; // The name of the Kit Item Source Type.
 export const SOURCE_TYPE_BATTLE_PASS_FREE_ID = "bbdf3b9b-ef04-498c-8b22-ac20ae5db98a";
+export const SOURCE_TYPE_BATTLE_PASS_FREE = "Battle Pass - Free";
 export const SOURCE_TYPE_BATTLE_PASS_PAID_ID = "eb4a06fa-423a-49ac-ba87-dab281442fa5";
+export const SOURCE_TYPE_BATTLE_PASS_PAID = "Battle Pass - Paid";
 export const SOURCE_TYPE_EVENT_PASS_ID = "bbff99ba-c34a-46f0-adcd-a5dab25a1f65";
+export const SOURCE_TYPE_EVENT_PASS = "Event Pass";
 export const SOURCE_TYPE_CAPSTONE_CHALLENGE_ID = "f473441a-a02f-4c96-bf99-8324d1bb23cb";
 
 // These constant define the DB name and key for the Emblem Palette DB.
@@ -230,7 +233,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationSourceField": "source",
 		"CustomizationSourceTypeField": "sourceTypeReference",
 		"CustomizationWaypointIdField": "waypointId",
-		"CustomizationAttachmentReferenceField": "ArmorCustomizationAttachments",
+		"CustomizationAttachmentReferenceField": ArmorConstants.ARMOR_CUSTOMIZATION_ATTACHMENTS_REFERENCE_FIELD,
 		"CustomizationKitItemReferenceField": "adi4LightHalfMiddleTitles",
 		"CustomizationKitAttachmentReferenceField": "ArmorCustomizationAttachments-1",
 		"CustomizationItemETagField": "itemETag",
@@ -241,11 +244,13 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationImageCreditField": "imageCredit",
+		"CustomizationUrlField": "link-armor-customizations-itemName",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"ShopReferenceField": ShopConstants.SHOP_ARMOR_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_ARMOR_CUSTOMIZATION,
+		"UrlSockets": GeneralConstants.URL_ARMOR_SOCKETS,
 		"UrlCoreParam": GeneralConstants.URL_ARMOR_CORE_PARAM,
 		"UrlSocketParam": GeneralConstants.URL_ARMOR_SOCKET_PARAM,
 		"DefaultCoreName": "All Armor Cores",
@@ -280,7 +285,9 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationImageCreditField": "imageCredit",
+		"CustomizationUrlField": "link-armor-customization-attachments-itemName",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
+		"CustomizationParentReferenceField": ArmorConstants.ARMOR_CUSTOMIZATION_ATTACHMENTS_PARENT_REFERENCE_FIELD,
 		"ParentKey": ArmorConstants.ARMOR_KEY,
 		"ShopReferenceField": ShopConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_ATTACHMENT_REFERENCE_FIELD
@@ -322,11 +329,13 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationImageCreditField": "imageCredit",
+		"CustomizationUrlField": "link-items-title",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"ShopReferenceField": ShopConstants.SHOP_WEAPON_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_WEAPON_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_WEAPON_CUSTOMIZATION,
+		"UrlSockets": GeneralConstants.URL_WEAPON_SOCKETS,
 		"UrlCoreParam": GeneralConstants.URL_WEAPON_CORE_PARAM,
 		"UrlSocketParam": GeneralConstants.URL_WEAPON_SOCKET_PARAM,
 		"DefaultCoreName": "All Weapon Cores",
@@ -367,11 +376,13 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationImageCreditField": "imageCredit",
+		"CustomizationUrlField": "link-vehicle-customizations-title",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"ShopReferenceField": ShopConstants.SHOP_VEHICLE_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_VEHICLE_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_VEHICLE_CUSTOMIZATION,
+		"UrlSockets": GeneralConstants.URL_VEHICLE_SOCKETS,
 		"UrlCoreParam": GeneralConstants.URL_VEHICLE_CORE_PARAM,
 		"UrlSocketParam": GeneralConstants.URL_VEHICLE_SOCKET_PARAM,
 		"DefaultCoreName": "All Vehicle Cores",
@@ -405,6 +416,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationImageCreditField": "imageCredit",
+		"CustomizationUrlField": "link-body-ai-customizations-itemName-2",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"ShopReferenceField": ShopConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_BODY_AND_AI_REFERENCE_FIELD,
@@ -440,6 +452,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationImageCreditField": "imageCredit",
+		"CustomizationUrlField": "link-presentation-customizations-title",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"ShopReferenceField": ShopConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_SPARTAN_ID_REFERENCE_FIELD,
@@ -471,6 +484,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreCurrentlyAvailableField": "currentlyAvailable",
 		"CoreFolder": "Armor Cores",
 		"CoreType": "Armor Core",
+		"CoreUrlField": "link-armor-cores-name",
 		"AnyCoreId": ArmorConstants.ANY_ARMOR_CORE_ID
 	},
 
@@ -495,6 +509,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreCurrentlyAvailableField": "currentlyAvailable",
 		"CoreFolder": "Weapon Cores",
 		"CoreType": "Weapon Core",
+		"CoreUrlField": "link-weapon-cores-name",
 		"AnyCoreId": WeaponConstants.ANY_WEAPON_CORE_ID
 	},
 
@@ -519,6 +534,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreCurrentlyAvailableField": "currentlyAvailable",
 		"CoreFolder": "Vehicle Cores",
 		"CoreType": "Vehicle Core",
+		"CoreUrlField": "link-vehicle-cores-name",
 		"AnyCoreId": VehicleConstants.ANY_VEHICLE_CORE_ID
 	}
 };
@@ -558,6 +574,22 @@ export const CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT = {
 	[WeaponConstants.WEAPON_KEY]: PassConstants.PASS_RANK_WEAPON_CORE_REFERENCE_FIELD,
 	[VehicleConstants.VEHICLE_KEY]: PassConstants.PASS_RANK_VEHICLE_CORE_REFERENCE_FIELD,
 };
+
+export const PASS_RANK_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT = {
+	[PassConstants.PASS_RANK_ARMOR_REFERENCE_FIELD]: ArmorConstants.ARMOR_KEY,
+	[PassConstants.PASS_RANK_ARMOR_ATTACHMENT_REFERENCE_FIELD]: ArmorConstants.ARMOR_ATTACHMENT_KEY,
+	[PassConstants.PASS_RANK_WEAPON_REFERENCE_FIELD]: WeaponConstants.WEAPON_KEY,
+	[PassConstants.PASS_RANK_VEHICLE_REFERENCE_FIELD]: VehicleConstants.VEHICLE_KEY,
+	[PassConstants.PASS_RANK_BODY_AND_AI_REFERENCE_FIELD]: BodyAndAiConstants.BODY_AND_AI_KEY,
+	[PassConstants.PASS_RANK_SPARTAN_ID_REFERENCE_FIELD]: SpartanIdConstants.SPARTAN_ID_KEY,
+	[PassConstants.PASS_RANK_CONSUMABLE_REFERENCE_FIELD]: ConsumablesConstants.CONSUMABLES_KEY
+}
+
+export const PASS_RANK_ITEM_FIELD_CORE_CATEGORY_DICT = {
+	[PassConstants.PASS_RANK_ARMOR_CORE_REFERENCE_FIELD]: ArmorConstants.ARMOR_KEY,
+	[PassConstants.PASS_RANK_WEAPON_CORE_REFERENCE_FIELD]: WeaponConstants.WEAPON_KEY,
+	[PassConstants.PASS_RANK_VEHICLE_CORE_REFERENCE_FIELD]: VehicleConstants.VEHICLE_KEY
+}
 
 // This is a bit special since we also have a true/false value telling whether the customization group type has attachments or not.
 // MOVED TO waypointField AND hasAttachments IN * Sockets AND * Sections

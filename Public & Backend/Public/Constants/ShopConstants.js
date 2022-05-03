@@ -1,8 +1,6 @@
 // Filename: public/Constants/ShopConstants.js
 // Constants used to manage the Shop DBs.
 
-
-
 // These constants define the Shop Listings section.
 export const SHOP_KEY = "Shop";
 export const SHOP_LISTINGS_SECTION = "Shop Listings";

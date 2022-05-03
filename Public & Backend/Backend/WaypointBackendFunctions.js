@@ -12,7 +12,7 @@ import structuredClone from '@ungap/structured-clone';
 
 // Import constants.
 import * as KeyConstants from 'public/Constants/KeyConstants.js';
-import * as ShopConstants from 'public/Constants/ShopConstants.js';
+import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as ApiConstants from 'public/Constants/ApiConstants.js';
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
@@ -26,7 +26,6 @@ import * as ShopFunctions from 'backend/ShopAutomationFunctions.jsw';
 import * as DiscordFunctions from 'backend/DiscordBotFunctions.jsw';
 import * as TwitterFunctions from 'backend/TwitterApiFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
-import { PASS_ARMOR_CORE_REFERENCE_FIELD } from '../Public/Constants/PassConstants';
 
 // MOVED TO SOCKET/SECTION DBS.
 /*const WAYPOINT_TO_SITE_CUSTOMIZATION_TYPES = {
@@ -371,9 +370,15 @@ export async function processRank(
 			//#endregion
 
 			//#region Process the customization rewards.
-			for (const FIELD in CustomizationConstants.PASS_RANK_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT) {
+			for (const KEY in CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT) {
+				const FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT[KEY];
 				rankDbJson[FIELD] = []; // Initialize each customization item list with an empty array.
-            }
+			}
+
+			for (const KEY in CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT) {
+				const FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT[KEY];
+				rankDbJson[FIELD] = []; // Initialize each customization item list with an empty array.
+			}
 
 			let customizationArray = ((isPremium) ? rank.premiumItems : rank.freeItems);
 

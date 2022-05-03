@@ -9,7 +9,7 @@ import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 
 // This code is used to set up customization item pages.
-export function initialItemSetup(customizationCategory) {
+export function initialItemSetup(customizationCategory, isCore = false) {
 	//#region Configuring image settings for all applicable images.
     $w("#itemImage").fitMode = "fixedWidth";
 
@@ -29,7 +29,7 @@ export function initialItemSetup(customizationCategory) {
         //#endregion
 
 		if ($w("#imageCreditText").id) {
-			const IMAGE_CREDIT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationImageCreditField;
+			const IMAGE_CREDIT_FIELD = (!isCore) ? CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationImageCreditField : null;
 			if (currentItem[IMAGE_CREDIT_FIELD]) {
 				$w("#imageCreditText").text = "Image Credit: " + currentItem[IMAGE_CREDIT_FIELD];
 			}
@@ -79,7 +79,7 @@ export function initialItemSetup(customizationCategory) {
         //#endregion
 
         //#region Checking to see if the Core text is present (i.e. we are working with Armor, Weapons, or Vehicles).
-		let hasCoreText = (customizationCategory in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT);
+		let hasCoreText = (customizationCategory in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT) && !isCore;
         //#endregion
 
         if (hasCoreText) {
@@ -119,7 +119,9 @@ export function initialItemSetup(customizationCategory) {
 		let currentlyAvailableField = null;
 
 		if (CustomizationConstants.IS_CUSTOMIZATION_ARRAY.includes(customizationCategory)) {
-			currentlyAvailableField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCurrentlyAvailableField;
+			currentlyAvailableField = (!isCore) ?
+				CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCurrentlyAvailableField
+				: CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreCurrentlyAvailableField;
 		}
 		else {
 			switch (customizationCategory) {

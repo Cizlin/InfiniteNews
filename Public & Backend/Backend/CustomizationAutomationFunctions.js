@@ -24,10 +24,6 @@ import * as ApiConstants from 'public/Constants/ApiConstants.js';
 import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
-import * as PassConstants from 'public/Constants/PassConstants.js';
-
-// Import helper functions.
-import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 //#endregion
 
 // Retrieves the Spartan Token, either from HaloDotAPI or the SpartanToken secret with the following value format:

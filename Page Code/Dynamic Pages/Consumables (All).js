@@ -1,8 +1,6 @@
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/1-hello-world
-import {CONSUMABLES_SECTION} from 'public/KeyConstants.js';
-import {initialItemListSetup} from 'public/ItemListSetup.js';
+import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
+import * as ItemListSetup from 'public/Constants/ItemListSetup.js';
 
 $w.onReady(function () {
-	initialItemListSetup(CONSUMABLES_SECTION);
+	ItemListSetup.initialItemListSetup(ConsumablesConstants.CONSUMABLES_KEY);
 });

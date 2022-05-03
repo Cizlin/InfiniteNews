@@ -1,14 +1,16 @@
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/1-hello-world
-
 import wixData from 'wix-data';
+import { session } from 'wix-storage';
+
 import * as KeyConstants from 'public/KeyConstants.js';
-import {session} from 'wix-storage';
-import {paginationKey} from 'public/Pagination.js';
-import {getLongMonthDayYearFromDate} from 'public/General.js';
+import * as PassConstants from 'public/Constants/PassConstants.js';
+import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
+import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
+
+import { paginationKey } from 'public/Pagination.js';
+import * as GeneralFunctions from 'public/General.js';
 
 // These are all the fields that could possibly hold items for each rank and their URL fields.
-const CHILD_ITEM_FIELD_NAMES_TO_URL_DICT = {
+/*const CHILD_ITEM_FIELD_NAMES_TO_URL_DICT = {
 	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: "link-armor-customizations-itemName", 
 	[KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD]: "link-armor-customization-attachments-itemName", 
 	[KeyConstants.SHOP_WEAPON_REFERENCE_FIELD]: "link-items-title",
@@ -64,7 +66,7 @@ const CHILD_ITEM_FIELD_NAMES_TO_SOCKET_DB_DICT = {
 	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: KeyConstants.VEHICLE_SOCKET_DB,
 	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: KeyConstants.BODY_AND_AI_SOCKET_DB,
 	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: KeyConstants.SPARTAN_ID_SOCKET_DB,
-}
+}*/
 
 function loadRankPage(pageNumber) {
 	$w("#freePassRanksDataset").loadPage(pageNumber);
@@ -85,11 +87,11 @@ function setPassPaginationIndexFromSave() {
     }
 }
 
-function convertDateObjectToMMDDYYYYString(date) {
+/*function convertDateObjectToMMDDYYYYString(date) {
 	return ((date.getMonth() > 8) ? (date.getMonth() + 1) : ('0' + (date.getMonth() + 1))) + '/' 
 		+ ((date.getDate() > 9) ? date.getDate() : ('0' + date.getDate())) + '/' 
 		+ date.getFullYear();
-}
+}*/
 
 function showCorrectAvailability(currentlyAvailable) {
 	if (currentlyAvailable) {
@@ -108,25 +110,25 @@ $w.onReady(function () {
 		let currentPass = $w("#dynamicDataset").getCurrentItem();
 
 		// First, we should display the correct pass type, set the proper date explanation, and show the applicable availability.
-		if (currentPass.isEvent) {
-			$w("#passTypeText").text = "Event Pass";
+		if (currentPass[PassConstants.PASS_IS_EVENT_FIELD]) {
+			$w("#passTypeText").text = PassConstants.PASS_EVENT;
 			$w("#datesFeaturedExplanationText").text = "The Event Pass can only be progressed during these timeframes.";
-			showCorrectAvailability(currentPass.currentlyAvailable);
+			showCorrectAvailability(currentPass[PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD]);
 			$w("#premiumItemContainer").hide(); // Event Passes are 100% free for now, so let's not confuse fans.
 		}
 		else {
-			$w("#passTypeText").text = "Battle Pass";
+			$w("#passTypeText").text = PassConstants.PASS_BATTLE;
 			$w("#datesFeaturedExplanationText").text = "The Battle Pass can be progressed at any time during and after these timeframes.";
 			showCorrectAvailability(true); // Battle Passes are always available after release.
 		}
 
 		// Next, we need to display the date intervals during which the pass is available/featured.
-		for (let i = 0; i < currentPass.dateRangeArray.length; ++i) {
-			let startDate = new Date(currentPass.dateRangeArray[i].startDate);
-			let endDate = new Date(currentPass.dateRangeArray[i].endDate);
+		for (let i = 0; i < currentPass[PassConstants.PASS_DATE_RANGE_ARRAY_FIELD].length; ++i) {
+			let startDate = new Date(currentPass[PassConstants.PASS_DATE_RANGE_ARRAY_FIELD][i][PassConstants.PASS_DATE_RANGE_ARRAY_START_DATE_FIELD]);
+			let endDate = new Date(currentPass[PassConstants.PASS_DATE_RANGE_ARRAY_FIELD][i][PassConstants.PASS_DATE_RANGE_ARRAY_END_DATE_FIELD]);
 
-			let startDateString = getLongMonthDayYearFromDate(startDate); //convertDateObjectToMMDDYYYYString(startDate);
-			let endDateString = getLongMonthDayYearFromDate(endDate); //convertDateObjectToMMDDYYYYString(endDate);
+			let startDateString = GeneralFunctions.getLongMonthDayYearFromDate(startDate); //convertDateObjectToMMDDYYYYString(startDate);
+			let endDateString = GeneralFunctions.getLongMonthDayYearFromDate(endDate); //convertDateObjectToMMDDYYYYString(endDate);
 
 			if (i == 0) {
 				$w("#datesAvailableText").text = startDateString + " - " + endDateString;
@@ -145,22 +147,13 @@ $w.onReady(function () {
 				//console.log(itemData);
 				// First, we need to figure out which child item category actually has items.
 				let categoryWithItems = "";
-				if (itemData.fieldsWithItems.length > 0) { // We're just going to grab the first category and item for now.
-					categoryWithItems = itemData.fieldsWithItems[0];
-					let queryResults = await wixData.queryReferenced(KeyConstants.PASS_RANK_DB, itemData._id, categoryWithItems);
+				if (itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].length > 0) { // We're just going to grab the first category and item for now.
+					categoryWithItems = itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD][0];
+					let queryResults = await wixData.queryReferenced(PassConstants.PASS_RANK_DB, itemData._id, categoryWithItems);
 					if (queryResults.items.length > 0) {
 						itemData[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
 					}
 				}
-
-				/*for (let fieldName in CHILD_ITEM_FIELD_NAMES_TO_URL_DICT) {
-					let queryResults = await wixData.queryReferenced(KeyConstants.PASS_RANK_DB, itemData._id, fieldName);
-					if (queryResults.items.length > 0) {
-						categoryWithItems = fieldName;
-						itemData[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
-						break;
-					}
-				}*/
 
 				if (categoryWithItems == "") { // Some ranks won't have any items in them, particularly some free ranks in Battle Passes.
 					// We want to say something like "no rewards here" or something. 
@@ -171,20 +164,48 @@ $w.onReady(function () {
 					$item("#" + repeaterType + "ItemTypeText").text = "";
 				}
 				else {
-					let itemDb = CHILD_ITEM_FIELD_NAMES_TO_DB_DICT[categoryWithItems]; // The DB containing the item.
+					let categoryIsCore = null; // If we're working with a core.
+					let categoryIsConsumable = null; // If we're working with a consumable.
+					let customizationCategory = null; // The customization category pertaining to the item we're working with.
+
+					if (categoryWithItems in CustomizationConstants.PASS_RANK_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT) {
+						categoryIsCore = false; // Not a core field.
+						customizationCategory = CustomizationConstants.PASS_RANK_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT[categoryWithItems];
+						categoryIsConsumable = (customizationCategory == ConsumablesConstants.CONSUMABLES_KEY);
+					}
+					else if (categoryWithItems in CustomizationConstants.PASS_RANK_ITEM_FIELD_CORE_CATEGORY_DICT) {
+						categoryIsCore = true; // Is a core field.
+						customizationCategory = CustomizationConstants.PASS_RANK_ITEM_FIELD_CORE_CATEGORY_DICT[categoryWithItems];
+						categoryIsConsumable = false;
+					}
+					else {
+						console.error("The " + categoryWithItems + " reference field provided doesn't match any recognized values for the Pass Rank DB.");
+						return;
+					}
+
+					const CATEGORY_KEYWORD = (categoryIsCore) ? "Core" : ((categoryIsConsumable) ? "Consumables" : "Customization");
+					// Core CATEGORY_SPECIFIC_VARS dicts use Core instead of Customization for their config keys.
+					// Consumables uses Consumables instead of Customization.
+
+					const CATEGORY_SPECIFIC_VARS = (categoryIsCore) ? CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory] :
+						((categoryIsConsumable) ? ConsumablesConstants.CONSUMABLES_CATEGORY_SPECIFIC_VARS[customizationCategory] :
+						CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory]);
+
+					let itemDb = CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "Db"]; // The DB containing the item.
 
 					//let fullRankDetails = fullRankResults.items[0]; 
 					let childItemArray = itemData[categoryWithItems];
 					let childItem = childItemArray[0]; // We're assuming that we only have one item returned. We'll worry about multiple items later.
 
-					$item("#" + repeaterType + "ItemButton").link = childItem[CHILD_ITEM_FIELD_NAMES_TO_URL_DICT[categoryWithItems]];
-					$item("#" + repeaterType + "ItemImage").src = childItem.image;
-					$item("#" + repeaterType + "ItemNameText").text = itemData.rankNum + ": " + childItem[CHILD_ITEM_FIELD_NAMES_TO_NAME_FIELD_DICT[categoryWithItems]];
+					$item("#" + repeaterType + "ItemButton").link = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "UrlField"]];
+					$item("#" + repeaterType + "ItemImage").src = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "ImageField"]];
+					$item("#" + repeaterType + "ItemNameText").text = itemData[PassConstants.PASS_RANK_RANK_NUM_FIELD] + ": " +
+						childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]];
 
 					let sourceString = ""; // The string we'll be using for the SourceText box.
-					if (CHILD_ITEM_FIELD_NAMES_WITH_SOURCE_TYPES.includes(categoryWithItems)) { // If we're dealing with a normal customization item.
-						
-						await wixData.queryReferenced(itemDb, childItem._id, "sourceTypeReference")
+					if (CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
+						// If we're dealing with a normal customization item or consumable(s).
+						await wixData.queryReferenced(itemDb, childItem._id, CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SourceTypeField"])
 							.then((results) => {
 								results.items.forEach((element, index) => {
 									if (index == 3) {
@@ -195,7 +216,7 @@ $w.onReady(function () {
 										return;
 									}
 
-									sourceString += element.name + ", ";
+									sourceString += element[CustomizationConstants.SOURCE_TYPE_NAME_FIELD] + ", ";
 								});
 
 								// Remove the final comma.
@@ -205,41 +226,46 @@ $w.onReady(function () {
 								console.error("Error occurred while querying " + itemDb + ": " + error);
 							});
 					} else { // Cores don't have the sourceTypeReference field for now. Let's just use what we know.
-						sourceString = (itemData.isEvent) ? "Event Pass" : ((repeaterType == "free") ? "Battle Pass - Free" : "Battle Pass - Paid");
+						sourceString = (itemData[PassConstants.PASS_IS_EVENT_FIELD]) ? CustomizationConstants.SOURCE_TYPE_EVENT_PASS :
+							((repeaterType == "free") ? CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_FREE : CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_PAID);
 					}
 					$item("#" + repeaterType + "ItemSourceText").text = sourceString;
 
 					let customizationTypeString = ""; // The string we'll be using for the CustomizationTypeText box.
-					if (CHILD_ITEM_FIELD_NAMES_WITH_SOURCE_TYPES.includes(categoryWithItems)) {
-						if (categoryWithItems == KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD) {
+					if (CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
+						if (CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
 							// Armor attachments really need to have their type added as a DB field in case more attachment types appear in the future. 
 							// For now, let's just assume they're Helmet Attachments.
-							customizationTypeString = "Helmet Attachment";
+							customizationTypeString = "Helmet Attachment"; // TODO: Improve this.
 						}
-						else if (categoryWithItems == KeyConstants.SHOP_CONSUMABLE_REFERENCE_FIELD) {
+						else if (categoryIsConsumable) {
 							customizationTypeString = "Amount: ";
 							// The Consumable name already tells its type, so we can use this for the number of Consumables offered at each tier (just 1 for now, but could be more later).
-							if (childItem.itemName == "Challenge Swap") {
-								customizationTypeString += itemData.numberOfChallengeSwaps;
+							if (childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]] == ConsumablesConstants.CONSUMABLES_CHALLENGE_SWAP_NAME) {
+								customizationTypeString += itemData[PassConstants.PASS_RANK_NUMBER_OF_CHALLENGE_SWAPS_FIELD];
 							}
-							else if (childItem.itemName == "XP Boost") {
-								customizationTypeString += itemData.numberOfXpBoosts;
+							else if (childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]] == ConsumablesConstants.CONSUMABLES_XP_BOOST_NAME) {
+								customizationTypeString += itemData[PassConstants.PASS_RANK_NUMBER_OF_XP_BOOSTS_FIELD];
 							}
-							else if (childItem.itemName == "XP Grant") {
-								customizationTypeString += itemData.numberOfXpGrants;
+							else if (childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]] == ConsumablesConstants.CONSUMABLES_XP_GRANT_NAME) {
+								customizationTypeString += itemData[PassConstants.PASS_RANK_NUMBER_OF_XP_GRANTS_FIELD];
 							}
+							else if (childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]] == ConsumablesConstants.CONSUMABLES_CREDITS_NAME) {
+								customizationTypeString += itemData[PassConstants.PASS_RANK_NUMBER_OF_CREDITS_FIELD];
+                            }
 						}
 						else {
 							// In general, we can just use the customization type referenced by the childItem.
-							let customizationTypeResults = await wixData.query(CHILD_ITEM_FIELD_NAMES_TO_SOCKET_DB_DICT[categoryWithItems])
-								.eq("_id", childItem["customizationTypeReference"])
+							let customizationTypeResults = await wixData.query(CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SocketDb"])
+								.eq("_id", childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SocketReferenceField"]])
 								.find();
 
-							customizationTypeString = customizationTypeResults.items[0].name;
+							customizationTypeString = customizationTypeResults.items[0][CATEGORY_SPECIFIC_VARS["SocketNameField"]];
 						}
 					}
 					else { // If we're working with a core
-						if (categoryWithItems == KeyConstants.PASS_ARMOR_CORE_REFERENCE_FIELD) {
+						customizationTypeString = CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "Type"];
+						/*if (categoryWithItems == KeyConstants.PASS_ARMOR_CORE_REFERENCE_FIELD) {
 							customizationTypeString = "Armor Core";
 						}
 						else if (categoryWithItems == KeyConstants.PASS_WEAPON_CORE_REFERENCE_FIELD) {
@@ -247,7 +273,7 @@ $w.onReady(function () {
 						}
 						else if (categoryWithItems == KeyConstants.PASS_VEHICLE_CORE_REFERENCE_FIELD) {
 							customizationTypeString = "Vehicle Core";
-						}
+						}*/
 					}
 
 					$item("#" + repeaterType + "ItemTypeText").text = customizationTypeString;
@@ -266,9 +292,5 @@ $w.onReady(function () {
 
 		$w("#freePassRanksDataset").onReady(setPassPaginationIndexFromSave);
 		$w("#premiumPassRanksDataset").onReady(setPassPaginationIndexFromSave);
-
-		//$w("#freeItemRepeater").data = (await $w("#freePassRanksDataset").getItems(0, 10)).items;
-			
-
 	});
 });
