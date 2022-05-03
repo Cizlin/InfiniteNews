@@ -60,7 +60,7 @@ $w.onReady(async function () {
 			let childItemCustomizationType = "Helmet Attachment"; // This is for the Armor Attachment category only. TODO: Improve this.
 			if (ArmorConstants.ARMOR_ATTACHMENT_KEY != CUSTOMIZATION_CATEGORY) {
 				// We need to retrieve the customization type. Soon will do this for all items including attachments.
-				const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationDb;
+				const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
 				const CUSTOMIZATION_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
 				const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
 
