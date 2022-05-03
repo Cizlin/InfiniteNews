@@ -1,6 +1,4 @@
 import wixData from 'wix-data';
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/1-hello-world
 
 $w.onReady(function () {
 	$w("#showAllPromosButton").hide();
@@ -8,7 +6,6 @@ $w.onReady(function () {
 
 	// Click "Preview" to run your code
 	$w("#dynamicDataset").onReady( (event) => {
-
 		wixData.query("Blog/Categories")
 			.find()
 			.then((results) => {
@@ -72,10 +69,7 @@ $w.onReady(function () {
 
 
 
-		$w("#repeater1").onItemReady(($item) => { 
-			//$item("#image2").fitMode = "fit";
-			//console.log($item("#text16").text);
-
+		$w("#repeater1").onItemReady(($item) => {
 			// Hide the Updated datetime if it is not newer than the Published datetime. Keep it hidden by default.
 			$item("#group3").hide(); 
 			
