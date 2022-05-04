@@ -77,7 +77,7 @@ $w.onReady(function () {
     // Set pagination page to the saved value for this webpage.
     console.log(($w("#dynamicDataset").type));
     if ($w("#dynamicDataset").type == "dataset" || $w("#dynamicDataset").type == "router_dataset") {
-        console.log("Dynamic Dataset is on this page.");
+        console.log("Dynamic Dataset is on this page. Setting pagination index from save on ready.");
         $w("#dynamicDataset").onReady(setPaginationIndexFromSave);
     } else {
         console.log("Dynamic Dataset is not on this page.");
@@ -86,7 +86,7 @@ $w.onReady(function () {
     //console.log(($w("#pagination1").type));
     // Save the pagination value anytime it changes.
     if ($w("#pagination1").type == "$w.Pagination") {
-        console.log("Pagination is on this page.");
+        console.log("Pagination is on this page. Configuring to update session data and scroll on change.");
         $w("#pagination1").onChange((event) => {
                 session.setItem(paginationKey, event.target.currentPage);
                 //console.log("Pagination page " + event.target.currentPage + " saved to session data under pagination key " + paginationKey + ".");

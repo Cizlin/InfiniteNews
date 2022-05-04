@@ -19,7 +19,7 @@ for (let i = 0; i < wixLocation.path.length; i++) {
 //console.log (wixLocation.url);
 
 export let paginationKey = ((typeof(wixLocation.prefix) != "undefined" && wixLocation.prefix != "") ? "/" + wixLocation.prefix : "") + 
-    (urlPath != "" ? urlPath : "") + 
+    urlPath + 
     wixLocation.url.substr(wixLocation.url.indexOf("?")) + 
     "_paginationIndex";
 

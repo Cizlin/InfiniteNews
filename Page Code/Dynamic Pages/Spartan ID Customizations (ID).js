@@ -1,8 +1,6 @@
-import {initialItemSetup} from 'public/ItemSetup.js';
-import {SPARTAN_ID_CUSTOMIZATION_SECTION} from 'public/KeyConstants.js';
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/1-hello-world
+import * as ItemSetupFunctions from 'public/ItemSetup.js';
+import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
 
 $w.onReady(function () {
-	initialItemSetup(SPARTAN_ID_CUSTOMIZATION_SECTION);
+	ItemSetupFunctions.initialItemSetup(SpartanIdConstants.SPARTAN_ID_KEY);
 });
