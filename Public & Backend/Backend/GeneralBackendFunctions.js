@@ -19,21 +19,22 @@ export async function generateTypeDict(includeCores = false) { // If includeCore
         let retryCount = 0;
         const MAX_RETRIES = 10;
 
+        const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SocketWaypointIdField;
+
         while (retry && retryCount < MAX_RETRIES) {
             typeDict[category] = await wixData.query(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SocketDb)
+                .ne(WAYPOINT_ID_FIELD, "N/A") // Don't include N/A in this.
                 .find()
                 .then((results) => {
                     retry = false;
 
                     let waypointIdArray = [];
 
-                    const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SocketWaypointIdField;
-
                     results.items.forEach((type) => {
                         waypointIdArray.push(type[WAYPOINT_ID_FIELD]);
                     });
 
-                    if (includeCores) {
+                    if (includeCores && category in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT) {
                         waypointIdArray.push(CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT[category]);
                     }
 

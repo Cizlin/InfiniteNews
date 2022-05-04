@@ -397,6 +397,7 @@ export async function getConvertedShopList() {
 						let foundType = false; // Should become true if the type is found.
 						for (let typeCategory in typeDict) {
 							if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
+								foundType = true; // We found the type.
 								let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
 
 								const SHOP_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].ShopReferenceField;
@@ -641,7 +642,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 			continue; // We do not want to process consumables in the same way as other items.
 		}
 		itemInfoArray = itemInfoArray.concat(await updateItemsCurrentlyAvailableStatus(
-			referenceFieldToCategoryDict,
+			referenceFieldToCategoryDict[currentField],
 			itemJson[currentField],
 			currentlyAvailableStatus
 		));
@@ -1004,7 +1005,7 @@ export async function generateSocialNotifications(updateItemArray) {
 	}
 
 	for (let i = 0; i < hcsBundleSummaryArray.length; ++i) {
-		if (i < bundleSummaryArray.length - 1) { // If we aren't at the end of the list.
+		if (i < hcsBundleSummaryArray.length - 1) { // If we aren't at the end of the list.
 			hcsTweetText += hcsBundleSummaryArray[i] + ", ";
 		}
 		else {
@@ -1092,7 +1093,7 @@ export async function generateSocialNotifications(updateItemArray) {
 			hcsTweetTextArray.push(hcsItemListingArray[i] + "\n");
 		}
 		else {
-			hcsTweetTextArray[currentHcsTweetIndex] += mainItemListingArray[i] + "\n";
+			hcsTweetTextArray[currentHcsTweetIndex] += hcsItemListingArray[i] + "\n";
 		}
 	}
 
