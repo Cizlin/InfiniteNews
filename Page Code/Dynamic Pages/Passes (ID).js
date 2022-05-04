@@ -225,7 +225,7 @@ $w.onReady(function () {
 								console.error("Error occurred while querying " + itemDb + ": " + error);
 							});
 					} else { // Cores don't have the sourceTypeReference field for now. Let's just use what we know.
-						sourceString = (itemData[PassConstants.PASS_IS_EVENT_FIELD]) ? CustomizationConstants.SOURCE_TYPE_EVENT_PASS :
+						sourceString = (currentPass[PassConstants.PASS_IS_EVENT_FIELD]) ? CustomizationConstants.SOURCE_TYPE_EVENT_PASS :
 							((repeaterType == "free") ? CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_FREE : CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_PAID);
 					}
 					$item("#" + repeaterType + "ItemSourceText").text = sourceString;
