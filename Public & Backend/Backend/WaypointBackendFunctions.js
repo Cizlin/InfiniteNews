@@ -430,8 +430,8 @@ export async function processRank(
 										// If the source text needs to be updated, let's do it.
 										const CORE_SOURCE_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreSourceField;
 										if (matchingCore[CORE_SOURCE_FIELD].includes("Pending")) {
-											let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle" + " Pass <i>") + passName +
-												"</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
+											let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
+												passName + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
 											matchingCore[CORE_SOURCE_FIELD] = sourceText;
 											itemChanged = true;
 										}
@@ -500,7 +500,7 @@ export async function processRank(
 
 										// If the source text needs to be updated, let's do it.
 										if (matchingItem[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
-											let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle" + " Pass <i>") + 
+											let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
 												passName + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
 											matchingItem[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
 											itemChanged = true;
@@ -672,6 +672,8 @@ export async function updateRanksInDb(rankArray, passDbId, currentlyAvailable, s
 			.catch((error) => {
 				console.error(error + " occurred in processRank function and ended execution.");
 			});
+
+		await GeneralFunctions.sleep(1000);
 	}
 }
 
@@ -1007,7 +1009,7 @@ export async function importAllPasses() {
 
 	generatePassSocialNotifications(newlyAvailablePasses);
 
-	let typeDict = GeneralBackendFunctions.generateTypeDict(true);
+	let typeDict = await GeneralBackendFunctions.generateTypeDict(true);
 
 	for (let battlePassPath in passListCopyDict) {
 		let rankArray = passListCopyDict[battlePassPath].ranks;
@@ -1134,7 +1136,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 
 	let typeDict = await GeneralBackendFunctions.generateTypeDict();
 
-	let folderDict;
+	/*let folderDict;
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
 		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
 		.find()
@@ -1146,7 +1148,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 		throw "Could not retrieve folder dict. Cannot get customization image Info.";
 	}
 
-	let generalFolderDicts = await CustomizationFunctions.getGeneralDictsAndArraysFromDbs(headers);
+	let generalFolderDicts = await CustomizationFunctions.getGeneralDictsAndArraysFromDbs(headers);*/
 
 	//let spartanIdCategorySpecificFolderDicts = await Customization.getCategorySpecificDictsAndArraysFromDbs(KeyConstants.SPARTAN_ID_KEY);
 
@@ -1177,9 +1179,9 @@ export async function getCurrentCapstoneChallengeDbJson() {
 	for (let j = 0; j < includedItemsArray.length; j++) {
 		let foundType = false; // Should become true if the type is found.
 		for (let typeCategory in typeDict) {
-			if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
+			if (typeDict[typeCategory].includes(includedItemsArray[j].Type)) { // If the ItemType belongs to this typeCategory.
 				foundType = true;
-				let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPathh);
+				let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
 
 				const CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].CapstoneChallengeReferenceField;
 				challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(await ShopFunctions.getItemId(typeCategory, itemJson));
@@ -1196,7 +1198,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 			continue;
 		}
 		else {
-			console.warn("Discovered item with type " + includedItemsArray[j].ItemType + " that does not fit within an expected category.");
+			console.warn("Discovered item with type " + includedItemsArray[j].Type + " that does not fit within an expected category.");
         }
 
 		/*if (includedItemsArray[j].Type in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.ARMOR_KEY]) {
@@ -1309,8 +1311,6 @@ export async function getPreviousAvailableCapstoneChallenge() {
 }
 
 export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, itemIdArray, customizationCategory, challengeName) {
-	const PENDING_SOURCE_ID = "682d9532-14a9-4f27-9454-6c0d2275a4f4";
-	const CAPSTONE_CHALLENGE_SOURCE_ID = "f473441a-a02f-4c96-bf99-8324d1bb23cb";
 
 	if (itemIdArray.length <= 0) {
 		//console.log("No processing necessary as itemIdArray is empty for " + customizationCategory + " and Capstone Challenge Name " + challengeName);

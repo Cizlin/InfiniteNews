@@ -776,18 +776,21 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 
 			if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 				let isCrossCore = false;
+				let isPartialCrossCore = false;
 
 				const TYPE_IS_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsCrossCoreField;
+				const TYPE_IS_PARTIAL_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsPartialCrossCoreField;
 
 				customizationTypeArray.some((type) => {
 					// If our matching type is cross-core, mark our flag true and exit.
-					if (type[TYPE_IS_CROSS_CORE_FIELD] && type[TYPE_NAME_FIELD] == customizationType) {
-						isCrossCore = true;
+					if (type[TYPE_NAME_FIELD] == customizationType) {
+						isCrossCore = type[TYPE_IS_CROSS_CORE_FIELD];
+						isPartialCrossCore = type[TYPE_IS_PARTIAL_CROSS_CORE_FIELD];
 						return true;
 					}
 				})
 
-				if (!isCrossCore) {
+				if (!isCrossCore && !isPartialCrossCore) {
 					mediaPath = mediaPath + customizationCore + "/";
 					if (folderExists && ((customizationCore + "/") in subFolderDict)) {
 						subFolderDict = subFolderDict[customizationCore + "/"];

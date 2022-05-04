@@ -489,6 +489,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreCurrentlyAvailableField": "currentlyAvailable",
 		"CoreFolder": "Armor Cores",
 		"CoreType": "Armor Core",
+		"CoreWaypointType": "ArmorCore",
 		"CoreUrlField": "link-armor-cores-name",
 		"AnyCoreId": ArmorConstants.ANY_ARMOR_CORE_ID
 	},
@@ -514,6 +515,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreCurrentlyAvailableField": "currentlyAvailable",
 		"CoreFolder": "Weapon Cores",
 		"CoreType": "Weapon Core",
+		"CoreWaypointType": "WeaponCore",
 		"CoreUrlField": "link-weapon-cores-name",
 		"AnyCoreId": WeaponConstants.ANY_WEAPON_CORE_ID
 	},
@@ -539,6 +541,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreCurrentlyAvailableField": "currentlyAvailable",
 		"CoreFolder": "Vehicle Cores",
 		"CoreType": "Vehicle Core",
+		"CoreWaypointType": "VehicleCore",
 		"CoreUrlField": "link-vehicle-cores-name",
 		"AnyCoreId": VehicleConstants.ANY_VEHICLE_CORE_ID
 	}
