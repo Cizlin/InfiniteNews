@@ -1,15 +1,17 @@
 import wixData from 'wix-data';
-import {initialItemSetup} from 'public/ItemSetup.js';
-import {ARMOR_CUSTOMIZATION_ATTACHMENTS_DB, ARMOR_CUSTOMIZATION_SECTION, ARMOR_SOCKET_REFERENCE_FIELD, ARMOR_CUSTOMIZATION_ATTACHMENTS_PARENT_REFERENCE_FIELD} from 'public/KeyConstants.js';
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/1-hello-world
+import * as ItemSetupFunctions from 'public/ItemSetup.js';
+import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
+import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 
 $w.onReady(function () {
 	//console.log("Image Credit Text has ID " + $w("#imageCreditText").id);
-	initialItemSetup(ARMOR_CUSTOMIZATION_SECTION);
-	
+	const CUSTOMIZATION_CATEGORY = ArmorConstants.ARMOR_KEY;
+	ItemSetupFunctions.initialItemSetup(CUSTOMIZATION_CATEGORY);
+
+	const ATTACHMENT_KEY = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].AttachmentKey;
+	const ATTACHMENT_PARENT_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationParentReferenceField;
 	let currentItem = $w("#dynamicDatasetItem").getCurrentItem(); // Get the current item to add the attachment customization type.
-	let baseFilter = wixData.filter().hasSome(ARMOR_CUSTOMIZATION_ATTACHMENTS_PARENT_REFERENCE_FIELD, [currentItem._id]);
+	let baseFilter = wixData.filter().hasSome(ATTACHMENT_PARENT_REFERENCE_FIELD, [currentItem._id]);
 
 	$w("#hideHiddenButton").hide();
 
@@ -22,17 +24,23 @@ $w.onReady(function () {
 		}
 		else {
 			// Otherwise update the customization type displayed for each attachment.
+			const SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
+			const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
+
+			const ATTACHMENT_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationDb;
+			const ATTACHMENT_SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationSourceTypeField;
+
 			$w("#listRepeater").onItemReady(($item, itemData) => {
 				$item("#image2").fitMode = "fit";
 				//console.log(itemData);
 				let currentAttachment = itemData;
-				$item("#attachmentCustomizationType").text = currentItem[ARMOR_SOCKET_REFERENCE_FIELD].name + " Attachment";
+				$item("#attachmentCustomizationType").text = currentItem[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD] + " Attachment";
 				let sourceString = "";
-				wixData.queryReferenced(ARMOR_CUSTOMIZATION_ATTACHMENTS_DB, currentAttachment._id, "sourceTypeReference")
+				wixData.queryReferenced(ATTACHMENT_DB, currentAttachment._id, ATTACHMENT_SOURCE_TYPE_REFERENCE_FIELD)
 					.then((results) => {
 						//console.log(currentAttachment.itemName);
 						results.items.forEach(element => {
-							sourceString += element.name + ", ";
+							sourceString += element[CustomizationConstants.SOURCE_TYPE_NAME_FIELD] + ", ";
 						});
 
 						// Remove the final comma.
@@ -41,7 +49,7 @@ $w.onReady(function () {
 						$item("#attachmentSourceString").text = sourceString;
 					})
 					.catch((error) => {
-						console.error("Error occurred while querying " + ARMOR_CUSTOMIZATION_ATTACHMENTS_DB + ": " + error);
+						console.error("Error occurred while querying " + ATTACHMENT_DB + ": " + error);
 					});
 			});
 
@@ -57,7 +65,8 @@ $w.onReady(function () {
 
 			$w("#hideHiddenButton").onClick(function () {
 				// If the item isn't hidden and belongs on this parent item, show it.
-				let hideHiddenFilter = baseFilter.ne("hidden", true); 
+				const ATTACHMENT_HIDDEN_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationHiddenField;
+				let hideHiddenFilter = baseFilter.ne(ATTACHMENT_HIDDEN_FIELD, true);
 				$w("#dataset1").setFilter(hideHiddenFilter)
 					.then(() => {
 						$w("#hideHiddenButton").hide();

@@ -6,9 +6,9 @@
 // Use public files to hold utility functions that can 
 // be called from multiple locations in your site's code.
 
-export const stackKey = "stackKey"; // The key for the Session dictionary to retrieve and store the page stack.
+export const STACK_KEY = "stackKey"; // The key for the Session dictionary to retrieve and store the page stack.
 
-export const stackLimit = 100; // The maximum number of pages we will save (note: must have size less than 50 KB).
+export const STACK_LIMIT = 100; // The maximum number of pages we will save (note: must have size less than 50 KB).
 
 // In order for the back button to function correctly, we need to create a page stack.
 export class Stack{
@@ -21,7 +21,7 @@ export class Stack{
 
     // Loads the stack from a csvString. The items will fill the stack in the order presented by the string.
     loadFromString(csvString) {
-        if (csvString != null && csvString != "undefined")
+        if (csvString && csvString != "undefined")
             this.items = csvString.split(',');
     }
   

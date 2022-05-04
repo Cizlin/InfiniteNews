@@ -1,16 +1,15 @@
 // Filename: public/ItemSetup.js
 
-// TODO: Use the following renames: 
-// image -> itemImage
-// text15 -> sourceText
-// text19 -> QualityText
-// *Cores -> cores
-
 import wixData from 'wix-data';
-import * as KeyConstants from 'public/KeyConstants.js';
+import * as KeyConstants from 'public/Constants/KeyConstants.js';
+import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
+import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
+import * as ShopConstants from 'public/Constants/ShopConstants.js';
+import * as PassConstants from 'public/Constants/PassConstants.js';
+import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 
 // This code is used to set up customization item pages.
-export function initialItemSetup(customizationSection) {
+export function initialItemSetup(customizationCategory, isCore = false) {
 	//#region Configuring image settings for all applicable images.
     $w("#itemImage").fitMode = "fixedWidth";
 
@@ -30,8 +29,9 @@ export function initialItemSetup(customizationSection) {
         //#endregion
 
 		if ($w("#imageCreditText").id) {
-			if (currentItem.imageCredit) {
-				$w("#imageCreditText").text = "Image Credit: " + currentItem.imageCredit;
+			const IMAGE_CREDIT_FIELD = (!isCore) ? CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationImageCreditField : null;
+			if (currentItem[IMAGE_CREDIT_FIELD]) {
+				$w("#imageCreditText").text = "Image Credit: " + currentItem[IMAGE_CREDIT_FIELD];
 			}
 			else {
 				$w("#imageCreditText").hide();
@@ -40,7 +40,7 @@ export function initialItemSetup(customizationSection) {
 
         //#region Updating source text color to white and setting font size to 18 px.
         // Update the Rich Text color to white at runtime and set font-size to 18 px.
-		if (customizationSection != KeyConstants.SHOP_LISTINGS_SECTION) {
+		if (CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
 			if (!$w("#sourceText").html.includes("<p>"))
 			{
 				$w("#sourceText").html = "<p style=\"color:white;font-size:18px\">" + $w("#sourceText").html + "</p>";
@@ -79,14 +79,7 @@ export function initialItemSetup(customizationSection) {
         //#endregion
 
         //#region Checking to see if the Core text is present (i.e. we are working with Armor, Weapons, or Vehicles).
-        let hasCoreText = false; // By default, we don't need to work with the Core text.
-
-        switch (customizationSection) {
-            case KeyConstants.ARMOR_CUSTOMIZATION_SECTION:
-			case KeyConstants.WEAPON_CUSTOMIZATION_SECTION:
-			case KeyConstants.VEHICLE_CUSTOMIZATION_SECTION:
-                hasCoreText = true;
-        }
+		let hasCoreText = (customizationCategory in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT) && !isCore;
         //#endregion
 
         if (hasCoreText) {
@@ -94,30 +87,12 @@ export function initialItemSetup(customizationSection) {
 		    // Set cores text.
             let coreString = ""; // This string will contain a comma-separated list of all Cores to which this item can apply.
 
-            let customizationDB = ""; // The name of the database holding these customization items.
-            let coreReferenceField = "";
-
-            // Initialize the variables with the appropriate values.
-            switch (customizationSection) {
-                case KeyConstants.ARMOR_CUSTOMIZATION_SECTION:
-                    customizationDB = KeyConstants.ARMOR_CUSTOMIZATION_DB;
-                    coreReferenceField = KeyConstants.ARMOR_CORE_REFERENCE_FIELD;
-                    break; 
-
-				case KeyConstants.WEAPON_CUSTOMIZATION_SECTION:
-					customizationDB = KeyConstants.WEAPON_CUSTOMIZATION_DB;
-					coreReferenceField = KeyConstants.WEAPON_CORE_REFERENCE_FIELD;
-					break;
-
-				case KeyConstants.VEHICLE_CUSTOMIZATION_SECTION:
-					customizationDB = KeyConstants.VEHICLE_CUSTOMIZATION_DB;
-					coreReferenceField = KeyConstants.VEHICLE_CORE_REFERENCE_FIELD;
-					break;
-
-                default:
-                    console.error("initialItemSetup: Failed to find matching customization section. Was given " + customizationSection);
-                    return -1;
-            }
+			// The name of the database holding these customization items.
+			let customizationDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
+			// The reference field to the cores in the customization DB.
+			let coreReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+			// The name field in the core DB.
+			let coreNameField = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
             //#endregion
 
             //#region Updating the Cores text to show the Cores on which this item can apply.
@@ -125,7 +100,7 @@ export function initialItemSetup(customizationSection) {
                 .then((results) => {
                     results.items.forEach(element => {
 						console.log(element);
-                        coreString += element.name + ",";
+						coreString += element[coreNameField] + ",";
                     });
 
                     // Remove the final comma.
@@ -141,7 +116,40 @@ export function initialItemSetup(customizationSection) {
 
 		//#region Set CurrentlyAvailable icon.
         // Display the correct Currently Available Icon.
-		let currentlyAvailable = currentItem.currentlyAvailable; // Get currentlyAvailable value from currentItem.
+		let currentlyAvailableField = null;
+
+		if (CustomizationConstants.IS_CUSTOMIZATION_ARRAY.includes(customizationCategory)) {
+			currentlyAvailableField = (!isCore) ?
+				CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCurrentlyAvailableField
+				: CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreCurrentlyAvailableField;
+		}
+		else {
+			switch (customizationCategory) {
+				case ConsumablesConstants.CONSUMABLES_KEY:
+					currentlyAvailableField = ConsumablesConstants.CONSUMABLES_CURRENTLY_AVAILABLE_FIELD;
+					break;
+
+				case ShopConstants.SHOP_KEY:
+					currentlyAvailableField = ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD;
+					break;
+
+				case PassConstants.PASS_KEY:
+					currentlyAvailableField = PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD;
+					break;
+
+				case CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY:
+					currentlyAvailableField = CapstoneChallengeConstants.CAPSTONE_CHALLENGE_CURRENTLY_AVAILABLE_FIELD;
+					break;
+
+				default:
+					console.warn("Could not find currentlyAvailableField for " + customizationCategory);
+					break;
+			}
+        }
+
+		
+
+		let currentlyAvailable = currentItem[currentlyAvailableField]; // Get currentlyAvailable value from currentItem.
 
 		// The value of currentlyAvailable will either be undefined or the string "false" if it isn't selected. Handle both cases here.
 		if (!currentlyAvailable || currentlyAvailable == "false") {
@@ -201,26 +209,11 @@ export function initialItemSetup(customizationSection) {
 				}
 				else {
 					// Otherwise update the customization type displayed for each attachment.
-					let customizationDB = ""; // The name of the database holding these customization items.
+					// The name of the database holding these customization items.
+					let customizationDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 
-					// Initialize the variables with the appropriate values.
-					switch (customizationSection) {
-						case KeyConstants.ARMOR_CUSTOMIZATION_SECTION:
-							customizationDB = KeyConstants.ARMOR_CUSTOMIZATION_DB;
-							break; 
-
-						case KeyConstants.WEAPON_CUSTOMIZATION_SECTION:
-							customizationDB = KeyConstants.WEAPON_CUSTOMIZATION_DB;
-							break;
-
-						/*case KeyConstants.VEHICLE_CUSTOMIZATION_SECTION:
-							customizationDB = KeyConstants.VEHICLE_CUSTOMIZATION_DB;
-							break;*/
-
-						default: // This shouldn't execute unless there are Kits added for other customization sections.
-							console.error("initialItemSetup: Failed to find matching customization section for Kit Item repeater. Was given " + customizationSection);
-							return -1;
-					}
+					// The source type reference field.
+					let sourceTypeReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSourceTypeField;
 
 					$w("#kitItemRepeater").forEachItem(($item, itemData) => {
 						$item("#kitItemImage").fitMode = "fit";
@@ -228,11 +221,11 @@ export function initialItemSetup(customizationSection) {
 						let currentItem = itemData;
 						//$item("#attachmentCustomizationType").text = currentItem[ARMOR_SOCKET_REFERENCE_FIELD].name + " Attachment";
 						let sourceString = "";
-						wixData.queryReferenced(customizationDB, currentItem._id, "sourceTypeReference")
+						wixData.queryReferenced(customizationDB, currentItem._id, sourceTypeReferenceField)
 							.then((results) => {
 								//console.log(currentAttachment.itemName);
 								results.items.forEach(element => {
-									sourceString += element.name + ",";
+									sourceString += element[CustomizationConstants.SOURCE_TYPE_NAME_FIELD] + ",";
 								});
 
 								// Remove the final comma.
@@ -263,18 +256,12 @@ export function initialItemSetup(customizationSection) {
 				}
 				else {
 					// Otherwise update the customization type displayed for each attachment.
-					let customizationDB = ""; // The name of the database holding these customization items.
+					const ATTACHMENT_KEY = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].AttachmentKey;
+					// The name of the database holding these customization items.
+					let customizationDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationDb;
 
-					// Initialize the variables with the appropriate values.
-					switch (customizationSection) {
-						case KeyConstants.ARMOR_CUSTOMIZATION_SECTION:
-							customizationDB = KeyConstants.ARMOR_CUSTOMIZATION_ATTACHMENTS_DB;
-							break;
-
-						default: // This shouldn't execute unless there are Kits added for other customization sections.
-							console.error("initialItemSetup: Failed to find matching customization section for Kit Attachment repeater. Was given " + customizationSection);
-							return -1;
-					}
+					// The source type reference field.
+					let sourceTypeReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSourceTypeField;
 
 					$w("#kitAttachmentRepeater").forEachItem(($item, itemData) => {
 						$item("#kitAttachmentImage").fitMode = "fit";
@@ -282,11 +269,11 @@ export function initialItemSetup(customizationSection) {
 						let currentItem = itemData;
 						$item("#kitAttachmentCustomizationType").text = "Helmet Attachment"; //TODO: Find a better way to do this in the future.
 						let sourceString = "";
-						wixData.queryReferenced(customizationDB, currentItem._id, "sourceTypeReference")
+						wixData.queryReferenced(customizationDB, currentItem._id, sourceTypeReferenceField)
 							.then((results) => {
 								//console.log(currentAttachment.itemName);
 								results.items.forEach(element => {
-									sourceString += element.name + ",";
+									sourceString += element[CustomizationConstants.SOURCE_TYPE_NAME_FIELD] + ",";
 								});
 
 								// Remove the final comma.

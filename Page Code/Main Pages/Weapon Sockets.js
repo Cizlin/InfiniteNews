@@ -1,14 +1,12 @@
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/1-hello-world
-import {WEAPON_CUSTOMIZATION_SECTION} from 'public/KeyConstants.js';
-import {initialSocketSetup, socketItemSetup} from 'public/SocketSetup.js';
+import * as WeaponConstants from 'public/Constants/WeaponConstants.js';
+import * as SocketSetupFunctions from 'public/SocketSetup.js';
 
 $w.onReady(function () {
-	let weaponCoreID = initialSocketSetup(WEAPON_CUSTOMIZATION_SECTION);
+	let weaponCoreID = SocketSetupFunctions.initialSocketSetup(WeaponConstants.WEAPON_KEY);
 
 	$w("#dynamicDataset").onReady(() => {
 		$w("#repeater1").onItemReady(($item, itemData, index) => { 
-			socketItemSetup($item, itemData, WEAPON_CUSTOMIZATION_SECTION, weaponCoreID);
+			SocketSetupFunctions.socketItemSetup($item, itemData, WeaponConstants.WEAPON_KEY, weaponCoreID);
 		});
 	});
 });

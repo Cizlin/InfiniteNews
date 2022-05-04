@@ -1,9 +1,12 @@
-import * as KeyConstants from 'public/KeyConstants.js';
 import wixData from 'wix-data';
-import {initialItemListSetup} from 'public/ItemListSetup.js';
-import {getLongMonthDayYearFromDate} from 'public/General.js';
+import * as ItemListSetupFunctions from 'public/ItemListSetup.js';
+import * as GeneralFunctions from 'public/General.js';
+import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
+import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 
-// Capstone challenges only have these items as possible rewards.
+import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
+
+/*// Capstone challenges only have these items as possible rewards.
 const CHILD_ITEM_FIELD_NAMES_TO_URL_DICT = {
 	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: "link-armor-customizations-itemName", 
 	[KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD]: "link-armor-customization-attachments-itemName", 
@@ -19,22 +22,23 @@ const CHILD_ITEM_FIELD_NAMES_TO_SOCKET_DB_DICT = {
 	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: KeyConstants.VEHICLE_SOCKET_DB,
 	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: KeyConstants.BODY_AND_AI_SOCKET_DB,
 	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: KeyConstants.SPARTAN_ID_SOCKET_DB,
-}
+}*/
 
 $w.onReady(function () {
 	// Set up the name filter.
-	initialItemListSetup(KeyConstants.CAPSTONE_CHALLENGE_SECTION);
+	ItemListSetupFunctions.initialItemListSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY);
 
 	// Populate the data for each Capstone Challenge.
 	$w("#listRepeater").onItemReady(async ($item, itemData) => {
 		let ultimateChallenge = itemData;
-		$item("#ultimateChallengeDescription").text = ultimateChallenge.description + " - " + ultimateChallenge.completionThreshold;
+		$item("#ultimateChallengeDescription").text = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD] + " - " +
+			ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD];
 
 		// Now that we have our current Ultimate Challenge, we need to grab the reward by using the fieldsWithItems field.
 		let categoryWithItems = "";
-		if (ultimateChallenge.fieldsWithItems.length > 0) {
-			categoryWithItems = ultimateChallenge.fieldsWithItems[0]; // We're just going to grab the first category and item for now.
-			let queryResults = await wixData.queryReferenced(KeyConstants.CAPSTONE_CHALLENGE_DB, ultimateChallenge._id, categoryWithItems);
+		if (ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].length > 0) {
+			categoryWithItems = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0]; // We're just going to grab the first category and item for now.
+			let queryResults = await wixData.queryReferenced(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB, ultimateChallenge._id, categoryWithItems);
 			if (queryResults.items.length > 0) {
 				ultimateChallenge[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
 			}
@@ -44,69 +48,57 @@ $w.onReady(function () {
 			return;
 		}
 
-		/*// Now that we have our current Ultimate Challenge, we need to grab the reward by iterating over all six possible child item categories.
-		let categoryWithItems = "";
-		for (let fieldName in CHILD_ITEM_FIELD_NAMES_TO_URL_DICT) {
-			let queryResults = await wixData.queryReferenced(KeyConstants.CAPSTONE_CHALLENGE_DB, ultimateChallenge._id, fieldName);
-			if (queryResults.items.length > 0) {
-				categoryWithItems = fieldName;
-				ultimateChallenge[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
-				break;
-			}
-		}*/
+		const CUSTOMIZATION_CATEGORY = CustomizationConstants.CAPSTONE_CHALLENGE_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT[categoryWithItems];
 
 		if (ultimateChallenge[categoryWithItems].length > 0) {
 			let childItem = ultimateChallenge[categoryWithItems][0];
 
-			let childItemCustomizationType = "Helmet Attachment"; // This is for the Armor Attachment category only.
-			if (KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD != categoryWithItems) { // We need to retrieve the customization type.
-				let customizationTypeResults = await wixData.query(CHILD_ITEM_FIELD_NAMES_TO_SOCKET_DB_DICT[categoryWithItems])
-					.eq("_id", childItem["customizationTypeReference"])
+			let childItemCustomizationType = "Helmet Attachment"; // This is for the Armor Attachment category only. TODO: Improve this.
+			if (ArmorConstants.ARMOR_ATTACHMENT_KEY != CUSTOMIZATION_CATEGORY) {
+				// We need to retrieve the customization type. Soon will do this for all items including attachments.
+				const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
+				const CUSTOMIZATION_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
+				const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
+
+				let customizationTypeResults = await wixData.query(SOCKET_DB)
+					.eq("_id", childItem[CUSTOMIZATION_TYPE_REFERENCE_FIELD])
 					.find();
 
-				childItemCustomizationType = customizationTypeResults.items[0].name;
+				childItemCustomizationType = customizationTypeResults.items[0][SOCKET_NAME_FIELD];
 			}
 
-			$item("#ultimateChallengeButton").link = childItem[CHILD_ITEM_FIELD_NAMES_TO_URL_DICT[categoryWithItems]];
-			$item("#ultimateChallengeImage").src = childItem.image;
+			const CUSTOMIZATION_URL_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationUrlField;
+			const CUSTOMIZATION_IMAGE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationImageField;
+			const CUSTOMIZATION_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationNameField;
+
+			$item("#ultimateChallengeButton").link = childItem[CUSTOMIZATION_URL_FIELD];
+			$item("#ultimateChallengeImage").src = childItem[CUSTOMIZATION_IMAGE_FIELD];
 			$item("#ultimateChallengeImage").fitMode = "fit";
-			$item("#ultimateChallengeRewardText").text = childItem.itemName + " " + childItemCustomizationType;
+			$item("#ultimateChallengeRewardText").text = childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType;
 
 			let lastAvailableDatetime;
 
-			if (ultimateChallenge.availableDateArray.length > 1 && ultimateChallenge.currentlyAvailable) {
+			if (ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD].length > 1 &&
+				ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_CURRENTLY_AVAILABLE_FIELD]) {
 				// The challenge is available this week and was available in a previous week.
-				lastAvailableDatetime = new Date(ultimateChallenge.availableDateArray[1]); // We know it's available this week, so we're interested in its last availability.
+				lastAvailableDatetime = new Date(ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD][1]);
+				// We know it's available this week, so we're interested in its last availability.
 			}
-			else if (ultimateChallenge.currentlyAvailable) {
+			else if (ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_CURRENTLY_AVAILABLE_FIELD]) {
 				// The challenge is available for the first time this week. Hide the textbox by making the datetime null.
 				lastAvailableDatetime = null;
 			}
 			else {
 				// The challenge was available in a previous week.
-				lastAvailableDatetime = new Date(ultimateChallenge.availableDateArray[0]);
+				lastAvailableDatetime = new Date(ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD][0]);
 			}
 
 			if (lastAvailableDatetime) {
-				/*var monthString = (lastAvailableDatetime.getMonth() + 1).toString();
-				while (monthString.length < 2) {
-					monthString = "0" + monthString;
-				}
-
-				var dateString = lastAvailableDatetime.getDate().toString();
-				while (dateString.length < 2) {
-					dateString = "0" + dateString;
-				}
-
-				var yearString = lastAvailableDatetime.getFullYear().toString();
-
-				let lastAvailableString = monthString + "/" + dateString + "/" + yearString;
-				*/
 				let endAvailableDatetime = new Date(lastAvailableDatetime);
 				endAvailableDatetime.setDate(lastAvailableDatetime.getDate() + 7);
 
-				let lastAvailableString = getLongMonthDayYearFromDate(lastAvailableDatetime);
-				let endAvailableString = getLongMonthDayYearFromDate(endAvailableDatetime);
+				let lastAvailableString = GeneralFunctions.getLongMonthDayYearFromDate(lastAvailableDatetime);
+				let endAvailableString = GeneralFunctions.getLongMonthDayYearFromDate(endAvailableDatetime);
 				$item("#ultimateChallengeLastAvailableDatetimeText").text = "Last Available: " + lastAvailableString + " - " + endAvailableString;
 			}
 			else {
@@ -116,12 +108,12 @@ $w.onReady(function () {
 
 			let seasonNum = -1, weekNum = -1;
 
-			if (ultimateChallenge.availableSeasonArray.length > 0) {
-				seasonNum = ultimateChallenge.availableSeasonArray[0]; // We want the most recent Season Num available.
+			if (ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_SEASON_ARRAY_FIELD].length > 0) {
+				seasonNum = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_SEASON_ARRAY_FIELD][0]; // We want the most recent Season Num available.
 			}
 
-			if (ultimateChallenge.availableWeekArray.length > 0) {
-				weekNum = ultimateChallenge.availableWeekArray[0]; // We want the most recent Week Num available.
+			if (ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_WEEK_ARRAY_FIELD].length > 0) {
+				weekNum = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_WEEK_ARRAY_FIELD][0]; // We want the most recent Week Num available.
 			}
 
 			$item("#ultimateChallengeSeasonAndWeek").text = "Season " + seasonNum + ", Week " + weekNum;

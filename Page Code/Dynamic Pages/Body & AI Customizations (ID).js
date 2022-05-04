@@ -1,8 +1,6 @@
-import {initialItemSetup} from 'public/ItemSetup.js';
-import {BODY_AND_AI_CUSTOMIZATION_SECTION} from 'public/KeyConstants.js';
-// API Reference: https://www.wix.com/velo/reference/api-overview/introduction
-// “Hello, World!” Example: https://learn-code.wix.com/en/article/1-hello-world
+import * as ItemSetupFunctions from 'public/ItemSetup.js';
+import * as BodyAndAiConstants from 'public/Constants/BodyAndAiConstants.js';
 
 $w.onReady(function () {
-	initialItemSetup(BODY_AND_AI_CUSTOMIZATION_SECTION);
+	ItemSetupFunctions.initialItemSetup(BodyAndAiConstants.BODY_AND_AI_KEY);
 });
