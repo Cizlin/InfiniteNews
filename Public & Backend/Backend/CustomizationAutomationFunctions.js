@@ -2379,6 +2379,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	 * isKitItem = false,						// Required for Kit Items.
 	 * kitChildItemArray = [],					// Required for Kits.
 	 * kitChildAttachmentArray = []				// Required for Kits with attachments.
+	 * parentThemePath = ""						// Required for items with nothing in ParentPaths or ParentPath.
 	 */
 
 	// We want to create this JSON structure:
@@ -2471,6 +2472,11 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme])) {
 
 					itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme]);
+				}
+				else if ("parentThemePath" in options && options.parentThemePath in options.waypointThemePathToCoreDict &&
+					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath])) {
+
+					itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath]);
 				}
 				else {
 					throw "Item " + itemJson.Title + " does not have a valid parent core. Skipping for now...";
@@ -2712,7 +2718,8 @@ async function processItem(headers,
 	 * customizationWaypointIdArray = [],	// Required for kit items.
 	 * kitChildItemArray = [],				// Required for kits.
 	 * kitChildAttachmentArray = [],		// Required for kits.
-	 * forceCheck = false					// Required for kits and items with attachments.
+	 * forceCheck = false,					// Required for kits and items with attachments.
+	 * parentThemePath = ""					// Required for items without anything in ParentPaths or ParentTheme.
 	 */
 
 	// This helps us avoid processing duplicate items.
@@ -2829,7 +2836,8 @@ async function processItem(headers,
 			"parentWaypointType": ("attachmentParentWaypointType" in options) ? options.attachmentParentWaypointType : "",
 			"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 			"kitChildItemArray": ("kitChildItemArray" in options) ? options.kitChildItemArray : [],
-			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : []
+			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : [],
+			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 		}
 	);
 
@@ -2907,6 +2915,7 @@ async function generateJsonsFromItemList(
 	 * waypointThemePathToCoreDict = {},	// Required for non-cross-core items.
 	 * isKitItem = false,					// Required for kit items.
 	 * customizationWaypointIdArray = []	// Required for kit items and kits.
+	 * parentThemePath = ""					// Required for items with nothing in ParentTheme or ParentPaths.
 	 */
 
 	for (let k = 0; k < customizationItemPathArray.length; ++k) {
@@ -2924,7 +2933,8 @@ async function generateJsonsFromItemList(
 				{
 					"waypointThemePathToCoreDict": ("waypointThemePathToCoreDict" in options) ? options.waypointThemePathToCoreDict : {},
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
-					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : []
+					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
+					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 				}
 			);
 
@@ -2978,6 +2988,7 @@ async function generateJsonsFromItemAndAttachmentList(
 	 * isKitItem = false,							// Required for kit items.
 	 * customizationWaypointIdArray = [],			// Required for kit items and kits.
 	 * customizationWaypointAttachmentIdArray = []  // Required for kit attachments, kits, and items with attachments.
+	 * parentThemePath = ""							// Required for items with nothing in ParentTheme or ParentPaths.
 	 */
 
 	// We're working with an item type that has attachments. This means it's laid out a little differently. 
@@ -3025,7 +3036,8 @@ async function generateJsonsFromItemAndAttachmentList(
 						"attachmentPathToIdDict": attachmentPathToIdDict,
 						"attachmentParentWaypointType": parentWaypointType,
 						"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
-						"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : []
+						"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
+						"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 					}
 				);
 
@@ -3074,7 +3086,8 @@ async function generateJsonsFromItemAndAttachmentList(
 					"attachmentArray": parentPathToAttachmentArrayDict[itemPath],
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 					"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
-					"forceCheck": true // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
+					"forceCheck": true, // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
+					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 				}
 			);
 
@@ -3188,7 +3201,8 @@ async function generateJsonsFromThemeList(
 							{
 								"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 								"isKitItem": true,
-								"customizationWaypointIdArray": customizationIdArray
+								"customizationWaypointIdArray": customizationIdArray,
+								"parentThemePath": themePathArray[l]
 							}
 						);
 					}
@@ -3208,7 +3222,8 @@ async function generateJsonsFromThemeList(
 								"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 								"isKitItem": true,
 								"customizationWaypointIdArray": customizationIdArray,
-								"customizationWaypointAttachmentIdArray": customizationAttachmentsIdArray
+								"customizationWaypointAttachmentIdArray": customizationAttachmentsIdArray,
+								"parentThemePath": themePathArray[l]
 							}
 						);
 					}
@@ -3248,7 +3263,8 @@ async function generateJsonsFromThemeList(
 							"coreWaypointId": coreWaypointId,
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 							"kitChildItemArray": kitPathToItemArrayDict[themePathArray[l]].items,
-							"kitChildAttachmentArray": kitPathToItemArrayDict[themePathArray[l]].attachments
+							"kitChildAttachmentArray": kitPathToItemArrayDict[themePathArray[l]].attachments,
+							"parentThemePath": themePathArray[l]
 						}
 					);
 
@@ -3317,7 +3333,8 @@ async function generateJsonsFromThemeList(
 						customizationItemPathsProcessed,
 						customizationItemPathArray,
 						{
-							"waypointThemePathToCoreDict": waypointThemePathToCoreDict
+							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
+							"parentThemePath": themePathArray[j]
 						}
 					);
 				}
@@ -3338,7 +3355,8 @@ async function generateJsonsFromThemeList(
 						itemAndAttachmentsArray,
 						type,
 						{
-							"waypointThemePathToCoreDict": waypointThemePathToCoreDict
+							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
+							"parentThemePath": themePathArray[j]
 						}
 					);
 				}
