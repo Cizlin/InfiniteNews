@@ -1,23 +1,23 @@
 // The code in this file will load on every page of your site
 import wixWindow from 'wix-window';
-import {session} from 'wix-storage';
+import { session } from 'wix-storage';
 import wixLocation from 'wix-location';
-import {paginationKey, setPaginationIndexFromSave} from 'public/Pagination.js';
-import {stackKey, stackLimit, Stack} from 'public/Stack.js';
+import { paginationKey, setPaginationIndexFromSave } from 'public/Pagination.js';
+import { STACK_KEY, STACK_LIMIT, Stack } from 'public/Stack.js';
 
 let previousPageURL;
 
 $w.onReady(function () {
     // Store the page in the page stack by retrieving the stack string from the session data, converting it to a Stack object, and pushing the page onto the stack.
     // Then, save the stack.
-    let pageStackString = session.getItem(stackKey);
-    let pageStack = new Stack(stackLimit);
+    let pageStackString = session.getItem(STACK_KEY);
+    let pageStack = new Stack(STACK_LIMIT);
     pageStack.loadFromString(pageStackString);
 
     // Loading stored pagestack.
     console.log("Stack loaded.");
 
-	// Set the back button to go to the previous page only if it exists.
+    // Set the back button to go to the previous page only if it exists.
     //console.log($w("#backButton").type);
     if ($w("#backButton").type == "$w.Button") {
         console.log("Setting up back button...");
@@ -29,13 +29,11 @@ $w.onReady(function () {
         previousPageURL = pageStack.peek();
         //console.log(previousPageURL);
         // Hide the back button if there's no page to go back to. Otherwise show it.
-        if (previousPageURL == null)
-        {
+        if (previousPageURL == null) {
             console.log("Hiding back button...");
             $w("#backButton").hide();
         }
-        else
-        {
+        else {
             console.log("Showing back button...");
 
             // Sometimes the button disappears when it should appear. Hiding it and showing it seems to fix this issue.
@@ -46,10 +44,10 @@ $w.onReady(function () {
             $w("#backButton").link = previousPageURL;
             $w("#backButton").target = "_self";
             console.log("Back Button link: " + $w("#backButton").link);
-            $w("#backButton").onClick( (event) => {
+            $w("#backButton").onClick((event) => {
                 // If the button is clicked, we need to pop off the current page and the previous page from the stack before going back to the previous page.
-                let pageStackStringButton = session.getItem(stackKey);
-                var pageStackButton = new Stack(stackLimit);
+                let pageStackStringButton = session.getItem(STACK_KEY);
+                var pageStackButton = new Stack(STACK_LIMIT);
                 pageStackButton.loadFromString(pageStackStringButton);
 
                 //console.log("Page stack prior to button press: " + pageStackButton.printStack());
@@ -57,7 +55,7 @@ $w.onReady(function () {
                 pageStackButton.pop();
                 //console.log("Page stack after button press: " + pageStackButton.printStack());
 
-                session.setItem(stackKey, pageStackButton.printStack());
+                session.setItem(STACK_KEY, pageStackButton.printStack());
                 wixLocation.to($w("#backButton").link);
             });
         }
@@ -68,7 +66,7 @@ $w.onReady(function () {
         console.log("Top pageStack value: " + pageStack.peek());
         console.log("Page URL: " + wixLocation.url);
         pageStack.push(wixLocation.url);
-        session.setItem(stackKey, pageStack.printStack());
+        session.setItem(STACK_KEY, pageStack.printStack());
     }
 
     console.log("Stack setup completed.");
@@ -88,11 +86,11 @@ $w.onReady(function () {
     if ($w("#pagination1").type == "$w.Pagination") {
         console.log("Pagination is on this page. Configuring to update session data and scroll on change.");
         $w("#pagination1").onChange((event) => {
-                session.setItem(paginationKey, event.target.currentPage);
-                //console.log("Pagination page " + event.target.currentPage + " saved to session data under pagination key " + paginationKey + ".");
+            session.setItem(paginationKey, event.target.currentPage);
+            //console.log("Pagination page " + event.target.currentPage + " saved to session data under pagination key " + paginationKey + ".");
 
-                // Scroll back to top of page when page is changed. Do not use an animation to speed things up.
-                wixWindow.scrollTo(0, 0, {"scrollAnimation": false});
+            // Scroll back to top of page when page is changed. Do not use an animation to speed things up.
+            wixWindow.scrollTo(0, 0, { "scrollAnimation": false });
         });
     } else {
         console.log("Default pagination is not on this page.");
