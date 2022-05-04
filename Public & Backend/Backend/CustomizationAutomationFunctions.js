@@ -239,26 +239,26 @@ export async function getCustomizationItem(headers, path) {
 }
 
 // Retrieves the list of Armor Cores from the Waypoint API.
-async function getArmorCoreList(headers) {
+export async function getArmorCoreList(headers) {
 	// Query the API.
-	let retry = true;
+	/*let retry = true;
 	let waypointJson = {};
 
 	while (retry) {
 		waypointJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_BASE_WAYPOINT + ApiConstants.WAYPOINT_URL_SUFFIX_WAYPOINT_ARMOR_CORE_LIST, {
-			"method": "get",
-			"headers": headers
-		})
-			.then((httpResponse) => {
+				"method": "get",
+				"headers": headers
+			})
+			.then( (httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				}
+				} 
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			})
+			} )
 			.then((json) => {
 				return json;
 			})
@@ -270,15 +270,30 @@ async function getArmorCoreList(headers) {
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await getSpartanToken();
 			let clearance = await getClearance();
-
+			
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
+	}*/
+
+	// Query the Waypoint API.
+	let inventoryCatalogJson = await getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
+
+	let coreList = inventoryCatalogJson.Cores;
+
+	let armorCorePathArray = [];
+	for (let i = 0; i < coreList.length; ++i) {
+		//console.log(coreList[i]);
+		if (coreList[i].ItemType == "ArmorCore") {
+			armorCorePathArray.push(coreList[i].ItemPath);
+		}
 	}
 
-	return waypointJson;
+	return armorCorePathArray;
+
+	//return waypointJson;
 }
 
 // Retrieves a list of paths to owned Cores from the Waypoint API matching the customizationCategory. Ownership of Weapon, Vehicle, and AI Cores is guaranteed.
@@ -436,8 +451,8 @@ async function getThemeList(headers, customizationCategory) {
 
 export async function getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess) {
 	// Query the Waypoint API.
-	if (!(categorySpecificDictsAndArrays) || categorySpecificDictsAndArrays.length != 2) { // We expect 2 dicts/arrays in this construct, even though we only really need 1.
-		console.error("Unexpected length for categorySpecificDictsAndArrays. Expected 2, got ", categorySpecificDictsAndArrays.length);
+	if (!(categorySpecificDictsAndArrays) || categorySpecificDictsAndArrays.length != 3) { // We expect 2 dicts/arrays in this construct, even though we only really need 1.
+		console.error("Unexpected length for categorySpecificDictsAndArrays. Expected 3, got ", categorySpecificDictsAndArrays.length);
 	}
 
 	let customizationTypeArray = categorySpecificDictsAndArrays[0]; // The customization types for this category.
@@ -732,8 +747,8 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 			}
 		}
 		else {
-			if (!(categorySpecificDictsAndArrays) || categorySpecificDictsAndArrays.length != 2) { // We expect 2 dicts/arrays in this construct, even though we only really need 1.
-				console.error("Unexpected length for categorySpecificDictsAndArrays. Expected 2, got ", categorySpecificDictsAndArrays.length);
+			if (!(categorySpecificDictsAndArrays) || categorySpecificDictsAndArrays.length != 3) { // We expect 3 dicts/arrays in this construct, even though we only really need 1.
+				console.error("Unexpected length for categorySpecificDictsAndArrays. Expected 3, got ", categorySpecificDictsAndArrays.length);
 			}
 
 			let customizationTypeArray = categorySpecificDictsAndArrays[0]; // The customization types for this category.
@@ -811,7 +826,9 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 	//console.log("Item Directory Path: " + mediaPath);
 
 	let fileSystemSafeTitle = title.replace(/[\\/?:]/g, "_"); // Clean out some of the common illegal characters (\, /, ?, :).
-	let filenameType = (customizationCategory == ShopConstants.SHOP_KEY) ? "Bundle" : customizationType;
+	let filenameType = (customizationCategory == ShopConstants.SHOP_KEY) ? "Bundle" :  // If this is a Shop Bundle, the type in the name is Bundle.
+		(customizationType == CustomizationConstants.ITEM_TYPES.core) ? CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreType : // If core, [CoreType].
+			customizationType; // Otherwise it is the type provided by the caller.
 
 	if (folderExists) {
 		//console.log("Directory Path found.");
@@ -948,13 +965,13 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 		});
 
 	// Next, we do the release.
-	let releaseDict = {}; // The keys will be release names (e.g. "Season 1"), and the values are the associated IDs.
+	let releaseDict = {}; // The keys will be season numbers (e.g. 1, 2, etc.), and the values are the associated IDs.
 	await wixData.query(CustomizationConstants.RELEASE_DB)
 		.find()
 		.then((results) => {
 			if (results.items.length > 0) {
 				for (let i = 0; i < results.items.length; ++i) {
-					releaseDict[results.items[i].release] = results.items[i]._id;
+					releaseDict[String(results.items[i][CustomizationConstants.RELEASE_ORDINAL_FIELD])] = results.items[i]._id;
 				}
 			}
 			else {
@@ -1059,6 +1076,7 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 // This must execute only after all the cores have been added to the DB. It returns the type array and core ID dict:
 // [0]: customizationTypeArray
 // [1]: coreIdDict (keys are core Waypoint IDs, values are _ids)
+// [2]: coreWaypointIdToNameDict (keys are Waypoint IDs, values are names)
 export async function getCategorySpecificDictsAndArraysFromDbs(customizationCategory) {
 	let customizationTypeArray = [];
 	// We have a bunch of useful information in the DB now. Let's get it all at once.
@@ -1080,9 +1098,12 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 			}
 		});
 
+	//console.log(customizationTypeArray[0][CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField] == "Kill Effect");
+
 	// Now that we have the matching customization type ID, we need to get a list of core items matching the contents of our core array.
 	// Luckily, the site and Waypoint align on the naming convention (quite intentionally).
 	let coreIdDict = {};
+	let coreWaypointIdToNameDict = {};
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && customizationCategory != ArmorConstants.ARMOR_ATTACHMENT_KEY) {
 		const CORE_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
 		await wixData.query(CORE_DB)
@@ -1090,9 +1111,11 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 			.then((results) => {
 				if (results.items.length > 0) {
 					const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreWaypointIdField;
+					const CORE_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
 					for (let i = 0; i < results.items.length; i++) {
 						let coreWaypointId = results.items[i][CORE_WAYPOINT_ID_FIELD];
 						coreIdDict[coreWaypointId] = results.items[i]._id;
+						coreWaypointIdToNameDict[coreWaypointId] = results.items[i][CORE_NAME_FIELD];
 					}
 				}
 				else {
@@ -1101,8 +1124,7 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 			});
 	}
 
-
-	return [customizationTypeArray, coreIdDict];
+	return [customizationTypeArray, coreIdDict, coreWaypointIdToNameDict];
 }
 
 // This function will use the following logic:
@@ -1153,8 +1175,8 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	else if (!(generalDictsAndArrays) || generalDictsAndArrays.length != 5) { // We expect 5 dicts/arrays in this construct.
 		console.error("Unexpected length for generalDictsAndArrays. Expected 5, got ", generalDictsAndArrays.length);
 	}
-	else if (!(categorySpecificDictsAndArrays) || categorySpecificDictsAndArrays.length != 2) { // We expect 2 dicts/arrays in this construct.
-		console.error("Unexpected length for categorySpecificDictsAndArrays. Expected 2, got ", categorySpecificDictsAndArrays.length);
+	else if (!(categorySpecificDictsAndArrays) || categorySpecificDictsAndArrays.length != 3) { // We expect 3 dicts/arrays in this construct.
+		console.error("Unexpected length for categorySpecificDictsAndArrays. Expected 3, got ", categorySpecificDictsAndArrays.length);
 	}
 
 	// Extract the dicts and array from generalDictsAndArrays.
@@ -1172,8 +1194,10 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	// Extract the dict and array from categorySpecificDictsAndArrays.
 	// [0]: customizationTypeArray
 	// [1]: coreIdDict
+	// [2]: coreWaypointIdToNameDict
 	let customizationTypeArray = categorySpecificDictsAndArrays[0];
 	let coreIdDict = categorySpecificDictsAndArrays[1];
+	let coreWaypointIdToNameDict = categorySpecificDictsAndArrays[2];
 
 	// It's time to select the item!
 	let existingItem = {};
@@ -1203,7 +1227,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 					existingItem = results.items[0]; // We just need to store it for the moment.
 				}
 				else if (results.items.length > 1) { // This is unexpected. Put a warning in the logs, but we can still work on the first item.
-					console.warn("Multiple items returned for the same Waypoint ID. Continuing, but watch for duplicates for " + WAYPOINT_ID_FIELD);
+					console.warn("Multiple items returned for the same Waypoint ID. Continuing, but watch for duplicates for " + customizationDetails.WaypointId);
 					existingItem = results.items[0]; // We'll still just work on the first item, but throwing a warning tells us to look for duplicates.
 				}
 				else {
@@ -1219,6 +1243,8 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		// We did not successfully pull data from the DB within 10 tries. Need to abort to avoid data poisoning.
 		return -1;
 	}
+
+	//console.log("Existing item before ETag check:", existingItem);
 
 	// Check to see if the ETag has changed, suggesting the item itself has changed.
 	if (existingItem
@@ -1238,33 +1264,30 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	// We need to get the corresponding IDs for the reference fields. Let's begin with customizationTypeReference.
 
 	// We had our own customization type setup long before we knew theirs. Let's convert it using our array!
-	let customizationType = null; // The full customizationType object for the item.
-	if (!(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory))) { // No need to do this for attachments.
-		const TYPE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointIdField;
+	let customizationType = {}; // The full customizationType object for the item.
+	let typeFound = false; // If the type is resolved, this becomes true.
+	const TYPE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointIdField;
 
-		customizationTypeArray.some((type) => {
-			if (type[TYPE_WAYPOINT_ID_FIELD] == customizationDetails.Type) {
-				// We want to keep the full item so we can fetch any necessary configs.
-				customizationType = type;
-				return true;
-			}
-		});
-
-		if (!(customizationType)) {
-			console.error("Unable to resolve type for " + customizationDetails.Type + " within " + customizationCategory);
-			return -1;
+	customizationTypeArray.some((type) => {
+		if (type[TYPE_WAYPOINT_ID_FIELD] == customizationDetails.Type) {
+			// We want to keep the full item so we can fetch any necessary configs.
+			customizationType = type;
+			typeFound = true;
+			return true;
 		}
-	}
-	else {
-		customizationType = { "_id": null };
+	});
+
+	if (!typeFound) {
+		console.error("Unable to resolve type for " + customizationDetails.Type + " within " + customizationCategory);
+		return -1;
 	}
 
 	// Now that we have the matching customization type ID, we need to get a list of core items matching the contents of our core array.
 	let coreIdArray = [];
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory))) {
-		customizationDetails.Cores.forEach((core) => {
-			if (core.waypointId in coreIdDict) {
-				coreIdArray.push(coreIdDict[core.waypointId]);
+		customizationDetails.Cores.forEach((coreWaypointId) => {
+			if (coreWaypointId in coreIdDict) {
+				coreIdArray.push(coreIdDict[coreWaypointId]);
 			}
 		});
 	}
@@ -1606,20 +1629,20 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			existingItem = returnedJsons[1];
 		}
 
-		if (!(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory))) {
-			const CUSTOMIZATION_SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
-			if (itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] != customizationType._id) {
-				itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] = customizationType._id;
+		const CUSTOMIZATION_SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
+		if (itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] != customizationType._id) {
+			itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] = customizationType._id;
 
-				changed = true;
-				let returnedJsons = markItemAsChanged(itemJson, existingItem, CUSTOMIZATION_SOCKET_REFERENCE_FIELD, customizationCategory);
-				itemJson = returnedJsons[0];
-				existingItem = returnedJsons[1];
-			}
+			changed = true;
+			let returnedJsons = markItemAsChanged(itemJson, existingItem, CUSTOMIZATION_SOCKET_REFERENCE_FIELD, customizationCategory);
+			itemJson = returnedJsons[0];
+			existingItem = returnedJsons[1];
 		}
 
 		const IS_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsCrossCoreField;
-		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationType[IS_CROSS_CORE_FIELD]) { // If we have a non-cross-core customization type.
+		const IS_PARTIAL_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsPartialCrossCoreField;
+		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationType[IS_CROSS_CORE_FIELD] && !customizationType[IS_PARTIAL_CROSS_CORE_FIELD]) {
+			// If we have a non-cross-core customization type.
 			// Note that this means we'll be storing cross-core items in random core-specific folders for now. TODO: Find a better option if this becomes problematic in the future.
 			let parentSiteType = null; // This only applies to attachments that have parent items (e.g. for Helmet Attachments, this will be "Helmet")
 			if ("ParentType" in customizationDetails && CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
@@ -1646,7 +1669,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 				customizationDetails.MimeType,
 				customizationCategory,
 				siteCustomizationType,
-				customizationDetails.Cores[0].name,
+				coreWaypointIdToNameDict[customizationDetails.Cores[0]],
 				parentSiteType,
 				categorySpecificDictsAndArrays);
 
@@ -1874,10 +1897,9 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		// Add the item name and customization type.
 		const CUSTOMIZATION_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField;
 		itemJson[CUSTOMIZATION_NAME_FIELD] = customizationDetails.Title;
-		if (!(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory))) {
-			const CUSTOMIZATION_SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
-			itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] = customizationType._id;
-		}
+
+		const CUSTOMIZATION_SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
+		itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] = customizationType._id;
 
 		const IS_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsCrossCoreField;
 		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationType[IS_CROSS_CORE_FIELD]) { // If we have a non-cross-core customization type.
@@ -1907,7 +1929,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 				customizationDetails.MimeType,
 				customizationCategory,
 				siteCustomizationType,
-				customizationDetails.Cores[0].name,
+				coreWaypointIdToNameDict[customizationDetails.Cores[0]],
 				parentSiteType,
 				categorySpecificDictsAndArrays);
 
@@ -2399,8 +2421,8 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		}
 
 		let categorySpecificDictsAndArrays = options.categorySpecificDictsAndArrays;
-		if (categorySpecificDictsAndArrays.length != 2) {
-			console.error("Expected 2 items in categorySpecificDictsAndArrays, only got " + categorySpecificDictsAndArrays.length +
+		if (categorySpecificDictsAndArrays.length != 3) {
+			console.error("Expected 3 items in categorySpecificDictsAndArrays, only got " + categorySpecificDictsAndArrays.length +
 				". Trying to run getCustomizationDetailsFromWaypointJson() with options", options);
 		}
 
@@ -2461,7 +2483,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	itemJson.Quality = waypointCommonDataJson.Quality;
 	itemJson.Description = waypointCommonDataJson.Description;
 	itemJson.ManufacturerId = waypointCommonDataJson.ManufacturerId;
-	itemJson.Season = waypointCommonDataJson.Season;
+	itemJson.Season = String(waypointCommonDataJson.SeasonNumber);
 	itemJson.RewardTrack = waypointCommonDataJson.RewardTrack;
 	itemJson.CustomAvailability = waypointCommonDataJson.CustomAvailability;
 	itemJson.HideUntilOwned = waypointCommonDataJson.HideUntilOwned;
@@ -2766,8 +2788,8 @@ async function processItem(headers,
 	let emblemPaletteDbIds = []; // The list of emblem palette DB IDs to add to our item.
 
 	if (CustomizationConstants.HAS_EMBLEM_PALETTES_ARRAY.includes(customizationCategory) && itemType != CustomizationConstants.ITEM_TYPES.core) {
-		if (categorySpecificDictsAndArrays.length != 2) { // Ensure we can get the type array.
-			console.error("categorySpecificDictsAndArrays does not have expected length of 2 in processItem().");
+		if (categorySpecificDictsAndArrays.length != 3) { // Ensure we can get the type array.
+			console.error("categorySpecificDictsAndArrays does not have expected length of 3 in processItem().");
 		}
 
 		// We only need the customization type array.
@@ -2968,6 +2990,14 @@ async function generateJsonsFromItemAndAttachmentList(
 	const TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldAttachmentParentField;
 	const TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldAttachmentListField;
 
+	const ATTACHMENT_KEY = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].AttachmentKey;
+
+	let attachmentCategorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(ATTACHMENT_KEY);
+	// This only gives us the type array. We need to get the core stuff from our existing var.
+	for (let i = 1; i < categorySpecificDictsAndArrays.length; ++i) {
+		attachmentCategorySpecificDictsAndArrays[i] = categorySpecificDictsAndArrays[i];
+	}
+
 	for (let l = 0; l < itemAndAttachmentsArray.length; ++l) {
 		const TYPE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointIdField;
 
@@ -2979,10 +3009,10 @@ async function generateJsonsFromItemAndAttachmentList(
 				let attachmentPath = itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]].OptionPaths[m];
 				let attachmentDbJson = await processItem(
 					headers,
-					ArmorConstants.ARMOR_ATTACHMENT_KEY,
+					ATTACHMENT_KEY,
 					folderDict,
 					generalDictsAndArrays,
-					categorySpecificDictsAndArrays,
+					attachmentCategorySpecificDictsAndArrays,
 					attachmentPath,
 					CustomizationConstants.ITEM_TYPES.attachment,
 					customizationItemAttachmentPathsProcessed,
@@ -3019,9 +3049,7 @@ async function generateJsonsFromItemAndAttachmentList(
 
 	// Time to check our work
 	//console.log("Parent Path to Attachment Array Dict Contents: ", parentPathToAttachmentArrayDict);
-	console.log("After obtaining all Attachment JSONs: ", customizationItemAttachmentDbArray);
-
-	const ATTACHMENT_KEY = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].AttachmentKey;
+	//console.log("After obtaining all Attachment JSONs: ", customizationItemAttachmentDbArray);
 
 	saveItemsToDbFromList(ATTACHMENT_KEY, customizationItemAttachmentDbArray, [type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]]);
 
@@ -3116,8 +3144,8 @@ async function generateJsonsFromThemeList(
 				let customizationIdArray = []; // This is an array of Waypoint IDs specifically meant for the kitPathToItemArrayDict.
 				let customizationAttachmentsIdArray = []; // This is similar to the previous array but contains attachment IDs.
 
-				if (categorySpecificDictsAndArrays.length != 2) { // Ensure we can get the type array.
-					console.error("categorySpecificDictsAndArrays does not have expected length of 2 in generateJsonsFromThemeList().");
+				if (categorySpecificDictsAndArrays.length != 3) { // Ensure we can get the type array.
+					console.error("categorySpecificDictsAndArrays does not have expected length of 3 in generateJsonsFromThemeList().");
 				}
 
 				let customizationTypeArray = categorySpecificDictsAndArrays[0]; // We only need this one for our purposes.
@@ -3125,11 +3153,17 @@ async function generateJsonsFromThemeList(
 				const TYPE_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
 				const TYPE_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
 				const TYPE_HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketHasAttachmentsField;
+				const TYPE_IS_KIT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsKitField;
 
 				for (let i = 0; i < customizationTypeArray.length; ++i) {
 					let type = customizationTypeArray[i];
 					if (type[TYPE_NAME_FIELD] == "Any") {
+						//console.log("Skipping Any");
 						continue; // This isn't a real type.
+					}
+					else if (type[TYPE_IS_KIT_FIELD]) {
+						//console.log("Skipping Kit type itself");
+						continue;
 					}
 
 					let waypointTypeGroup = type[TYPE_WAYPOINT_FIELD_FIELD];
@@ -3243,8 +3277,8 @@ async function generateJsonsFromThemeList(
 		let themeWaypointJson = await getCustomizationItem(headers, themePathArray[j]);
 
 		if (!themeWaypointJson.IsKit) { // This is the default theme. We want to iterate over each of its sub items. These are defined in a constant.
-			if (categorySpecificDictsAndArrays.length != 2) { // Ensure we can get the type array.
-				console.error("categorySpecificDictsAndArrays does not have expected length of 2 in generateJsonsFromThemeList().");
+			if (categorySpecificDictsAndArrays.length != 3) { // Ensure we can get the type array.
+				console.error("categorySpecificDictsAndArrays does not have expected length of 3 in generateJsonsFromThemeList().");
 			}
 
 			let customizationTypeArray = categorySpecificDictsAndArrays[0]; // We only need this one for our purposes.
@@ -3260,7 +3294,7 @@ async function generateJsonsFromThemeList(
 				}
 
 				if (!waypointGroupsToProcess.includes(type[TYPE_WAYPOINT_FIELD_FIELD])) {
-					console.log(type);
+					//console.log(type);
 					continue; // We'll get this in a different run.
 				}
 
@@ -3513,10 +3547,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 	let coreList = [];
 	if (customizationCategory == ArmorConstants.ARMOR_KEY) {
 		// With armor cores, the JSON returned is in a slightly different format that we need to standardize.
-		let armorCoreObjectList = await getArmorCoreList(headers);
-		armorCoreObjectList.forEach((armorCoreObject) => {
-			coreList.push(armorCoreObject.CoreCMSPath);
-		});
+		coreList = await getArmorCoreList(headers);
 	}
 	else if (customizationCategory == WeaponConstants.WEAPON_KEY || customizationCategory == VehicleConstants.VEHICLE_KEY) {
 		coreList = await getCoreList(headers, customizationCategory);
@@ -3647,7 +3678,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		let themePathArray = await getThemeList(headers, customizationCategory);
 		let customizationItemPathsProcessed = []; // If we already have a path in this array, we don't need to process it again.
 
-		console.log(themePathArray);
+		//console.log(themePathArray);
 
 		await generateJsonsFromThemeList(
 			headers,
@@ -3808,10 +3839,10 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 		if (!returnCode) {
 			let processingGroups = [
-				["Coatings"],
-				["Emblems"],
-				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				["Helmets", "ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+				//["Coatings"],
+				["Emblems"]
+				//["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
+				//["Helmets", "ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
 			];
 
 			processingGroups.forEach((processingGroup) => {
