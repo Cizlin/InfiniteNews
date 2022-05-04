@@ -3839,10 +3839,10 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 		if (!returnCode) {
 			let processingGroups = [
-				//["Coatings"],
-				["Emblems"]
-				//["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				//["Helmets", "ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+				["Coatings"],
+				["Emblems"],
+				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
+				["Helmets", "ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
 			];
 
 			processingGroups.forEach((processingGroup) => {
