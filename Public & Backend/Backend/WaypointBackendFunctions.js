@@ -303,7 +303,22 @@ export async function processRank(
 			//#region Process the consumable rewards.
 			// First, we should process the Consumables and count how many of each we have.
 			const CONSUMABLES_REFERENCE_FIELD = PassConstants.PASS_RANK_CONSUMABLE_REFERENCE_FIELD;
-			rankDbJson[CONSUMABLES_REFERENCE_FIELD] = [] // Initialize the list of Consumable IDs.
+
+			for (const KEY in CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT) {
+				const FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT[KEY];
+				rankDbJson[FIELD] = []; // Initialize each customization item list with an empty array.
+			}
+
+			for (const KEY in CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT) {
+				const FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT[KEY];
+				rankDbJson[FIELD] = []; // Initialize each customization item list with an empty array.
+			}
+
+			// Reset the consumable counts.
+			rankDbJson[PassConstants.PASS_RANK_NUMBER_OF_XP_BOOSTS_FIELD] = 0;
+			rankDbJson[PassConstants.PASS_RANK_NUMBER_OF_CHALLENGE_SWAPS_FIELD] = 0;
+			rankDbJson[PassConstants.PASS_RANK_NUMBER_OF_XP_GRANTS_FIELD] = 0;
+			rankDbJson[PassConstants.PASS_RANK_NUMBER_OF_CREDITS_FIELD] = 0;
 
 			let currencyArray = ((isPremium) ? rank.premiumCurrencies : rank.freeCurrencies);
 
@@ -370,15 +385,6 @@ export async function processRank(
 			//#endregion
 
 			//#region Process the customization rewards.
-			for (const KEY in CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT) {
-				const FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT[KEY];
-				rankDbJson[FIELD] = []; // Initialize each customization item list with an empty array.
-			}
-
-			for (const KEY in CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT) {
-				const FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_CORE_REFERENCE_FIELD_DICT[KEY];
-				rankDbJson[FIELD] = []; // Initialize each customization item list with an empty array.
-			}
 
 			let customizationArray = ((isPremium) ? rank.premiumItems : rank.freeItems);
 
