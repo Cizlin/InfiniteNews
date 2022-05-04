@@ -1181,7 +1181,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 		for (let typeCategory in typeDict) {
 			if (typeDict[typeCategory].includes(includedItemsArray[j].Type)) { // If the ItemType belongs to this typeCategory.
 				foundType = true;
-				let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPathh);
+				let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
 
 				const CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].CapstoneChallengeReferenceField;
 				challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(await ShopFunctions.getItemId(typeCategory, itemJson));
