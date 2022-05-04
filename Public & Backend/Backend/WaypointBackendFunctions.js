@@ -999,31 +999,31 @@ export async function importAllPasses() {
 
 	let passListCopyDict = structuredClone(passListJsonDict);
 
-	for (let battlePassPath in passListJsonDict) {
+	for (let battlePassPath in passListCopyDict) {
 		// This just cleans up the JSON so that adding it to the DB doesn't try to add a nonexistent field.
-		delete passListJsonDict[battlePassPath].ranks; 
-		delete passListJsonDict[battlePassPath].seasonNum; 
+		delete passListCopyDict[battlePassPath].ranks;
+		delete passListCopyDict[battlePassPath].seasonNum;
 
-		passListCopyDict[battlePassPath].passDbId = await updatePassInDb(passListJsonDict[battlePassPath]);
+		passListJsonDict[battlePassPath].passDbId = await updatePassInDb(passListCopyDict[battlePassPath]);
 	}
 
 	generatePassSocialNotifications(newlyAvailablePasses);
 
 	let typeDict = await GeneralBackendFunctions.generateTypeDict(true);
 
-	for (let battlePassPath in passListCopyDict) {
-		let rankArray = passListCopyDict[battlePassPath].ranks;
-		let seasonNum = passListCopyDict[battlePassPath].seasonNum;
-		let isEvent = passListCopyDict[battlePassPath][PassConstants.PASS_IS_EVENT_FIELD];
-		let passName = passListCopyDict[battlePassPath][PassConstants.PASS_TITLE_FIELD];
-		let passDbId = passListCopyDict[battlePassPath].passDbId;
-		passListCopyDict[battlePassPath].ranks = [];
+	for (let battlePassPath in passListJsonDict) {
+		let rankArray = passListJsonDict[battlePassPath].ranks;
+		let seasonNum = passListJsonDict[battlePassPath].seasonNum;
+		let isEvent = passListJsonDict[battlePassPath][PassConstants.PASS_IS_EVENT_FIELD];
+		let passName = passListJsonDict[battlePassPath][PassConstants.PASS_TITLE_FIELD];
+		let passDbId = passListJsonDict[battlePassPath].passDbId;
+		passListJsonDict[battlePassPath].ranks = [];
 		//console.log("Validate these variables now:", passDbId, rankArray);
 
 		// We need to determine if we should flag all child items in the pass as available or not. Battle Passes stick around permanently, so we just use true in that case.
 		// Event Passes are limited-time, so we need to base the availability on whether the pass itself is active.
-		let itemsCurrentlyAvailable = ((passListCopyDict[battlePassPath][PassConstants.PASS_IS_EVENT_FIELD]) ?
-			passListCopyDict[battlePassPath][PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD] : true);
+		let itemsCurrentlyAvailable = ((passListJsonDict[battlePassPath][PassConstants.PASS_IS_EVENT_FIELD]) ?
+			passListJsonDict[battlePassPath][PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD] : true);
 
 		updateRanksInDb(rankArray, passDbId, itemsCurrentlyAvailable, seasonNum, isEvent, passName, typeDict)
 			.then(() => {
