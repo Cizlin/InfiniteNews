@@ -642,7 +642,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 			continue; // We do not want to process consumables in the same way as other items.
 		}
 		itemInfoArray = itemInfoArray.concat(await updateItemsCurrentlyAvailableStatus(
-			referenceFieldToCategoryDict,
+			referenceFieldToCategoryDict[currentField],
 			itemJson[currentField],
 			currentlyAvailableStatus
 		));
