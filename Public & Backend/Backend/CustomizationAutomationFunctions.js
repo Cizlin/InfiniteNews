@@ -2379,6 +2379,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	 * isKitItem = false,						// Required for Kit Items.
 	 * kitChildItemArray = [],					// Required for Kits.
 	 * kitChildAttachmentArray = []				// Required for Kits with attachments.
+	 * parentThemePath = ""						// Required for items with nothing in ParentPaths or ParentPath.
 	 */
 
 	// We want to create this JSON structure:
@@ -2472,6 +2473,11 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 
 					itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme]);
 				}
+				else if ("parentThemePath" in options && options.parentThemePath in options.waypointThemePathToCoreDict &&
+					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath])) {
+
+					itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath]);
+				}
 				else {
 					throw "Item " + itemJson.Title + " does not have a valid parent core. Skipping for now...";
 				}
@@ -2531,12 +2537,84 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	return itemJson;
 }
 
-// Keys are Configuration IDs and values are true/false. 
-// A true value means the ID is being processed currently, and a false value or nonexistent key means the ID is free to process.
-let lockedEmblemPaletteConfigurationIdsDict = {};
-
 // Keys are Configuration IDs and values are corresponding DB IDs.
 let processedEmblemPaletteConfigurationIdsDict = {};
+
+export async function fetchEmblemPaletteDbIds(emblemPalettePathArray) {
+	let emblemPaletteDbIdArray = [];
+
+	for (let i = 0; i < emblemPalettePathArray.length; ++i) {
+		let emblemPalettePathObject = emblemPalettePathArray[i];
+
+		if (emblemPalettePathObject.ConfigurationId in processedEmblemPaletteConfigurationIdsDict) { // We've processed this configuration ID before. Let's grab the DB ID and go.
+			if (!emblemPaletteDbIdArray.includes(processedEmblemPaletteConfigurationIdsDict[emblemPalettePathObject.ConfigurationId])) {
+				emblemPaletteDbIdArray.push(processedEmblemPaletteConfigurationIdsDict[emblemPalettePathObject.ConfigurationId]);
+			}
+			continue;
+		}
+
+		try {
+			let emblemPaletteDbId;
+
+			let retry = true;
+			let retryCount = 0;
+			const MAX_RETRIES = 10;
+
+			while (retry && retryCount < MAX_RETRIES) {
+				emblemPaletteDbId = await wixData.query(CustomizationConstants.EMBLEM_PALETTE_DB)
+					.eq(CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD, emblemPalettePathObject.ConfigurationId)
+					.find()
+					.then((results) => {
+						retry = false;
+
+						if (results.items.length > 0) {
+							if (results.items.length > 1) {
+								console.error("Uniqueness was assumed but not upheld for configuration ID " + emblemPalettePathObject.ConfigurationId);
+								return -1;
+							}
+							else {
+								// Only one item returned. Send up its DB ID.
+								return results.items[0]._id;
+							}
+						}
+						else { // No emblem palettes found. We need to add it.
+							return null;
+						}
+					})
+					.catch((error) => {
+						console.error(error + " occurred while validating emblem configuration ID " + emblemPalettePathObject.ConfigurationId + "." +
+							((retry) ? ("Try " + (++retryCount) + " of " + MAX_RETRIES + "...") : ""));
+						return -1;
+					});
+			}
+
+			if (emblemPaletteDbId == -1) { // If the emblem palette config ID fetch failed.
+				throw "Failed to confirm presence of Emblem Palette Configuration ID" + emblemPalettePathObject.ConfigurationId;
+			}
+
+			if (!emblemPaletteDbId) {
+				throw "Expected Emblem Palette with Configuration ID " + emblemPalettePathObject.ConfigurationId + " but could not find it in the DB.";
+			}
+
+			if (!emblemPaletteDbIdArray.includes(emblemPaletteDbId)) { // If we haven't already added this Emblem Palette to the array.
+				emblemPaletteDbIdArray.push(emblemPaletteDbId);
+			}
+
+			// Add this ID to our dictionary.
+			processedEmblemPaletteConfigurationIdsDict[emblemPalettePathObject.ConfigurationId] = emblemPaletteDbId
+		}
+		catch (error) {
+			console.error(error + " occurred while retrieving Emblem Palette with Configuration ID " + emblemPalettePathObject.ConfigurationId + " from the DB. Exiting...");
+			throw error;
+		}
+	}
+
+	return emblemPaletteDbIdArray;
+}
+
+// Keys are Configuration IDs and values are true/false. 
+// A true value means the ID is being processed currently, and a false value or nonexistent key means the ID is free to process.
+/*let lockedEmblemPaletteConfigurationIdsDict = {};
 
 // This will let us sleep while waiting for a Configuration ID to be unlocked.
 function sleep(ms) {
@@ -2668,7 +2746,7 @@ async function addEmblemPalettesToDb(emblemPalettePathArray, folderDict, headers
 	}
 
 	return emblemPaletteDbIdArray;
-}
+}*/
 
 // This function accepts a path and other performance variables and performs various tasks to generate an item to insert in the DB. Returns the site JSON for the item (or 1 if item should be skipped, or -1 if error occurred).
 // headers: The headers used to access Waypoint endpoints.
@@ -2712,7 +2790,8 @@ async function processItem(headers,
 	 * customizationWaypointIdArray = [],	// Required for kit items.
 	 * kitChildItemArray = [],				// Required for kits.
 	 * kitChildAttachmentArray = [],		// Required for kits.
-	 * forceCheck = false					// Required for kits and items with attachments.
+	 * forceCheck = false,					// Required for kits and items with attachments.
+	 * parentThemePath = ""					// Required for items without anything in ParentPaths or ParentTheme.
 	 */
 
 	// This helps us avoid processing duplicate items.
@@ -2811,7 +2890,8 @@ async function processItem(headers,
 		});
 
 		if (itemHasPalettes) { // If the item has Emblem Palettes.
-			emblemPaletteDbIds = await addEmblemPalettesToDb(itemWaypointJson.AvailableConfigurations, folderDict, headers);
+			//emblemPaletteDbIds = await addEmblemPalettesToDb(itemWaypointJson.AvailableConfigurations, folderDict, headers);
+			emblemPaletteDbIds = await fetchEmblemPaletteDbIds(itemWaypointJson.AvailableConfigurations); // We already added the Emblem Palettes at the start, so we just need to know their IDs.
 		}
 	}
 
@@ -2829,7 +2909,8 @@ async function processItem(headers,
 			"parentWaypointType": ("attachmentParentWaypointType" in options) ? options.attachmentParentWaypointType : "",
 			"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 			"kitChildItemArray": ("kitChildItemArray" in options) ? options.kitChildItemArray : [],
-			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : []
+			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : [],
+			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 		}
 	);
 
@@ -2907,6 +2988,7 @@ async function generateJsonsFromItemList(
 	 * waypointThemePathToCoreDict = {},	// Required for non-cross-core items.
 	 * isKitItem = false,					// Required for kit items.
 	 * customizationWaypointIdArray = []	// Required for kit items and kits.
+	 * parentThemePath = ""					// Required for items with nothing in ParentTheme or ParentPaths.
 	 */
 
 	for (let k = 0; k < customizationItemPathArray.length; ++k) {
@@ -2924,7 +3006,8 @@ async function generateJsonsFromItemList(
 				{
 					"waypointThemePathToCoreDict": ("waypointThemePathToCoreDict" in options) ? options.waypointThemePathToCoreDict : {},
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
-					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : []
+					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
+					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 				}
 			);
 
@@ -2978,6 +3061,7 @@ async function generateJsonsFromItemAndAttachmentList(
 	 * isKitItem = false,							// Required for kit items.
 	 * customizationWaypointIdArray = [],			// Required for kit items and kits.
 	 * customizationWaypointAttachmentIdArray = []  // Required for kit attachments, kits, and items with attachments.
+	 * parentThemePath = ""							// Required for items with nothing in ParentTheme or ParentPaths.
 	 */
 
 	// We're working with an item type that has attachments. This means it's laid out a little differently. 
@@ -3025,7 +3109,8 @@ async function generateJsonsFromItemAndAttachmentList(
 						"attachmentPathToIdDict": attachmentPathToIdDict,
 						"attachmentParentWaypointType": parentWaypointType,
 						"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
-						"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : []
+						"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
+						"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 					}
 				);
 
@@ -3074,7 +3159,8 @@ async function generateJsonsFromItemAndAttachmentList(
 					"attachmentArray": parentPathToAttachmentArrayDict[itemPath],
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 					"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
-					"forceCheck": true // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
+					"forceCheck": true, // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
+					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 				}
 			);
 
@@ -3188,7 +3274,8 @@ async function generateJsonsFromThemeList(
 							{
 								"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 								"isKitItem": true,
-								"customizationWaypointIdArray": customizationIdArray
+								"customizationWaypointIdArray": customizationIdArray,
+								"parentThemePath": themePathArray[l]
 							}
 						);
 					}
@@ -3208,7 +3295,8 @@ async function generateJsonsFromThemeList(
 								"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 								"isKitItem": true,
 								"customizationWaypointIdArray": customizationIdArray,
-								"customizationWaypointAttachmentIdArray": customizationAttachmentsIdArray
+								"customizationWaypointAttachmentIdArray": customizationAttachmentsIdArray,
+								"parentThemePath": themePathArray[l]
 							}
 						);
 					}
@@ -3248,7 +3336,8 @@ async function generateJsonsFromThemeList(
 							"coreWaypointId": coreWaypointId,
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 							"kitChildItemArray": kitPathToItemArrayDict[themePathArray[l]].items,
-							"kitChildAttachmentArray": kitPathToItemArrayDict[themePathArray[l]].attachments
+							"kitChildAttachmentArray": kitPathToItemArrayDict[themePathArray[l]].attachments,
+							"parentThemePath": themePathArray[l]
 						}
 					);
 
@@ -3317,7 +3406,8 @@ async function generateJsonsFromThemeList(
 						customizationItemPathsProcessed,
 						customizationItemPathArray,
 						{
-							"waypointThemePathToCoreDict": waypointThemePathToCoreDict
+							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
+							"parentThemePath": themePathArray[j]
 						}
 					);
 				}
@@ -3338,7 +3428,8 @@ async function generateJsonsFromThemeList(
 						itemAndAttachmentsArray,
 						type,
 						{
-							"waypointThemePathToCoreDict": waypointThemePathToCoreDict
+							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
+							"parentThemePath": themePathArray[j]
 						}
 					);
 				}
@@ -3811,7 +3902,159 @@ export async function importManufacturers(headers) {
 
 }
 
-export async function armorImport(headers = null, manufacturerImportCompleted = false) {
+// Let's add the emblem palette. We need to get all the field data now.
+async function processEmblemPalette(headers, folderDict, emblemPalettePath, eTag, existingDbObject = null) {
+	let emblemPaletteWaypointJson = await getCustomizationItem(headers, emblemPalettePath);
+
+	let emblemPaletteName = emblemPaletteWaypointJson.CommonData.Title;
+
+	// Get the image URL.
+	let emblemPaletteWaypointImageUrl = emblemPaletteWaypointJson.CommonData.DisplayPath.Media.MediaUrl.Path;
+	let emblemPaletteMimeType = emblemPaletteWaypointJson.CommonData.DisplayPath.MimeType;
+	let emblemPaletteUrl = await getCustomizationImageUrl(
+		folderDict,
+		headers,
+		emblemPaletteName,
+		emblemPaletteWaypointImageUrl,
+		emblemPaletteMimeType,
+		CustomizationConstants.EMBLEM_PALETTE_KEY,
+		"Emblem Palette");
+
+	let emblemPaletteWaypointId = emblemPaletteWaypointJson.CommonData.Id;
+
+	let emblemPaletteConfigurationId = emblemPaletteWaypointJson.ConfigurationId.m_identifier;
+
+	let emblemPaletteDbJson = {
+		[CustomizationConstants.EMBLEM_PALETTE_NAME_FIELD]: emblemPaletteName,
+		[CustomizationConstants.EMBLEM_PALETTE_IMAGE_FIELD]: emblemPaletteUrl,
+		[CustomizationConstants.EMBLEM_PALETTE_WAYPOINT_ID_FIELD]: emblemPaletteWaypointId,
+		[CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD]: emblemPaletteConfigurationId,
+		[CustomizationConstants.EMBLEM_PALETTE_ITEM_E_TAG_FIELD]: eTag
+	};
+
+	if (existingDbObject) { // If we have a DB ID for an existing Emblem Palette, add it now.
+		emblemPaletteDbJson._id = existingDbObject._id;
+
+		// We use this dictionary to keep track of which Emblem Palettes we already know the DbIds for, so we can populate it a bit here.
+		processedEmblemPaletteConfigurationIdsDict[emblemPaletteWaypointJson.ConfigurationId.m_identifier] = existingDbObject._id;
+
+		if (emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_NAME_FIELD] != existingDbObject[CustomizationConstants.EMBLEM_PALETTE_NAME_FIELD]) {
+			// If the names don't match.
+			emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_CHANGE_LOG_FIELD] = existingDbObject[CustomizationConstants.EMBLEM_PALETTE_CHANGE_LOG_FIELD] || []; // Copy the existing array over or make a new one if necessary.
+			var datetime = getCurrentDateTimeString();
+			emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_CHANGE_LOG_FIELD].unshift(datetime + ": Changed " + CustomizationConstants.EMBLEM_PALETTE_NAME_FIELD +
+				", Was: " + existingDbObject[CustomizationConstants.EMBLEM_PALETTE_NAME_FIELD] + ", Is: " + emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_NAME_FIELD]);
+		}
+
+		if (emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD] != existingDbObject[CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD]) {
+			// If the names don't match.
+			emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_CHANGE_LOG_FIELD] = existingDbObject[CustomizationConstants.EMBLEM_PALETTE_CHANGE_LOG_FIELD] || []; // Copy the existing array over or make a new one if necessary.
+			var datetime = getCurrentDateTimeString();
+			emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_CHANGE_LOG_FIELD].unshift(datetime + ": Changed " + CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD +
+				", Was: " + existingDbObject[CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD] + ", Is: " + emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD]);
+		}
+	}
+	else {
+		var datetime = getCurrentDateTimeString();
+		emblemPaletteDbJson[CustomizationConstants.EMBLEM_PALETTE_CHANGE_LOG_FIELD] = [datetime + ": Added to DB"];
+	}
+
+	return emblemPaletteDbJson;
+}
+
+
+export async function importEmblemPalettes(headers, generalDictsAndArrays) {
+	try {
+		let folderDict; // This will be passed to our image grabbing function. 
+		let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
+			.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+			.find();
+
+		if (results.items.length > 0) {
+			folderDict = results.items[0].value;
+		}
+		else {
+			throw "Could not retrieve folder dict. Cannot get customization image urls.";
+		}
+
+		// [0]: qualityDict
+		// [1]: releaseDict
+		// [2]: manufacturerArray (index aligns with Waypoint ID num)
+		// [3]: sourceTypeDict
+		// [4]: eTagDict
+		if (generalDictsAndArrays.length != 5) { // We expect 5 dicts/arrays in this construct.
+			console.error("Unexpected length for generalDictsAndArrays. Expected 5, got ", generalDictsAndArrays.length);
+		}
+
+		let eTagDict = generalDictsAndArrays[4]; // We just need the ETags for the Emblem Palettes.
+
+		let existingEmblemPaletteETags = {}; // This dictionary will convert the Waypoint ID of an Emblem Palette into its ETag from the DB.
+		let existingEmblemPaletteDbObjects = {}; // This dictionary will convert the Waypoint ID of an Emblem Palette into its _id from the DB.
+
+		let existingEmblemPaletteResults = await wixData.query(CustomizationConstants.EMBLEM_PALETTE_DB)
+			.limit(1000)
+			.find();
+
+		existingEmblemPaletteResults.items.forEach((emblemPaletteDbObject) => {
+			existingEmblemPaletteETags[emblemPaletteDbObject[CustomizationConstants.EMBLEM_PALETTE_WAYPOINT_ID_FIELD]] = emblemPaletteDbObject[CustomizationConstants.EMBLEM_PALETTE_ITEM_E_TAG_FIELD];
+			existingEmblemPaletteDbObjects[emblemPaletteDbObject[CustomizationConstants.EMBLEM_PALETTE_WAYPOINT_ID_FIELD]] = emblemPaletteDbObject;
+		});
+
+		let inventoryJson = await getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
+
+		//console.log(inventoryJson.EmblemCoatings.length);
+		//console.log(existingEmblemPaletteResults.items.length);
+
+		let emblemPalettesToPushToDb = []; // An array of DB dictionaries
+
+		for (let i = 0; i < inventoryJson.EmblemCoatings.length; ++i) {
+			let emblemPalettePathObject = inventoryJson.EmblemCoatings[i];
+			let waypointId = emblemPalettePathObject.ItemId;
+			if (!(waypointId in existingEmblemPaletteETags && 						// If the ID isn't in the existing Dict, it's a new Emblem Palette.
+				waypointId in eTagDict && 											// If the ID isn't in the ETag Dict from Waypoint, we have to process it anyway.
+				existingEmblemPaletteETags[waypointId] == eTagDict[waypointId])) {	// If the ETags exist and match one another, we can skip processing. Otherwise, it's changed and we gotta process it.
+
+				//console.log("Need to process " + waypointId + " with DB ID " + existingEmblemPaletteDbIds[waypointId]);
+
+				if (waypointId in existingEmblemPaletteETags) { // Item was in DB.
+					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, folderDict, emblemPalettePathObject.ItemPath, eTagDict[waypointId], existingEmblemPaletteDbObjects[waypointId]));
+				}
+				else {
+					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, folderDict, emblemPalettePathObject.ItemPath, eTagDict[waypointId]));
+				}
+			}
+		}
+
+		let retry = true;
+		let retryCount = 0;
+		const MAX_RETRIES = 10;
+
+		console.log("Saving the following Emblem Palettes to the DB: ", emblemPalettesToPushToDb);
+
+		while (retry && retryCount < MAX_RETRIES) {
+			await wixData.bulkSave(CustomizationConstants.EMBLEM_PALETTE_DB, emblemPalettesToPushToDb)
+				.then((results) => {
+					retry = false;
+					console.log("Inserted/Updated Emblem Palette results: ", results);
+					return results;
+				})
+				.catch((error) => {
+					console.error(error + " occurred while adding emblem palettes to DB." +
+						((retry) ? ("Try " + (++retryCount) + " of " + MAX_RETRIES + "...") : ""));
+				});
+		}
+
+		if (retryCount >= MAX_RETRIES) {
+			throw "Unable to add Emblem Palettes after 10 attempts.";
+		}
+	}
+	catch (error) {
+		console.error(error + " occurred while importing Emblem Palettes. Throwing an exception to prevent data poisoning.");
+		throw error;
+	}
+}
+
+export async function armorImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3848,7 +4091,11 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 				["Helmets", "ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
 			];
 
-			processingGroups.forEach((processingGroup) => {
+			processingGroups.forEach(async (processingGroup) => {
+				if (processingGroup.includes("Emblems") && !emblemPaletteImportCompleted) {
+					await importEmblemPalettes(headers, generalDictsAndArrays);
+				}
+
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
 					.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
@@ -3863,7 +4110,7 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 	}
 }
 
-export async function weaponImport(headers = null, manufacturerImportCompleted = false) {
+export async function weaponImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3899,7 +4146,11 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 				["WeaponCharms", "DeathFx", "AlternateGeometryRegions"]
 			];
 
-			processingGroups.forEach((processingGroup) => {
+			processingGroups.forEach(async (processingGroup) => {
+				if (processingGroup.includes("Emblems") && !emblemPaletteImportCompleted) {
+					await importEmblemPalettes(headers, generalDictsAndArrays);
+				}
+
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
 					.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
@@ -3912,50 +4163,9 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 	else { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
 		console.error("Unable to process items for " + customizationCategory + " due to failure to add Cores.");
 	}
-
-	/*makeWaypointHeaders()
-		.then((headers) => { // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
-			importManufacturers(headers) // We're going to import the manufacturers before anything else. This isn't a super lengthy process, but will take a few seconds.
-				.then(() => {
-					getGeneralDictsAndArraysFromDbs(headers)
-						.then((generalDictsAndArrays) => {
-							let customizationCategoryWeapon = KeyConstants.WEAPON_KEY;
-							updateDbsFromApi(headers, customizationCategoryWeapon, [], generalDictsAndArrays, null)
-								.then((returnCode) => {
-									if (!returnCode) { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
-										getCategorySpecificDictsAndArraysFromDbs(customizationCategoryWeapon)
-											.then((categorySpecificDictsAndArrays) => {
-												updateDbsFromApi(headers, customizationCategoryWeapon, [CustomizationConstants.KIT_PROCESSING_KEY], generalDictsAndArrays, categorySpecificDictsAndArrays)
-													.then((returnCode) => {
-														if (!returnCode) { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
-															updateDbsFromApi(headers, customizationCategoryWeapon, ["Coatings"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-																.then(() => console.log("Finished adding ", ["Coatings"], " for " + customizationCategoryWeapon));
-															updateDbsFromApi(headers, customizationCategoryWeapon, ["Emblems"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-																.then(() => console.log("Finished adding ", ["Emblems"], " for " + customizationCategoryWeapon));
-															updateDbsFromApi(headers, customizationCategoryWeapon, ["WeaponCharms", "DeathFx", "AlternateGeometryRegions"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-																.then(() => console.log("Finished adding ", ["WeaponCharms", "DeathFx", "AlternateGeometryRegions"], 
-																	" for " + customizationCategoryWeapon));
-														}
-														else {
-															console.error("Unable to process Weapon items due to failure to add Kits.");
-														}
-													})
-													.catch(error => {
-														console.error("Failed to add Weapon Kits due to " + error);
-													});
-											});
-									}
-									else {
-										console.error("Unable to process Weapon items due to failure to add Cores.");
-									}
-								});
-						});
-				});
-		});
-		*/
 }
 
-export async function vehicleImport(headers = null, manufacturerImportCompleted = false) {
+export async function vehicleImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3983,7 +4193,11 @@ export async function vehicleImport(headers = null, manufacturerImportCompleted 
 			["AlternateGeometryRegions"]
 		];
 
-		processingGroups.forEach((processingGroup) => {
+		processingGroups.forEach(async (processingGroup) => {
+			if (processingGroup.includes("Emblems") && !emblemPaletteImportCompleted) {
+				await importEmblemPalettes(headers, generalDictsAndArrays);
+			}
+
 			updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
 				.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
 				.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
@@ -3992,35 +4206,6 @@ export async function vehicleImport(headers = null, manufacturerImportCompleted 
 	else { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
 		console.error("Unable to process items for " + customizationCategory + " due to failure to add Cores.");
 	}
-
-	/*makeWaypointHeaders()
-		.then((headers) => { // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
-			importManufacturers(headers) // We're going to import the manufacturers before anything else. This isn't a super lengthy process, but will take a few seconds.
-				.then(() => {
-					getGeneralDictsAndArraysFromDbs(headers)
-						.then((generalDictsAndArrays) => {
-							let customizationCategoryVehicle = KeyConstants.VEHICLE_KEY;
-							updateDbsFromApi(headers, customizationCategoryVehicle, [CustomizationConstants.CORE_PROCESSING_KEY], generalDictsAndArrays, null)
-								.then((returnCode) => {
-									if (!returnCode) { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
-										getCategorySpecificDictsAndArraysFromDbs(customizationCategoryVehicle)
-											.then((categorySpecificDictsAndArrays) => {
-												updateDbsFromApi(headers, customizationCategoryVehicle, ["Coatings"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-													.then(() => console.log("Finished adding ", ["Coatings"], " for " + customizationCategoryVehicle));
-												updateDbsFromApi(headers, customizationCategoryVehicle, ["Emblems"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-													.then(() => console.log("Finished adding ", ["Emblems"], " for " + customizationCategoryVehicle));
-												updateDbsFromApi(headers, customizationCategoryVehicle, ["AlternateGeometryRegions"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-													.then(() => console.log("Finished adding ", ["AlternateGeometryRegions"], " for " + customizationCategoryVehicle));
-											});
-									}
-									else {
-										console.error("Unable to process Vehicle items due to failure to add Cores.");
-									}
-								});
-						});
-				});
-		});
-		*/
 }
 
 export async function bodyAiImport(headers = null, manufacturerImportCompleted = false) {
@@ -4034,7 +4219,6 @@ export async function bodyAiImport(headers = null, manufacturerImportCompleted =
 
 	let generalDictsAndArrays = await getGeneralDictsAndArraysFromDbs(headers);
 
-	// Add the cores first.
 	let customizationCategory = BodyAndAiConstants.BODY_AND_AI_KEY;
 
 	let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
@@ -4048,26 +4232,9 @@ export async function bodyAiImport(headers = null, manufacturerImportCompleted =
 			.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
 			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 	});
-
-	/*makeWaypointHeaders()
-		.then((headers) => { // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
-			importManufacturers(headers) // We're going to import the manufacturers before anything else. This isn't a super lengthy process, but will take a few seconds.
-				.then(() => {
-					getGeneralDictsAndArraysFromDbs(headers)
-						.then((generalDictsAndArrays) => {
-							let customizationCategoryBodyAndAi = KeyConstants.BODY_AND_AI_KEY;
-							getCategorySpecificDictsAndArraysFromDbs(customizationCategoryBodyAndAi)
-								.then((categorySpecificDictsAndArrays) => {
-									updateDbsFromApi(headers, customizationCategoryBodyAndAi, ["Models", "Colors"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-										.then(() => console.log("Finished adding ", ["Models", "Colors"], " for " + customizationCategoryBodyAndAi));
-								});
-						});
-				});
-		});	
-		*/
 }
 
-export async function spartanIdImport(headers = null, manufacturerImportCompleted = false) {
+export async function spartanIdImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -4078,7 +4245,6 @@ export async function spartanIdImport(headers = null, manufacturerImportComplete
 
 	let generalDictsAndArrays = await getGeneralDictsAndArraysFromDbs(headers);
 
-	// Add the cores first.
 	let customizationCategory = SpartanIdConstants.SPARTAN_ID_KEY;
 
 	let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
@@ -4088,28 +4254,14 @@ export async function spartanIdImport(headers = null, manufacturerImportComplete
 		["SpartanEmblem"]
 	];
 
-	processingGroups.forEach((processingGroup) => {
+	processingGroups.forEach(async (processingGroup) => {
+		if (processingGroup.includes("SpartanEmblem") && !emblemPaletteImportCompleted) {
+			await importEmblemPalettes(headers, generalDictsAndArrays);
+		}
 		updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
 			.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
 			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 	});
-
-	/*makeWaypointHeaders()
-		.then((headers) => { // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
-			importManufacturers(headers) // We're going to import the manufacturers before anything else. This isn't a super lengthy process, but will take a few seconds.
-				.then(() => {
-					getGeneralDictsAndArraysFromDbs(headers)
-						.then((generalDictsAndArrays) => {
-							let customizationCategorySpartanId = KeyConstants.SPARTAN_ID_KEY;
-							getCategorySpecificDictsAndArraysFromDbs(customizationCategorySpartanId)
-								.then((categorySpecificDictsAndArrays) => {
-									updateDbsFromApi(headers, customizationCategorySpartanId, ["ActionPoses", "Emblems", "BackdropImages"], generalDictsAndArrays, categorySpecificDictsAndArrays)
-										.then(() => console.log("Finished adding ", ["ActionPoses", "Emblems", "BackdropImages"], " for " + customizationCategorySpartanId));
-								});
-						});
-				});
-		});
-		*/
 }
 
 export function generalCustomizationImport() {
@@ -4117,11 +4269,14 @@ export function generalCustomizationImport() {
 		.then((headers) => {
 			importManufacturers(headers)
 				.then(() => {
-					armorImport(headers, true);
-					weaponImport(headers, true);
-					vehicleImport(headers, true);
-					bodyAiImport(headers, true);
-					spartanIdImport(headers, true);
+					importEmblemPalettes(headers)
+						.then(() => {
+							armorImport(headers, true);
+							weaponImport(headers, true);
+							vehicleImport(headers, true);
+							bodyAiImport(headers, true);
+							spartanIdImport(headers, true);
+						});
 				});
 		});
 }
