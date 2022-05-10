@@ -669,6 +669,12 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		});
 	}
 
+	// If this is a default item, note its parent core.
+	let defaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
+	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && customizationDetails.DefaultOfCore && customizationDetails.DefaultOfCore != "") {
+		defaultOfCoreIdArray.push(customizationDetails.DefaultOfCore);
+    }
+
 	// We need to convert the array of attachment names to an array of attachment IDs. This one is probably best to filter first.
 	// TODO: Consider whether this would be worth including as a dict that gets passed in (would need to be generated after all attachments are added but before items using attachments).
 	let attachmentIdArray = [];
@@ -1244,6 +1250,9 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			existingItem = returnedJsons[1];
 		}
 
+		const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
+		itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = defaultOfCoreIdArray;
+
 		if (!changed) { // If we didn't make any changes to the item, we can just skip it by returning 1.
 			return 1;
 		}
@@ -1405,6 +1414,9 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		const CUSTOMIZATION_TYPE_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
 		const ALT_TEXT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationAltTextField;
 		itemJson[ALT_TEXT_FIELD] = customizationDetails.Title + " " + customizationType[CUSTOMIZATION_TYPE_NAME_FIELD];
+
+		const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
+		itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = defaultOfCoreIdArray;
 
 		var datetime = getCurrentDateTimeString();
 		const CHANGE_LOG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationChangeLogField;
@@ -1907,6 +1919,14 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		itemJson.ChildAttachments = [];
 	}
 
+	if ("isDefault" in options && options.isDefault &&
+		"waypointThemePathToCoreDict" in options && "parentTheme" in options && options.parentThemePath in options.waypointThemePathToCoreDict) {
+		itemJson.DefaultOfCore = waypointThemePathToCoreDict[parentThemePath];
+	}
+	else {
+		itemJson.DefaultOfCore;
+    }
+
 	return itemJson;
 }
 
@@ -2029,7 +2049,8 @@ async function processItem(headers,
 	 * kitChildItemArray = [],				// Required for kits.
 	 * kitChildAttachmentArray = [],		// Required for kits.
 	 * forceCheck = false,					// Required for kits and items with attachments.
-	 * parentThemePath = ""					// Required for items without anything in ParentPaths or ParentTheme.
+	 * parentThemePath = "",				// Required for items without anything in ParentPaths or ParentTheme.
+	 * isDefault = false					// Required for items with cores.
 	 */
 
 	// This helps us avoid processing duplicate items.
@@ -2148,7 +2169,8 @@ async function processItem(headers,
 			"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 			"kitChildItemArray": ("kitChildItemArray" in options) ? options.kitChildItemArray : [],
 			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : [],
-			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
+			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
+			"isDefault": ("isDefault" in options) ? options.isDefault : false
 		}
 	);
 
@@ -2227,6 +2249,7 @@ async function generateJsonsFromItemList(
 	 * isKitItem = false,					// Required for kit items.
 	 * customizationWaypointIdArray = []	// Required for kit items and kits.
 	 * parentThemePath = ""					// Required for items with nothing in ParentTheme or ParentPaths.
+	 * defaultPath = ""						// Required for items with cores.
 	 */
 
 	for (let k = 0; k < customizationItemPathArray.length; ++k) {
@@ -2245,7 +2268,8 @@ async function generateJsonsFromItemList(
 					"waypointThemePathToCoreDict": ("waypointThemePathToCoreDict" in options) ? options.waypointThemePathToCoreDict : {},
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
-					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
+					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
+					"isDefault": ("defaultPath" in options) ? (defaultPath == itemPath) : false
 				}
 			);
 
@@ -2281,7 +2305,9 @@ async function generateJsonsFromItemList(
 // waypointThemePathToCoreDict: A dictionary that takes theme Waypoint paths and converts them to core names.
 // isKitItem: Only true if the item belongs to a Kit.
 // customizationWaypointIdArray: Array of Waypoint IDs, only really needed for Kit items.
-// customizationWaypointIdArray: Array of Waypoint IDs for attachments, only really needed for Kit items.
+// customizationWaypointAttachmentIdArray: Array of Waypoint IDs for attachments, only really needed for Kit items.
+// parentThemePath: The path to the parent theme used to locate this list of items.
+// defaultPath: The path to the default item.
 async function generateJsonsFromItemAndAttachmentList(
 	headers,
 	customizationCategory,
@@ -2300,6 +2326,7 @@ async function generateJsonsFromItemAndAttachmentList(
 	 * customizationWaypointIdArray = [],			// Required for kit items and kits.
 	 * customizationWaypointAttachmentIdArray = []  // Required for kit attachments, kits, and items with attachments.
 	 * parentThemePath = ""							// Required for items with nothing in ParentTheme or ParentPaths.
+	 * defaultPath = ""								// Required for items with cores.
 	 */
 
 	// We're working with an item type that has attachments. This means it's laid out a little differently. 
@@ -2327,6 +2354,11 @@ async function generateJsonsFromItemAndAttachmentList(
 		const TYPE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointIdField;
 
 		let attachmentParentPath = itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD]]; // TODO: Make this work for other attachments if they get added.
+		let defaultAttachmentPath = "";
+		if ("defaultPath" in options && options.defaultPath == attachmentParentPath) {
+			defaultAttachmentPath = itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]].DefaultOptionPath;
+        }
+
 		let parentWaypointType = type[TYPE_WAYPOINT_ID_FIELD];
 		let attachmentArray = []; // This is an array of attachment names specifically meant for the parentPathToAttachmentArrayDict.
 		for (let m = 0; m < itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]].OptionPaths.length; ++m) {
@@ -2348,7 +2380,8 @@ async function generateJsonsFromItemAndAttachmentList(
 						"attachmentParentWaypointType": parentWaypointType,
 						"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 						"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
-						"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
+						"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
+						"isDefault": (defaultAttachmentPath == attachmentPath)
 					}
 				);
 
@@ -2398,7 +2431,8 @@ async function generateJsonsFromItemAndAttachmentList(
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
 					"forceCheck": true, // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
-					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
+					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
+					"isDefault": ("defaultPath" in options) ? (defaultPath == itemPath) : false
 				}
 			);
 
@@ -2630,6 +2664,9 @@ async function generateJsonsFromThemeList(
 
 				let waypointTypeGroup = type[TYPE_WAYPOINT_FIELD_FIELD];
 
+				// We want to get the default path so we can associate the default item with its parent core.
+				let defaultPath = themeWaypointJson[waypointTypeGroup].DefaultOptionPath;
+
 				if (!type[TYPE_HAS_ATTACHMENTS_FIELD]) {
 					// Basically, if we aren't working with an attachment-supporting group.
 					// We grab the array of waypoint paths, then process each one (so many nested for loops...)
@@ -2645,7 +2682,8 @@ async function generateJsonsFromThemeList(
 						customizationItemPathArray,
 						{
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
-							"parentThemePath": themePathArray[j]
+							"parentThemePath": themePathArray[j],
+							"defaultPath": defaultPath
 						}
 					);
 				}
@@ -2667,7 +2705,8 @@ async function generateJsonsFromThemeList(
 						type,
 						{
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
-							"parentThemePath": themePathArray[j]
+							"parentThemePath": themePathArray[j],
+							"defaultPath": defaultPath
 						}
 					);
 				}
@@ -2686,6 +2725,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 	const KIT_ATTACHMENT_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitAttachmentReferenceField;
 	const EMBLEM_PALETTE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].EmblemPaletteReferenceField;
 	const SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSourceTypeField;
+	const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 
 	console.log("Adding items for " + customizationCategory + " and groups", waypointGroupsToProcess, "Items:", customizationItemDbArray);
 
@@ -2709,9 +2749,8 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					retryItem = false;
 					console.log("Item added or updated: ", customizationItemDbJson);
 
-					// This part may no longer be necessary thanks to structuredCopy.
-
-					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) &&
+					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && // If the item has a core
+						!CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory) && // If the item is not an attachment.
 						CORE_REFERENCE_FIELD in customizationItemDbJson) {
 						//console.log("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 
@@ -2831,6 +2870,26 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 								.catch((error) => {
 									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was adding Emblem palette references for ",
 										customizationItemDbJson._id, " in ", CUSTOMIZATION_DB, " with ", customizationItemDbJson[EMBLEM_PALETTE_REFERENCE_FIELD]);
+								});
+						}
+					}
+
+					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) &&
+						DEFAULT_OF_CORE_REFERENCE_FIELD in customizationItemDbJson) {
+						//console.log("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+
+						let retry = true;
+						let retryCount = 0;
+
+						while (retry && retryCount < maxRetries) {
+							await wixData.replaceReferences(CUSTOMIZATION_DB, DEFAULT_OF_CORE_REFERENCE_FIELD, item._id, customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD], options)
+								.then(() => {
+									retry = false;
+									//console.log("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+								})
+								.catch((error) => {
+									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing core references for ", item._id, " in ",
+										CUSTOMIZATION_DB, " with ", customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD]);
 								});
 						}
 					}
