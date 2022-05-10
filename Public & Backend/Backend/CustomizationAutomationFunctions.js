@@ -23,8 +23,8 @@ import * as ApiConstants from 'public/Constants/ApiConstants.js';
 import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 
 // Import helper functions.
-import * as ApiFunctions from 'backend/ApiFunctions.js';
-import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.js';
+import * as ApiFunctions from 'backend/ApiFunctions.jsw';
+import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 //#endregion
 
 // Retrieves the list of Armor Cores from the Waypoint API.

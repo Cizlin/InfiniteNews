@@ -1,3 +1,4 @@
+import { getSecret } from 'wix-secrets-backend';
 import * as DiscordFunctions from 'backend/DiscordBotFunctions.jsw';
 
 export async function sendPushNotification(title, body, subtitle, url, destinationSegment = "Shop Listings") {

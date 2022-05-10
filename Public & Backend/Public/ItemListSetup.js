@@ -1,7 +1,6 @@
 // Filename: public/ItemListSetup.js
 // This file contains the code necessary to setup and update the Item List pages, including their filters.
 
-
 import { session } from 'wix-storage';
 import wixLocation from 'wix-location';
 import wixData from 'wix-data';

@@ -27,6 +27,7 @@ import * as DiscordFunctions from 'backend/DiscordBotFunctions.jsw';
 import * as TwitterFunctions from 'backend/TwitterApiFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as ApiFunctions from 'backend/ApiFunctions.jsw';
+import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 
 // We have a few tasks here. For one, we need to add all the Ranks to the PassRanks DB. While we do that, we need to update the sourcetype and source for each item within the ranks.
 
