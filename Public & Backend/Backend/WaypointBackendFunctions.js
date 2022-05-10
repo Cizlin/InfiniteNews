@@ -56,8 +56,8 @@ async function getItemData(headers, path) {
 }
 
 
-export async function getPassList(passPath, headers=null) {
-    if (!headers) {
+export async function getPassList(passPath, headers = null) {
+	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders();
 	}
 	let passJson = await ApiFunctions.getCustomizationItem(headers, passPath);
@@ -100,7 +100,7 @@ export async function getPassList(passPath, headers=null) {
 		for (let j = 0; j < rankWaypointJson.FreeRewards.CurrencyRewards.length; ++j) {
 			let inventoryItemJson = rankWaypointJson.FreeRewards.CurrencyRewards[j];
 			let itemName = "";
-			
+
 			if (inventoryItemJson.CurrencyPath.includes(ConsumablesConstants.CONSUMABLES_CHALLENGE_SWAP_PATH_CONTENTS)) {
 				itemName = ConsumablesConstants.CONSUMABLES_CHALLENGE_SWAP_NAME;
 			}
@@ -147,7 +147,7 @@ export async function getPassList(passPath, headers=null) {
 		for (let j = 0; j < rankWaypointJson.PaidRewards.CurrencyRewards.length; ++j) {
 			let inventoryItemJson = rankWaypointJson.PaidRewards.CurrencyRewards[j];
 			let itemName = "";
-			
+
 			if (inventoryItemJson.CurrencyPath.includes(ConsumablesConstants.CONSUMABLES_CHALLENGE_SWAP_PATH_CONTENTS)) {
 				itemName = ConsumablesConstants.CONSUMABLES_CHALLENGE_SWAP_NAME;
 			}
@@ -267,7 +267,7 @@ export async function processRank(
 				let consumableSiteId = consumableNameToIdDict[consumableName]; // The consumable's database ID
 
 				let validConsumable = false; // If this becomes true, the consumable is of a valid type.
-				
+
 				if (consumableName == ConsumablesConstants.CONSUMABLES_CHALLENGE_SWAP_NAME) {
 					rankDbJson[PassConstants.PASS_RANK_NUMBER_OF_CHALLENGE_SWAPS_FIELD] += consumableAmount;
 					validConsumable = true;
@@ -362,7 +362,7 @@ export async function processRank(
 										rankDbJson[PASS_RANK_CORE_REFERENCE_FIELD].push(matchingCore._id);
 
 										// Note that we have this type of core in this rank.
-										if (!rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].includes(PASS_RANK_CORE_REFERENCE_FIELD)) { 
+										if (!rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].includes(PASS_RANK_CORE_REFERENCE_FIELD)) {
 											rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].push(PASS_RANK_CORE_REFERENCE_FIELD);
 										}
 
@@ -385,7 +385,7 @@ export async function processRank(
 										// Let's just not and let the poor sap that monitors the logs do it manually for now, eh?
 										if (itemChanged) {
 											const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreNameField;
-												console.warn("Updated a Core as part of the Pass processing: " + matchingCore[CORE_WAYPOINT_ID_FIELD] + ", " + matchingCore[CORE_NAME_FIELD]);
+											console.warn("Updated a Core as part of the Pass processing: " + matchingCore[CORE_WAYPOINT_ID_FIELD] + ", " + matchingCore[CORE_NAME_FIELD]);
 
 											// Update the core.
 											wixData.update(CORE_DB, matchingCore)
@@ -403,7 +403,7 @@ export async function processRank(
 									console.error(error + " occurred while retrieving Core from " + CORE_DB + " with ID " + itemWaypointId);
 									throw error;
 								});
-						} 
+						}
 						else { // This is a normal customization item.
 							const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationDb;
 							const CUSTOMIZATION_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationWaypointIdField;
@@ -429,7 +429,7 @@ export async function processRank(
 										rankDbJson[PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD].push(matchingItem._id);
 
 										// Note that we have this type of customization item in this rank.
-										if (!rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].includes(PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD)) { 
+										if (!rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].includes(PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD)) {
 											rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].push(PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD);
 										}
 
@@ -456,7 +456,7 @@ export async function processRank(
 											: ((isPremium) ? CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_PAID_ID : CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_FREE_ID));
 
 										// We only want to add a source type reference if it isn't already there. It won't hurt if it is, but it will change the Updated Datetime of the item.
-										let sourceTypeReferenceIncludesDesiredId = false; 
+										let sourceTypeReferenceIncludesDesiredId = false;
 
 										for (let i = 0; i < matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length; ++i) {
 											if (matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][i]._id == sourceIdToUse) {
@@ -464,13 +464,13 @@ export async function processRank(
 												break;
 											}
 										}
-										
+
 										// We also need to update or replace the sourcetype. Thankfully, we included this field.
 										if (matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 &&
 											matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == CustomizationConstants.SOURCE_TYPE_PENDING_ID) {
 											// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
 											wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, matchingItem._id, [sourceIdToUse])
-												.then (() => {
+												.then(() => {
 													console.log("Added source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
 												})
 												.catch((error) => {
@@ -481,7 +481,7 @@ export async function processRank(
 										else if (!sourceTypeReferenceIncludesDesiredId) {
 											// We just want to insert the source type in this case.
 											wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, matchingItem._id, [sourceIdToUse])
-												.then (() => {
+												.then(() => {
 													console.log("Added source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
 												})
 												.catch((error) => {
@@ -520,7 +520,7 @@ export async function processRank(
 
 			// Add the rank to the DB. We'll need the ID shortly. First, though, make a copy.
 			let rankJsonCopy = structuredClone(rankDbJson);
-			
+
 			let rankSaveResult = await wixData.save(PassConstants.PASS_RANK_DB, rankJsonCopy);
 			let rankId = rankSaveResult._id;
 
@@ -532,7 +532,7 @@ export async function processRank(
 					let retry = true;
 					let retryCount = 0;
 
-					while(retry && retryCount < maxRetries) {
+					while (retry && retryCount < maxRetries) {
 						await wixData.replaceReferences(PassConstants.PASS_RANK_DB, CUSTOMIZATION_REFERENCE_FIELD, rankId, rankDbJson[CUSTOMIZATION_REFERENCE_FIELD])
 							.then(() => {
 								retry = false;
@@ -552,7 +552,7 @@ export async function processRank(
 						let retry = true;
 						let retryCount = 0;
 
-						while(retry && retryCount < maxRetries) {
+						while (retry && retryCount < maxRetries) {
 							await wixData.replaceReferences(PassConstants.PASS_RANK_DB, CORE_REFERENCE_FIELD, rankId, rankDbJson[CORE_REFERENCE_FIELD])
 								.then(() => {
 									retry = false;
@@ -579,7 +579,7 @@ export async function processRank(
 
 			overallRetry = false;
 		}
-		catch(error) {
+		catch (error) {
 			console.error(error + " occurred while processing Pass Rank. Try " + (++overallRetryCount) + " of " + maxRetries, rank);
 		}
 	}
@@ -704,7 +704,7 @@ export async function importAllPasses() {
 	for (let i = 0; i < passSummaryJson.Seasons.length; ++i) {
 		let retry = true;
 		let retryCount = 0;
-		
+
 		while (retry && retryCount < maxRetries) {
 			try {
 				let battlePassPath = passSummaryJson.Seasons[i].OperationTrackPath;
@@ -781,7 +781,7 @@ export async function importAllPasses() {
 
 				let description = "No Description was provided by Waypoint."; // We default our description to this and change it only if it's not the empty string in the Waypoint JSON.
 
-				if (passWaypointJson.Description != "") { 
+				if (passWaypointJson.Description != "") {
 					description = passWaypointJson.Description;
 				}
 
@@ -846,7 +846,7 @@ export async function importAllPasses() {
 	for (let i = 0; i < passSummaryJson.Events.length; ++i) {
 		let retry = true;
 		let retryCount = 0;
-		
+
 		while (retry && retryCount < maxRetries) {
 			try {
 				let eventPassPath = passSummaryJson.Events[i].RewardTrackPath;
@@ -893,7 +893,7 @@ export async function importAllPasses() {
 
 				let description = "No Description was provided by Waypoint."; // We default our description to this and change it only if it's not the empty string in the Waypoint JSON.
 
-				if (passWaypointJson.Description != "") { 
+				if (passWaypointJson.Description != "") {
 					description = passWaypointJson.Description;
 				}
 
@@ -1001,19 +1001,19 @@ export async function getCurrentChallengeDecks() {
 
 	while (retry) {
 		currentChallengeDecksJson = await wixFetch.fetch(URL, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -1021,10 +1021,10 @@ export async function getCurrentChallengeDecks() {
 				console.error(err);
 				return {};
 			});
-		
+
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await ApiFunctions.getSpartanToken();
-			
+
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
@@ -1098,7 +1098,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 		}
 		else {
 			console.warn("Discovered item with type " + includedItemsArray[j].Type + " that does not fit within an expected category.");
-        }
+		}
 	}
 
 	return challengeDbJson;
@@ -1112,29 +1112,29 @@ export async function getPreviousAvailableCapstoneChallenge() {
 		.then((results) => {
 			return results.items;
 		})
-		.catch ((error) => {
+		.catch((error) => {
 			console.error("Error occurred while retrieving previously available Capstone Challenges from DB: " + error);
 			return [];
 		});
-	
+
 	// We need to get the multi-references for each capstone challenge; namely, the items each challenge includes.
 	for (let i = 0; i < currentlyAvailableCapstoneChallenges.length; ++i) {
 		for (let j = 0; j < currentlyAvailableCapstoneChallenges[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].length; ++j) {
 			const FIELD = currentlyAvailableCapstoneChallenges[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][j];
 			currentlyAvailableCapstoneChallenges[i][FIELD] =
 				await wixData.queryReferenced(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB, currentlyAvailableCapstoneChallenges[i]._id, FIELD)
-				.then((results) => {
-					let idArray = [];
-					results.items.forEach((item) => {
-						idArray.push(item._id);
-					});
+					.then((results) => {
+						let idArray = [];
+						results.items.forEach((item) => {
+							idArray.push(item._id);
+						});
 
-					return idArray;
-				})
-				.catch((error) => {
-					console.error("Error occurred while retrieving previously available Capstone Challenges from DB: " + error);
-					return [];
-				});
+						return idArray;
+					})
+					.catch((error) => {
+						console.error("Error occurred while retrieving previously available Capstone Challenges from DB: " + error);
+						return [];
+					});
 		}
 	}
 
@@ -1215,7 +1215,7 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 					if (item[SOURCE_TYPE_REFERENCE_FIELD].length == 1 && item[SOURCE_TYPE_REFERENCE_FIELD][0]._id == CustomizationConstants.SOURCE_TYPE_PENDING_ID) {
 						// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
 						wixData.replaceReferences(CUSTOMIZATION_DB, SOURCE_TYPE_REFERENCE_FIELD, item._id, [CustomizationConstants.SOURCE_TYPE_CAPSTONE_CHALLENGE_ID])
-							.then (() => {
+							.then(() => {
 								console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 							})
 							.catch((error) => {
@@ -1225,7 +1225,7 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 					else if (!sourceTypeReferenceIncludesDesiredId) {
 						// We just want to insert the source type in this case.
 						wixData.insertReference(CUSTOMIZATION_DB, SOURCE_TYPE_REFERENCE_FIELD, item._id, [CustomizationConstants.SOURCE_TYPE_CAPSTONE_CHALLENGE_ID])
-							.then (() => {
+							.then(() => {
 								console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 							})
 							.catch((error) => {
@@ -1234,17 +1234,12 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 					}
 
 					let itemType;
-					if (!CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
-						const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
-						itemType = item[CUSTOMIZATION_TYPE_REFERENCE_FIELD][SOCKET_NAME_FIELD];
-					}
-					else {
-						itemType = "Helmet Attachment"; // TODO: Fix this if more attachment types are added.
-					}
+					const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
+					itemType = item[CUSTOMIZATION_TYPE_REFERENCE_FIELD][SOCKET_NAME_FIELD];
 
 					const NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField
 					const URL_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_URL_FIELDS[customizationCategory];
-					itemInfoArray.push({ 
+					itemInfoArray.push({
 						itemName: item[NAME_FIELD],
 						itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
 						itemType: itemType
@@ -1262,7 +1257,7 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 		.catch((error) => {
 			console.error("Error", error, "occurred while updating newly available items for category", customizationCategory, "and ID array", itemIdArray);
 		});
-	
+
 	return itemInfoArray;
 }
 
@@ -1285,7 +1280,7 @@ async function addCapstoneChallengeToDb(capstoneChallengeJson) {
 		.catch((error) => {
 			console.error("Error", error, "occurred while attempting to add this Bundle to DB:", capstoneChallengeJsonCopy);
 		});
-	
+
 	addedBundle.childItemInfo = []; // This array will contain dictionaries of item names, types, and links that point to each reward item's page.
 	for (const FIELD in CustomizationConstants.CAPSTONE_CHALLENGE_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT) {
 		addedBundle.childItemInfo = addedBundle.childItemInfo.concat(await addItemIdArrayToCapstoneChallenge(
@@ -1350,7 +1345,7 @@ export async function refreshCapstoneChallenge() {
 	let newlyAvailableCapstoneChallenge = [await getCurrentCapstoneChallengeDbJson()]; // This function does not currently return an array.
 
 	// The challenges appear to have unique names so we can just check to see if each currently available item is in the newlyAvailable list, and if not, we mark it as not currently available.
-	let newlyAvailableCapstoneChallengeNames = []; 
+	let newlyAvailableCapstoneChallengeNames = [];
 	let currentlyAvailableCapstoneChallengeNames = []; // We need this array so that we can check the newly available challenge and see if we already have it available.
 
 	for (let i = 0; i < newlyAvailableCapstoneChallenge.length; ++i) {
@@ -1394,7 +1389,7 @@ export async function refreshCapstoneChallenge() {
 		if (!currentlyAvailableCapstoneChallengeNames.includes(newlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD])) {
 			// If there's a listing not in the previously available array, we need to update it or add it and report that it's new.
 			newCapstoneChallengeToUpdate.push(newlyAvailableCapstoneChallenge[i]);
-		}			
+		}
 	}
 
 	if (newlyAvailableCapstoneChallengeNames.length > 0) {
@@ -1406,7 +1401,7 @@ export async function refreshCapstoneChallenge() {
 				let items = results.items;
 				console.log("Items returned: ", items);
 				let itemNames = [];
-				
+
 				for (let i = 0; i < items.length; i++) {
 					itemNames.push(items[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]);
 				}
@@ -1415,7 +1410,7 @@ export async function refreshCapstoneChallenge() {
 
 				console.log("Arrays to process:", itemNames, newCapstoneChallengeToUpdate);
 
-				for(let i = 0; i < newCapstoneChallengeToUpdate.length; ++i) { // We're assuming everything else has been marked correctly. Big assumption, yes, but potentially more efficient.
+				for (let i = 0; i < newCapstoneChallengeToUpdate.length; ++i) { // We're assuming everything else has been marked correctly. Big assumption, yes, but potentially more efficient.
 					let item;
 					let itemIndex = itemNames.findIndex((title) => { return newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD] == title; });
 					console.log("Item index is ", itemIndex, "for item name", newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]);
@@ -1441,7 +1436,7 @@ export async function refreshCapstoneChallenge() {
 							// Assuming that exactly one release is marked as current.
 							currentSeasonNum = currentReleaseResults.items[0][CustomizationConstants.RELEASE_ORDINAL_FIELD];
 
-							if (currentSeasonNum != previousChallengeSeason && previousChallengeSeason != -1) { 
+							if (currentSeasonNum != previousChallengeSeason && previousChallengeSeason != -1) {
 								// If we have a legitimate previousChallengeSeason that doesn't match.
 								// Note that this means we might transition to a different season and have the season number fail to update.
 								// This is less likely than unintentionally resetting the week number.
@@ -1497,7 +1492,7 @@ export async function refreshCapstoneChallenge() {
 							// Assuming that exactly one release is marked as current.
 							currentSeasonNum = currentReleaseResults.items[0][CustomizationConstants.RELEASE_ORDINAL_FIELD];
 
-							if (currentSeasonNum != previousChallengeSeason && previousChallengeSeason != -1) { 
+							if (currentSeasonNum != previousChallengeSeason && previousChallengeSeason != -1) {
 								// If we have a legitimate previousChallengeSeason that doesn't match.
 								// Note that this means we might transition to a different season and have the season number fail to update.
 								// This is less likely than unintentionally resetting the week number.
@@ -1534,7 +1529,7 @@ export async function refreshCapstoneChallenge() {
 
 					updateItemArray.push(item);
 				}
-				
+
 				console.log("Update item array:", updateItemArray);
 
 				generateCapstoneSocialNotifications(updateItemArray);

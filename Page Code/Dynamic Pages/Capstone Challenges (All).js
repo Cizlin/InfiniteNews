@@ -24,7 +24,7 @@ $w.onReady(function () {
 			if (queryResults.items.length > 0) {
 				ultimateChallenge[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
 			}
-		} 
+		}
 		else {
 			console.error("No reward categories found for this capstone challenge: " + ultimateChallenge);
 			return;
@@ -35,19 +35,16 @@ $w.onReady(function () {
 		if (ultimateChallenge[categoryWithItems].length > 0) {
 			let childItem = ultimateChallenge[categoryWithItems][0];
 
-			let childItemCustomizationType = "Helmet Attachment"; // This is for the Armor Attachment category only. TODO: Improve this.
-			if (ArmorConstants.ARMOR_ATTACHMENT_KEY != CUSTOMIZATION_CATEGORY) {
-				// We need to retrieve the customization type. Soon will do this for all items including attachments.
-				const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
-				const CUSTOMIZATION_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
-				const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
+			// We need to retrieve the customization type. Soon will do this for all items including attachments.
+			const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
+			const CUSTOMIZATION_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
+			const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
 
-				let customizationTypeResults = await wixData.query(SOCKET_DB)
-					.eq("_id", childItem[CUSTOMIZATION_TYPE_REFERENCE_FIELD])
-					.find();
+			let customizationTypeResults = await wixData.query(SOCKET_DB)
+				.eq("_id", childItem[CUSTOMIZATION_TYPE_REFERENCE_FIELD])
+				.find();
 
-				childItemCustomizationType = customizationTypeResults.items[0][SOCKET_NAME_FIELD];
-			}
+			let childItemCustomizationType = customizationTypeResults.items[0][SOCKET_NAME_FIELD];
 
 			const CUSTOMIZATION_URL_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationUrlField;
 			const CUSTOMIZATION_IMAGE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationImageField;
