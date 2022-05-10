@@ -6,24 +6,6 @@ import * as CustomizationConstants from 'public/Constants/CustomizationConstants
 
 import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
 
-/*// Capstone challenges only have these items as possible rewards.
-const CHILD_ITEM_FIELD_NAMES_TO_URL_DICT = {
-	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: "link-armor-customizations-itemName", 
-	[KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD]: "link-armor-customization-attachments-itemName", 
-	[KeyConstants.SHOP_WEAPON_REFERENCE_FIELD]: "link-items-title",
-	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: "link-vehicle-customizations-title",
-	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: "link-body-ai-customizations-itemName-2",
-	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: "link-presentation-customizations-title"
-};
-
-const CHILD_ITEM_FIELD_NAMES_TO_SOCKET_DB_DICT = {
-	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: KeyConstants.ARMOR_SOCKET_DB,
-	[KeyConstants.SHOP_WEAPON_REFERENCE_FIELD]: KeyConstants.WEAPON_SOCKET_DB,
-	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: KeyConstants.VEHICLE_SOCKET_DB,
-	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: KeyConstants.BODY_AND_AI_SOCKET_DB,
-	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: KeyConstants.SPARTAN_ID_SOCKET_DB,
-}*/
-
 $w.onReady(function () {
 	// Set up the name filter.
 	ItemListSetupFunctions.initialItemListSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY);

@@ -1,5 +1,4 @@
 // Filename: public/Constants/PassConstants.js
-// Constants used to manage the Pass DBs.
 
 // These constants are used for the Battle/Event Passes.
 export const PASS_KEY = "Pass";
