@@ -27,7 +27,6 @@ export async function sendTweet(tweetBody, parentId = null) {
 async function testTweet() {
 	let parentId = await sendTweet("This should finally be the one that works. If not, we'll be done testing anyway for tonight. Sorry for the notification spam!");
 	console.log(parentId);
-	//let parentId = "1471351232019275776";
 	if (parentId) {
 		sendTweet("This is the final test reply to the above Tweet", parentId);
 	}

@@ -18,8 +18,6 @@ $w.onReady(function () {
 	$w("#dataset1").onReady(async () => { 
 		// If there are no attachments for the item, hide the attachment list and header.
 		if (!($w("#listRepeater").data.length > 0)) {
-			//$w("#attachmentsHeader").hide();
-			//$w("#listRepeater").hide();
 			$w("#attachmentContainer").collapse();
 		}
 		else {

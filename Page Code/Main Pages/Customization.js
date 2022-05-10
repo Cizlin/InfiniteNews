@@ -5,14 +5,9 @@ import * as KeyConstants from 'public/Constants/KeyConstants.js';
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 
 $w.onReady(function () {
-	// Write your JavaScript here
-
-	// To select an element by ID use: $w("#elementID")
-
 	//#region Resetting session values for each filter.
     // Reset the session values for each of the filters on the item list pages.
 	session.setItem(KeyConstants.QUALITY_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
-	//session.setItem(KeyConstants.PROMOTIONAL_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
 	session.setItem(KeyConstants.AVAILABLE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
 	session.setItem(KeyConstants.RELEASE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
 	session.setItem(KeyConstants.QUICK_SEARCH_KEY, KeyConstants.DEFAULT_QUICK_SEARCH_VALUE);
@@ -35,8 +30,6 @@ $w.onReady(function () {
 		$item("#image2").fitMode = "fit";
 		$item("#image2").src = $item("#image2").src;
 		//console.log($item("#button1").link);
-		
-		//let mode = $item("#image2").fitMode;
     	//console.log("Mode of the image is: " + mode)
 	});
 });

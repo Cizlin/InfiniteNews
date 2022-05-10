@@ -25,17 +25,15 @@ import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 
 // Import helper functions.
 import * as CustomizationFunctions from 'backend/CustomizationAutomationFunctions.jsw';
-/*{
-	XUID_KEY, getCustomizationItem, getCustomizationImageUrl, getGeneralDictsAndArraysFromDbs, getCategorySpecificDictsAndArraysFromDbs, getCustomizationDetailsFromWaypointJson, getCustomizationItemToSave,
-	makeWaypointHeaders, getSpartanToken, getClearance,
-	CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS, CUSTOMIZATION_CATEGORY_SPECIFIC_VARS, CUSTOMIZATION_CATEGORY_URL_FIELDS}
-*/ 
+import * as ApiFunctions from 'backend/ApiFunctions.jsw';
+import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
+
 import {sendTweet} from 'backend/TwitterApiFunctions.jsw';
 import {sendDiscordMessage} from 'backend/DiscordBotFunctions.jsw';
 import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
-
+import * as NotificationFunctions from 'backend/NotificationFunctions.jsw';
 
 // Gets a list of all currently available shop items, including the items contained within bundles.
 export async function getCurrentlyAvailableShopListings() {
@@ -110,8 +108,8 @@ export async function getMainShopListFromWaypoint(headers) {
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await CustomizationFunctions.getSpartanToken();
-			let clearance = await CustomizationFunctions.getClearance();
+			let spartanToken = await ApiFunctions.getSpartanToken();
+			let clearance = await ApiFunctions.getClearance();
 
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
@@ -157,8 +155,8 @@ export async function getHcsShopListFromWaypoint(headers) {
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await CustomizationFunctions.getSpartanToken();
-			let clearance = await CustomizationFunctions.getClearance();
+			let spartanToken = await ApiFunctions.getSpartanToken();
+			let clearance = await ApiFunctions.getClearance();
 			
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
@@ -200,28 +198,6 @@ export async function getItemId(customizationCategory, waypointJson) {
 		return null;
 	}
 }
-
-// This function adds a Spartan ID item to the DB and returns its ID.
-/*async function addSpartanIdItem(folderDict, headers, generalDictsAndArrays, categorySpecificDictsAndArrays, waypointJson) {
-	let options = {
-		"suppressAuth": true,
-		"suppressHooks": true
-	};
-
-	let customizationDetails = await getCustomizationDetailsFromWaypointJson(SpartanIdConstants.SPARTAN_ID_KEY, waypointJson);
-	console.log("Following conversion from waypoint to site JSON customizationDetails: ", customizationDetails);
-
-	let itemDbJson = await getCustomizationItemToSave(folderDict, headers, SpartanIdConstants.SPARTAN_ID_KEY, customizationDetails, generalDictsAndArrays, categorySpecificDictsAndArrays);
-
-	return await wixData.save(KeyConstants.SPARTAN_ID_CUSTOMIZATION_DB, itemDbJson, options)
-		.then((results) => {
-			console.log("Results after adding Spartan ID item: ", results);
-			return results._id;
-		})
-		.catch((error) => {
-			console.error("Error ", error, " occurred while adding Spartan ID customization item to DB, ", itemDbJson);
-		});
-}*/
 
 // Gets the list of Main and HCS Shop items from Waypoint, fetches the data for each item, and then returns a list of items that match the current DB items.
 /*
@@ -274,9 +250,6 @@ export async function getConvertedShopList() {
 		throw "Could not retrieve folder dict. Cannot get customization image urls.";
 	}
 
-	let generalFolderDicts = await CustomizationFunctions.getGeneralDictsAndArraysFromDbs(headers);
-	//let spartanIdCategorySpecificFolderDicts = await getCategorySpecificDictsAndArraysFromDbs(KeyConstants.SPARTAN_ID_KEY);
-
 	const maxRetries = 10;
 
 	for (let h = 0; h < 2; h++) { // We're just going to do the same stuff twice, first on the normal Shop, then on the HCS Shop.
@@ -289,7 +262,7 @@ export async function getConvertedShopList() {
 			while (retry && retryCount < maxRetries) {
 				try {
 					let mainShopSiteJson = {};
-					let shopWaypointJson = await CustomizationFunctions.getCustomizationItem(headers, mainShopWaypointArray[i].OfferingDisplayPath);
+					let shopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i].OfferingDisplayPath);
 
 					switch (shopWaypointJson.FlairText) {
 						case "Weekly":
@@ -370,7 +343,7 @@ export async function getConvertedShopList() {
 
 					let bundleType = (mainShopSiteJson[ShopConstants.SHOP_IS_HCS_FIELD]) ? "HCS" : mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD][0];
 
-					mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = await CustomizationFunctions.getCustomizationImageUrl(
+					mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = await MediaManagerFunctions.getCustomizationImageUrl(
 						folderDict,
 						headers,
 						shopWaypointJson.Title,
@@ -417,69 +390,6 @@ export async function getConvertedShopList() {
 						else {
 							console.warn("Discovered item with type " + includedItemsArray[j].ItemType + " that does not fit within an expected category.");
 						}
-
-						/*if (includedItemsArray[j].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.ARMOR_KEY]) {
-							let itemJson = await getCustomizationItem(headers, includedItemsArray[j].ItemPath);
-							mainShopSiteJson.armorItems.push(await getItemId(KeyConstants.ARMOR_KEY, itemJson)); // Add the ID to our array.
-
-							if (!mainShopSiteJson.fieldsWithItems.includes("armorItems")) {
-								mainShopSiteJson.fieldsWithItems.push("armorItems");
-							}
-						}
-						else if (includedItemsArray[j].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.ARMOR_ATTACHMENT_KEY]) {
-							let itemJson = await getCustomizationItem(headers, includedItemsArray[j].ItemPath);
-							mainShopSiteJson.armorAttachmentItems.push(await getItemId(KeyConstants.ARMOR_ATTACHMENT_KEY, itemJson)); // Add the ID to our array.
-
-							if (!mainShopSiteJson.fieldsWithItems.includes("armorAttachmentItems")) {
-								mainShopSiteJson.fieldsWithItems.push("armorAttachmentItems");
-							}
-						}
-						else if (includedItemsArray[j].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.WEAPON_KEY]) {
-							let itemJson = await getCustomizationItem(headers, includedItemsArray[j].ItemPath);
-							mainShopSiteJson.weaponItems.push(await getItemId(KeyConstants.WEAPON_KEY, itemJson)); // Add the ID to our array.
-
-							if (!mainShopSiteJson.fieldsWithItems.includes("weaponItems")) {
-								mainShopSiteJson.fieldsWithItems.push("weaponItems");
-							}
-						}
-						else if (includedItemsArray[j].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.VEHICLE_KEY]) {
-							let itemJson = await getCustomizationItem(headers, includedItemsArray[j].ItemPath);
-							mainShopSiteJson.vehicleItems.push(await getItemId(KeyConstants.VEHICLE_KEY, itemJson)); // Add the ID to our array.
-
-							if (!mainShopSiteJson.fieldsWithItems.includes("vehicleItems")) {
-								mainShopSiteJson.fieldsWithItems.push("vehicleItems");
-							}
-						}
-						else if (includedItemsArray[j].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.BODY_AND_AI_KEY]) {
-							let itemJson = await getCustomizationItem(headers, includedItemsArray[j].ItemPath);
-							mainShopSiteJson.bodyAiItems.push(await getItemId(KeyConstants.BODY_AND_AI_KEY, itemJson)); // Add the ID to our array.
-
-							if (!mainShopSiteJson.fieldsWithItems.includes("bodyAiItems")) {
-								mainShopSiteJson.fieldsWithItems.push("bodyAiItems");
-							}
-						}
-						else if (includedItemsArray[j].ItemType in CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.SPARTAN_ID_KEY]) {
-							let itemJson = await getCustomizationItem(headers, includedItemsArray[j].ItemPath);
-
-							try {
-								let itemId = await getItemId(KeyConstants.SPARTAN_ID_KEY, itemJson); // We can't automatically add all Spartan ID items yet. This might not exist.
-								if (!itemId) {
-									itemId = await addSpartanIdItem(folderDict, headers, generalFolderDicts, spartanIdCategorySpecificFolderDicts, itemJson);
-								}
-
-								mainShopSiteJson.spartanIdItems.push(itemId);
-
-								if (!mainShopSiteJson.fieldsWithItems.includes("spartanIdItems")) {
-									mainShopSiteJson.fieldsWithItems.push("spartanIdItems");
-								}
-							}
-							catch(error) {
-								console.error("Error", error, "occurred when fetching Spartan ID item ID.", itemJson);
-							}
-						}
-						else {
-							console.warn("Discovered item with type " + includedItemsArray[j].ItemType + " that does not fit within an expected category.");
-						}*/
 					}
 
 					let includedConsumablesArray = mainShopWaypointArray[i].IncludedCurrencies;
@@ -667,13 +577,6 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 						itemJsonCopy[ShopConstants.SHOP_IS_HCS_FIELD]
 					);
                 }
-				/*addItemIdArrayToShopItem(itemJson._id, "armorItems", itemJsonCopy.armorItems, KeyConstants.ARMOR_KEY, itemJsonCopy.itemName, itemJsonCopy.costCredits, itemJsonCopy.isHcs);
-				addItemIdArrayToShopItem(itemJson._id, "armorAttachmentItems", itemJsonCopy.armorAttachmentItems, KeyConstants.ARMOR_ATTACHMENT_KEY, itemJsonCopy.itemName, itemJsonCopy.costCredits, itemJsonCopy.isHcs);
-				addItemIdArrayToShopItem(itemJson._id, "weaponItems", itemJsonCopy.weaponItems, KeyConstants.WEAPON_KEY, itemJsonCopy.itemName, itemJsonCopy.costCredits, itemJsonCopy.isHcs);
-				addItemIdArrayToShopItem(itemJson._id, "vehicleItems", itemJsonCopy.vehicleItems, KeyConstants.VEHICLE_KEY, itemJsonCopy.itemName, itemJsonCopy.costCredits, itemJsonCopy.isHcs);
-				addItemIdArrayToShopItem(itemJson._id, "bodyAiItems", itemJsonCopy.bodyAiItems, KeyConstants.BODY_AND_AI_KEY, itemJsonCopy.itemName, itemJsonCopy.costCredits, itemJsonCopy.isHcs);
-				addItemIdArrayToShopItem(itemJson._id, "spartanIdItems", itemJsonCopy.spartanIdItems, KeyConstants.SPARTAN_ID_KEY, itemJsonCopy.itemName, itemJsonCopy.costCredits, itemJsonCopy.isHcs);
-				addItemIdArrayToShopItem(itemJson._id, "consumables", itemJsonCopy.consumables, KeyConstants.CONSUMABLES_KEY, itemJsonCopy.itemName, itemJsonCopy.costCredits, itemJsonCopy.isHcs);*/
 			}
 			// Add the item(s) to the Ultimate Challenge.
 			else if (itemDb == CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB && currentlyAvailableStatus) {
@@ -686,12 +589,6 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 						itemJsonCopy[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]
 					);
 				}
-				/*WaypointFunctions.addItemIdArrayToCapstoneChallenge(itemJson._id, "armorItems", itemJsonCopy.armorItems, KeyConstants.ARMOR_KEY, itemJsonCopy.title);
-				Waypoint.addItemIdArrayToCapstoneChallenge(itemJson._id, "armorAttachmentItems", itemJsonCopy.armorAttachmentItems, KeyConstants.ARMOR_ATTACHMENT_KEY, itemJsonCopy.title);
-				Waypoint.addItemIdArrayToCapstoneChallenge(itemJson._id, "weaponItems", itemJsonCopy.weaponItems, KeyConstants.WEAPON_KEY, itemJsonCopy.title);
-				Waypoint.addItemIdArrayToCapstoneChallenge(itemJson._id, "vehicleItems", itemJsonCopy.vehicleItems, KeyConstants.VEHICLE_KEY, itemJsonCopy.title);
-				Waypoint.addItemIdArrayToCapstoneChallenge(itemJson._id, "bodyAiItems", itemJsonCopy.bodyAiItems, KeyConstants.BODY_AND_AI_KEY, itemJsonCopy.title);
-				Waypoint.addItemIdArrayToCapstoneChallenge(itemJson._id, "spartanIdItems", itemJsonCopy.spartanIdItems, KeyConstants.SPARTAN_ID_KEY, itemJsonCopy.title);*/
 			}
 		})
 		.catch((error) => {
@@ -820,16 +717,6 @@ async function addBundleToDb(shopBundleJson) {
 		.then((results) => {
 			console.log("Inserted this bundle to the Shop DB: ", results);
 
-			// This might no longer be necessary due to structuredClone().
-			/*let temp = new Date(results.lastAvailableDatetime);
-			results.lastAvailableDatetime = temp;
-
-			wixData.update(KeyConstants.SHOP_DB, results, options)
-				.catch((error) => {
-					console.error("Failed to add datetime for this item", results, "due to error", error);
-				});
-				*/
-
 			return results;
 		})
 		.catch((error) => {
@@ -847,16 +734,6 @@ async function addBundleToDb(shopBundleJson) {
 			shopBundleJson[ShopConstants.SHOP_IS_HCS_FIELD]
 		);
 	}
-
-	/*
-	addItemIdArrayToShopItem(addedBundle._id, "armorItems", shopBundleJson.armorItems, KeyConstants.ARMOR_KEY, shopBundleJson.itemName, shopBundleJson.costCredits, shopBundleJson.isHcs);
-	addItemIdArrayToShopItem(addedBundle._id, "armorAttachmentItems", shopBundleJson.armorAttachmentItems, KeyConstants.ARMOR_ATTACHMENT_KEY, shopBundleJson.itemName, shopBundleJson.costCredits, shopBundleJson.isHcs);
-	addItemIdArrayToShopItem(addedBundle._id, "weaponItems", shopBundleJson.weaponItems, KeyConstants.WEAPON_KEY, shopBundleJson.itemName, shopBundleJson.costCredits, shopBundleJson.isHcs);
-	addItemIdArrayToShopItem(addedBundle._id, "vehicleItems", shopBundleJson.vehicleItems, KeyConstants.VEHICLE_KEY, shopBundleJson.itemName, shopBundleJson.costCredits, shopBundleJson.isHcs);
-	addItemIdArrayToShopItem(addedBundle._id, "bodyAiItems", shopBundleJson.bodyAiItems, KeyConstants.BODY_AND_AI_KEY, shopBundleJson.itemName, shopBundleJson.costCredits, shopBundleJson.isHcs);
-	addItemIdArrayToShopItem(addedBundle._id, "spartanIdItems", shopBundleJson.spartanIdItems, KeyConstants.SPARTAN_ID_KEY, shopBundleJson.itemName, shopBundleJson.costCredits, shopBundleJson.isHcs);
-	addItemIdArrayToShopItem(addedBundle._id, "consumables", shopBundleJson.consumables, KeyConstants.CONSUMABLES_KEY, shopBundleJson.itemName, shopBundleJson.costCredits, shopBundleJson.isHcs);
-	*/
 
 	return addedBundle;
 }
@@ -1027,20 +904,6 @@ export async function generateSocialNotifications(updateItemArray) {
 		if (updateItemArray[i].returning) {
 			let lastAvailableDatetime = new Date(updateItemArray[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
 
-			/*
-			var monthString = (lastAvailableDatetime.getMonth() + 1).toString();
-			while (monthString.length < 2) {
-				monthString = "0" + monthString;
-			}
-
-			var dateString = lastAvailableDatetime.getDate().toString();
-			while (dateString.length < 2) {
-				dateString = "0" + dateString;
-			}
-
-			var yearString = lastAvailableDatetime.getFullYear().toString();
-			*/
-
 			let dateString = GeneralFunctions.getLongMonthDayYearFromDate(lastAvailableDatetime);
 
 			if (!updateItemArray[i][ShopConstants.SHOP_IS_HCS_FIELD]) {
@@ -1107,7 +970,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 		let discordMessageText = "";
 		tweetTextArray.forEach((tweet) => {
-			discordMessageText += tweet + "\n";
+			discordMessageText += tweet;
 		});
 
 		await sendDiscordMessage("shop", discordMessageText, true); // Include notification in the message.
@@ -1133,7 +996,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 		let discordMessageText = "";
 		hcsTweetTextArray.forEach((tweet) => {
-			discordMessageText += tweet + "\n";
+			discordMessageText += tweet;
 		});
 
 		await sendDiscordMessage("shop", discordMessageText, true); // Include notification in the message.
@@ -1147,55 +1010,7 @@ export async function generateSocialNotifications(updateItemArray) {
 			parentId = await sendTweet(subTweetText, parentId);
 			await sendDiscordMessage("shop", subTweetText);
 		}
-		/*
-		console.log(hcsTweetText);
-		let parentId = await sendTweet(hcsTweetText);
-		await sendDiscordMessage("shop", hcsTweetText, true);
-		if (secondHcsTweetText.length > 0) {
-			console.log(secondHcsTweetText)
-			parentId = await sendTweet(secondHcsTweetText, parentId);
-			await sendDiscordMessage("shop", secondHcsTweetText, true);
-		}
-
-		for (let i = 0; i < hcsItemArray.length; ++i) {
-			let subTweetText = "Full details for the " + hcsItemArray[i].itemName + " HCS Listing (" + hcsItemArray[i].costCredits + " Credits) are available here.\n\n";
-			subTweetText += "https://www.haloinfinitenews.com" + hcsItemArray[i]["link-shop-listings-itemName"];
-			console.log(subTweetText);
-			parentId = await sendTweet(subTweetText, parentId);
-			await sendDiscordMessage("shop", subTweetText);
-		}
-		*/
 	}
-}
-
-export async function sendPushNotification(title, body, subtitle, url, destinationSegment = "Shop Listings") {
-	const appId = await getSecret("OneSignalAppId");
-	const apiKey = await getSecret("OneSignalApiKey");
-	const OneSignal = require('onesignal-node');
-	const client = new OneSignal.Client(appId, apiKey);
-
-	// See all fields: https://documentation.onesignal.com/reference/create-notification
-	const notification = {
-		headings: {
-			"en": title
-		},
-		subtitle: {
-			"en": subtitle
-		},
-		contents: {
-			'en': body,
-		},
-		url: url,
-		included_segments: [destinationSegment],
-	};
-
-	client.createNotification(notification)
-		.then(response => {
-			console.log("Notification response for notification: ", notification, ":", response);
-		})
-		.catch(e => {
-			console.error(e);
-		});
 }
 
 export async function generatePushNotifications(updateItemArray) {
@@ -1205,7 +1020,7 @@ export async function generatePushNotifications(updateItemArray) {
 		let body = "Click here to view all the new Shop Listings";
 		let url = GeneralConstants.INFINITE_NEWS_URL_BASE + ShopConstants.SHOP_LISTINGS_URL_SUFFIX;
 
-		sendPushNotification(title, body, subtitle, url);
+		NotificationFunctions.sendPushNotification(title, body, subtitle, url);
 		return;
 	}
 
@@ -1218,7 +1033,7 @@ export async function generatePushNotifications(updateItemArray) {
 			url: "https://www.haloinfinitenews.com" + [link-shop-listings-itemName]
 		*/
 
-		sendPushNotification(updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD],
+		NotificationFunctions.sendPushNotification(updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD],
 			"New Halo Infinite Shop Listing available now for " + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] + " Credits! Click here to view it.",
 			updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD][0] + " Listing",
 			GeneralConstants.INFINITE_NEWS_URL_BASE + updateItemArray[i][ShopConstants.SHOP_URL_FIELD]);
@@ -1263,11 +1078,6 @@ export async function refreshShop() {
 	}
 
 	if (newlyAvailableShopListingIds.length > 0) {
-		/*let dbQuery = wixData.query(ShopConstants.SHOP_DB).eq("waypointId", newlyAvailableShopListingIds[0]);
-		for (let i = 1; i < newlyAvailableShopListingIds.length; ++i) {
-			dbQuery = dbQuery.or(wixData.query(KeyConstants.SHOP_DB).eq("waypointId", newlyAvailableShopListingIds[i]));
-		}*/
-
 		// Now that we've got the old bundles being marked as no longer available, we need to mark the new bundles as currently available when they exist and add them when they don't.
 		wixData.query(ShopConstants.SHOP_DB)
 			.hasSome(ShopConstants.SHOP_WAYPOINT_ID_FIELD, newlyAvailableShopListingIds)
@@ -1327,7 +1137,6 @@ export async function refreshShop() {
 				console.log("Update item array:", updateItemArray);
 
 				generateSocialNotifications(updateItemArray);
-
 				generatePushNotifications(updateItemArray);
 			});
 	}

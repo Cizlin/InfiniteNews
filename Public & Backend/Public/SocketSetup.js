@@ -6,9 +6,6 @@ import wixLocation from 'wix-location';
 import wixData from 'wix-data';
 import * as KeyConstants from 'public/Constants/KeyConstants.js';
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
-import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
-
-// TODO: Set Core text item name to coreText.
 
 // This function returns the coreID from the URL on success (or empty string if it does not exist) and -1 on failure.
 export function initialSocketSetup(customizationCategory) {

@@ -8,65 +8,6 @@ import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js'
 import { paginationKey } from 'public/Pagination.js';
 import * as GeneralFunctions from 'public/General.js';
 
-// These are all the fields that could possibly hold items for each rank and their URL fields.
-/*const CHILD_ITEM_FIELD_NAMES_TO_URL_DICT = {
-	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: "link-armor-customizations-itemName", 
-	[KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD]: "link-armor-customization-attachments-itemName", 
-	[KeyConstants.SHOP_WEAPON_REFERENCE_FIELD]: "link-items-title",
-	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: "link-vehicle-customizations-title",
-	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: "link-body-ai-customizations-itemName-2",
-	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: "link-presentation-customizations-title",
-	[KeyConstants.SHOP_CONSUMABLE_REFERENCE_FIELD]: "link-consumables-itemName",
-	[KeyConstants.PASS_ARMOR_CORE_REFERENCE_FIELD]: "link-armor-cores-name",
-	[KeyConstants.PASS_WEAPON_CORE_REFERENCE_FIELD]: "link-weapon-cores-name",
-	[KeyConstants.PASS_VEHICLE_CORE_REFERENCE_FIELD]: "link-vehicle-cores-name"
-};
-
-// The values here are the name fields for the DBs.
-const CHILD_ITEM_FIELD_NAMES_TO_NAME_FIELD_DICT = {
-	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: "itemName", 
-	[KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD]: "itemName", 
-	[KeyConstants.SHOP_WEAPON_REFERENCE_FIELD]: "itemName",
-	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: "itemName",
-	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: "itemName",
-	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: "itemName",
-	[KeyConstants.SHOP_CONSUMABLE_REFERENCE_FIELD]: "itemName",
-	[KeyConstants.PASS_ARMOR_CORE_REFERENCE_FIELD]: "name",
-	[KeyConstants.PASS_WEAPON_CORE_REFERENCE_FIELD]: "name",
-	[KeyConstants.PASS_VEHICLE_CORE_REFERENCE_FIELD]: "name"
-};
-
-const CHILD_ITEM_FIELD_NAMES_TO_DB_DICT = {
-	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: KeyConstants.ARMOR_CUSTOMIZATION_DB, 
-	[KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD]: KeyConstants.ARMOR_CUSTOMIZATION_ATTACHMENTS_DB,
-	[KeyConstants.SHOP_WEAPON_REFERENCE_FIELD]: KeyConstants.WEAPON_CUSTOMIZATION_DB,
-	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: KeyConstants.VEHICLE_CUSTOMIZATION_DB,
-	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: KeyConstants.BODY_AND_AI_CUSTOMIZATION_DB,
-	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: KeyConstants.SPARTAN_ID_CUSTOMIZATION_DB,
-	[KeyConstants.SHOP_CONSUMABLE_REFERENCE_FIELD]: KeyConstants.CONSUMABLES_DB,
-	[KeyConstants.PASS_ARMOR_CORE_REFERENCE_FIELD]: KeyConstants.ARMOR_CORE_DB,
-	[KeyConstants.PASS_WEAPON_CORE_REFERENCE_FIELD]: KeyConstants.WEAPON_CORE_DB,
-	[KeyConstants.PASS_VEHICLE_CORE_REFERENCE_FIELD]: KeyConstants.VEHICLE_CORE_DB
-}
-
-const CHILD_ITEM_FIELD_NAMES_WITH_SOURCE_TYPES = [
-	KeyConstants.SHOP_ARMOR_REFERENCE_FIELD,
-	KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD,
-	KeyConstants.SHOP_WEAPON_REFERENCE_FIELD,
-	KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD,
-	KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD,
-	KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD,
-	KeyConstants.SHOP_CONSUMABLE_REFERENCE_FIELD
-];
-
-const CHILD_ITEM_FIELD_NAMES_TO_SOCKET_DB_DICT = {
-	[KeyConstants.SHOP_ARMOR_REFERENCE_FIELD]: KeyConstants.ARMOR_SOCKET_DB,
-	[KeyConstants.SHOP_WEAPON_REFERENCE_FIELD]: KeyConstants.WEAPON_SOCKET_DB,
-	[KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD]: KeyConstants.VEHICLE_SOCKET_DB,
-	[KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD]: KeyConstants.BODY_AND_AI_SOCKET_DB,
-	[KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD]: KeyConstants.SPARTAN_ID_SOCKET_DB,
-}*/
-
 function loadRankPage(pageNumber) {
 	$w("#freePassRanksDataset").loadPage(pageNumber);
 	$w("#premiumPassRanksDataset").loadPage(pageNumber);
@@ -85,12 +26,6 @@ function setPassPaginationIndexFromSave() {
 		loadRankPage(1);
     }
 }
-
-/*function convertDateObjectToMMDDYYYYString(date) {
-	return ((date.getMonth() > 8) ? (date.getMonth() + 1) : ('0' + (date.getMonth() + 1))) + '/' 
-		+ ((date.getDate() > 9) ? date.getDate() : ('0' + date.getDate())) + '/' 
-		+ date.getFullYear();
-}*/
 
 function showCorrectAvailability(currentlyAvailable) {
 	if (currentlyAvailable) {
@@ -264,15 +199,6 @@ $w.onReady(function () {
 					}
 					else { // If we're working with a core
 						customizationTypeString = CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "Type"];
-						/*if (categoryWithItems == KeyConstants.PASS_ARMOR_CORE_REFERENCE_FIELD) {
-							customizationTypeString = "Armor Core";
-						}
-						else if (categoryWithItems == KeyConstants.PASS_WEAPON_CORE_REFERENCE_FIELD) {
-							customizationTypeString = "Weapon Core";
-						}
-						else if (categoryWithItems == KeyConstants.PASS_VEHICLE_CORE_REFERENCE_FIELD) {
-							customizationTypeString = "Vehicle Core";
-						}*/
 					}
 
 					$item("#" + repeaterType + "ItemTypeText").text = customizationTypeString;

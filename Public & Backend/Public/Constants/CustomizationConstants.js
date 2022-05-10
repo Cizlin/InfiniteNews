@@ -129,18 +129,6 @@ export const CATEGORY_TO_CORE_WAYPOINT_ID_DICT = {
 	[VehicleConstants.VEHICLE_KEY]: VehicleConstants.VEHICLE_CORE_WAYPOINT_ID
 }
 
-// If a customization type is cross-core, it will be included in an array keyed by the customization category.
-// Only keys listed in the HAS_CORE_ARRAY should be used here.
-// Also, the reason we include Core types themselves is because they aren't sorted into core-specific folders in the media files.
-// MOVED TO isCrossCore IN THE * Sockets DB.
-/*export const IS_CROSS_CORE_ARRAY_DICT = {
-	[KeyConstants.ARMOR_KEY]: [KeyConstants.ARMOR_CORE_KEY, KeyConstants.ARMOR_EMBLEM_KEY, KeyConstants.ARMOR_EFFECT_KEY, KeyConstants.ARMOR_MYTHIC_EFFECT_SET_KEY],
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: [],
-	[KeyConstants.WEAPON_KEY]: [KeyConstants.WEAPON_CORE_KEY, KeyConstants.WEAPON_CHARM_KEY, KeyConstants.WEAPON_EMBLEM_KEY, KeyConstants.WEAPON_KILL_EFFECT_KEY],
-	[KeyConstants.VEHICLE_KEY]: [KeyConstants.VEHICLE_CORE_KEY, KeyConstants.VEHICLE_EMBLEM_KEY]
-}*/
-
-
 // This constant dict allows us to pull the URL for an item from its DB JSON.
 export const CUSTOMIZATION_CATEGORY_URL_FIELDS = {
 	[ArmorConstants.ARMOR_KEY]: "link-armor-customizations-itemName",
@@ -150,60 +138,6 @@ export const CUSTOMIZATION_CATEGORY_URL_FIELDS = {
 	[BodyAndAiConstants.BODY_AND_AI_KEY]: "link-body-ai-customizations-itemName-2",
 	[SpartanIdConstants.SPARTAN_ID_KEY]: "link-presentation-customizations-title"
 }
-
-// MOVED TO waypointId IN * Sockets AND * Sections
-/*export const CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS = {
-	[KeyConstants.ARMOR_KEY]: {
-		"ArmorCore": KeyConstants.ARMOR_CORE_KEY, // MOVED TO Any ITEM
-		"ArmorTheme": KeyConstants.ARMOR_KIT_KEY,
-		"ArmorCoating": KeyConstants.ARMOR_COATING_KEY,
-		"ArmorHelmet": KeyConstants.ARMOR_HELMET_KEY,
-		"ArmorVisor": KeyConstants.ARMOR_VISOR_KEY,
-		"ArmorChestAttachment": KeyConstants.ARMOR_CHEST_KEY,
-		"ArmorLeftShoulderPad": KeyConstants.ARMOR_LEFT_SHOULDER_PAD_KEY,
-		"ArmorRightShoulderPad": KeyConstants.ARMOR_RIGHT_SHOULDER_PAD_KEY,
-		"ArmorGlove": KeyConstants.ARMOR_GLOVES_KEY,
-		"ArmorWristAttachment": KeyConstants.ARMOR_WRIST_KEY,
-		"ArmorHipAttachment": KeyConstants.ARMOR_UTILITY_KEY,
-		"ArmorKneePad": KeyConstants.ARMOR_KNEE_PADS_KEY,
-		"ArmorEmblem": KeyConstants.ARMOR_EMBLEM_KEY,
-		"ArmorFx": KeyConstants.ARMOR_EFFECT_KEY,
-		"ArmorMythicFx": KeyConstants.ARMOR_MYTHIC_EFFECT_SET_KEY
-	},
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: {
-		"ArmorHelmetAttachment": KeyConstants.ARMOR_HELMET_ATTACHMENT_KEY
-	},
-	[KeyConstants.WEAPON_KEY]: {
-		"WeaponCore": KeyConstants.WEAPON_CORE_KEY, // MOVED TO Any ITEM
-		"WeaponTheme": KeyConstants.WEAPON_KIT_KEY,
-		"WeaponCoating": KeyConstants.WEAPON_COATING_KEY,
-		"WeaponAlternateGeometryRegion": KeyConstants.WEAPON_MODEL_KEY,
-		"WeaponCharm": KeyConstants.WEAPON_CHARM_KEY,
-		"WeaponEmblem": KeyConstants.WEAPON_EMBLEM_KEY,
-		"WeaponDeathFx": KeyConstants.WEAPON_KILL_EFFECT_KEY
-	},
-	[KeyConstants.VEHICLE_KEY]: {
-		"VehicleCore": KeyConstants.VEHICLE_CORE_KEY, // MOVED TO Any ITEM
-		"VehicleCoating": KeyConstants.VEHICLE_COATING_KEY,
-		"VehicleAlternateGeometryRegion": KeyConstants.VEHICLE_MODEL_KEY,
-		"VehicleEmblem": KeyConstants.VEHICLE_EMBLEM_KEY
-	},
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		"AiModel": KeyConstants.BODY_AND_AI_MODEL,
-		"AiColor": KeyConstants.BODY_AND_AI_COLOR
-	},
-	[KeyConstants.SPARTAN_ID_KEY]: {
-		"SpartanEmblem": KeyConstants.SPARTAN_ID_NAMEPLATE_KEY,
-		"SpartanBackdropImage": KeyConstants.SPARTAN_ID_BACKDROP_KEY,
-		"SpartanActionPose": KeyConstants.SPARTAN_ID_STANCE_KEY
-	},
-	[KeyConstants.SHOP_KEY]: {
-		"Daily": KeyConstants.SHOP_DAILY,
-		"Weekly": KeyConstants.SHOP_WEEKLY,
-		"": KeyConstants.SHOP_INDEFINITE,
-		"HCS": KeyConstants.SHOP_HCS // This needs to be supplied manually when querying this JSON structure. Does not come directly from Waypoint like the others.
-	}
-}*/
 
 export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 	[ArmorConstants.ARMOR_KEY]: {
@@ -601,86 +535,6 @@ export const PASS_RANK_ITEM_FIELD_CORE_CATEGORY_DICT = {
 	[PassConstants.PASS_RANK_VEHICLE_CORE_REFERENCE_FIELD]: VehicleConstants.VEHICLE_KEY
 }
 
-// This is a bit special since we also have a true/false value telling whether the customization group type has attachments or not.
-// MOVED TO waypointField AND hasAttachments IN * Sockets AND * Sections
-/*export const CUSTOMIZATION_WAYPOINT_GROUP_TYPES = {
-	[KeyConstants.ARMOR_KEY]: {
-		"Coatings": false,
-		"Helmets": true,
-		"Visors": false,
-		"LeftShoulderPads": false,
-		"RightShoulderPads": false,
-		"Gloves": false,
-		"KneePads": false,
-		"ChestAttachments": false,
-		"WristAttachments": false,
-		"HipAttachments": false,
-		"Emblems": false,
-		"ArmorFx": false,
-		"MythicFx": false
-	},
-	[KeyConstants.WEAPON_KEY]: {
-		"Coatings": false,
-		"StatTrackers": false,
-		"WeaponCharms": false,
-		"AmmoCounterColors": false,
-		"DeathFx": false,
-		"Emblems": false,
-		"AlternateGeometryRegions": false
-	},
-	[KeyConstants.VEHICLE_KEY]: {
-		"Coatings": false,
-		"Emblems": false,
-		"VehicleFx": false,
-		"VehicleCharms": false,
-		"Horns": false,
-		"AlternateGeometryRegions": false
-	},
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		"Models": false,
-		"Colors": false
-	}
-};
-
-export const CUSTOMIZATION_WAYPOINT_GROUP_TYPE_TO_WAYPOINT_TYPE = {
-	[KeyConstants.ARMOR_KEY]: {
-		"Coatings": "ArmorCoating",
-		"Helmets": "ArmorHelmet",
-		"Visors": "ArmorVisor",
-		"LeftShoulderPads": "ArmorLeftShoulderPad",
-		"RightShoulderPads": "ArmorRightShoulderPad",
-		"Gloves": "ArmorGlove",
-		"KneePads": "ArmorKneePad",
-		"ChestAttachments": "ArmorChestAttachment",
-		"WristAttachments": "ArmorWristAttachment",
-		"HipAttachments": "ArmorHipAttachment",
-		"Emblems": "ArmorEmblem",
-		"ArmorFx": "ArmorFx",
-		"MythicFx": "ArmorMythicFx"
-	},
-	[KeyConstants.WEAPON_KEY]: {
-		"Coatings": "WeaponCoating",
-		"StatTrackers": "WeaponStatTracker",
-		"WeaponCharms": "WeaponCharm",
-		"AmmoCounterColors": "WeaponAmmoCounterColor",
-		"DeathFx": "WeaponDeathFx",
-		"Emblems": "WeaponEmblem",
-		"AlternateGeometryRegions": "WeaponAlternateGeometryRegion"
-	},
-	[KeyConstants.VEHICLE_KEY]: {
-		"Coatings": "VehicleCoating",
-		"Emblems": "VehicleEmblem",
-		"VehicleFx": "VehicleFx",
-		"VehicleCharms": "VehicleCharm",
-		"Horns": "VehicleHorn",
-		"AlternateGeometryRegions": "VehicleAlternateGeometryRegion"
-	},
-	[KeyConstants.BODY_AND_AI_KEY]: {
-		"Models": "AiModel",
-		"Colors": "AiColor"
-	}
-};*/
-
 // This dictionary contains the high-level folders for each category within Customization Images.
 export const CUSTOMIZATION_CATEGORY_FOLDER_DICT = {
 	[ArmorConstants.ARMOR_KEY]: "Armor Customization",
@@ -698,51 +552,6 @@ export const CUSTOMIZATION_CATEGORY_FOLDER_DICT = {
 
 // This dictionary contains the folders for each customization type within the customization category folders.
 export const CUSTOMIZATION_TYPE_FOLDER_DICT = {
-	// MOVED ALL CUSTOMIZATION TYPE INFO TO THEIR DBS. THIS IS NOW IN THE mediaFolder FIELD.
-	/*[ArmorConstants.ARMOR_KEY]: {
-		[ArmorConstants.ARMOR_CORE_KEY]: "Armor Cores",
-		[ArmorConstants.ARMOR_KIT_KEY]: "Armor Kits",
-		[ArmorConstants.ARMOR_COATING_KEY]: "Armor Coatings",
-		[ArmorConstants.ARMOR_HELMET_KEY]: "Helmets",
-		[ArmorConstants.ARMOR_VISOR_KEY]: "Visors",
-		[ArmorConstants.ARMOR_CHEST_KEY]: "Chests",
-		[ArmorConstants.ARMOR_LEFT_SHOULDER_PAD_KEY]: "Left Shoulder Pads",
-		[ArmorConstants.ARMOR_RIGHT_SHOULDER_PAD_KEY]: "Right Shoulder Pads",
-		[ArmorConstants.ARMOR_GLOVES_KEY]: "Gloves",
-		[ArmorConstants.ARMOR_WRIST_KEY]: "Wrists",
-		[ArmorConstants.ARMOR_UTILITY_KEY]: "Utilities",
-		[ArmorConstants.ARMOR_KNEE_PADS_KEY]: "Knee Pads",
-		[ArmorConstants.ARMOR_EMBLEM_KEY]: "Armor Emblems",
-		[ArmorConstants.ARMOR_EFFECT_KEY]: "Armor Effects",
-		[ArmorConstants.ARMOR_MYTHIC_EFFECT_SET_KEY]: "Mythic Effect Sets"
-	},
-	[ArmorConstants.ARMOR_ATTACHMENT_KEY]: {
-		[ArmorConstants.ARMOR_HELMET_ATTACHMENT_KEY]: "Armor Attachments"
-	},
-	[WeaponConstants.WEAPON_KEY]: {
-		[WeaponConstants.WEAPON_CORE_KEY]: "Weapon Cores",
-		[WeaponConstants.WEAPON_KIT_KEY]: "Weapon Kits",
-		[WeaponConstants.WEAPON_COATING_KEY]: "Weapon Coatings",
-		[WeaponConstants.WEAPON_MODEL_KEY]: "Weapon Models",
-		[WeaponConstants.WEAPON_CHARM_KEY]: "Charms",
-		[WeaponConstants.WEAPON_EMBLEM_KEY]: "Weapon Emblems",
-		[WeaponConstants.WEAPON_KILL_EFFECT_KEY]: "Kill Effects"
-	},
-	[VehicleConstants.VEHICLE_KEY]: {
-		[VehicleConstants.VEHICLE_CORE_KEY]: "Vehicle Cores",
-		[VehicleConstants.VEHICLE_COATING_KEY]: "Vehicle Coatings",
-		[VehicleConstants.VEHICLE_MODEL_KEY]: "Vehicle Models",
-		[VehicleConstants.VEHICLE_EMBLEM_KEY]: "Vehicle Emblems"
-	},
-	[BodyAndAiConstants.BODY_AND_AI_KEY]: {
-		[BodyAndAiConstants.BODY_AND_AI_MODEL]: "AI Models",
-		[BodyAndAiConstants.BODY_AND_AI_COLOR]: "AI Colors"
-	},
-	[SpartanIdConstants.SPARTAN_ID_KEY]: {
-		[SpartanIdConstants.SPARTAN_ID_NAMEPLATE_KEY]: "Nameplates",
-		[SpartanIdConstants.SPARTAN_ID_BACKDROP_KEY]: "Backdrops",
-		[SpartanIdConstants.SPARTAN_ID_STANCE_KEY]: "Stances"
-	},*/
 	[ShopConstants.SHOP_KEY]: {
 		[ShopConstants.SHOP_DAILY]: "Daily",
 		[ShopConstants.SHOP_WEEKLY]: "Weekly",

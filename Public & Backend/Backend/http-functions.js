@@ -37,7 +37,7 @@ import wixFetch from 'wix-fetch';
 
 import * as ApiConstants from 'public/Constants/ApiConstants.js';
 
-import * as CustomizationFunctions from 'backend/CustomizationAutomationFunctions.jsw';
+import * as ApiFunctions from 'backend/ApiFunctions.jsw';
 
 export async function get_waypointProgressionGuideXoJson(request) {
     // URL looks like: https://www.mysite.com/_functions/myFunction/John/Doe
@@ -47,7 +47,7 @@ export async function get_waypointProgressionGuideXoJson(request) {
         }
     };
 
-    let waypointApiHeaders = await CustomizationFunctions.makeWaypointHeaders();
+    let waypointApiHeaders = await ApiFunctions.makeWaypointHeaders();
 
     // query a collection to find matching items
     return await wixFetch.getJSON(ApiConstants.WAYPOINT_URL_GUIDE, { headers: waypointApiHeaders })

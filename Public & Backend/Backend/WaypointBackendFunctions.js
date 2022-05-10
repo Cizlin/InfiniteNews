@@ -26,74 +26,13 @@ import * as ShopFunctions from 'backend/ShopAutomationFunctions.jsw';
 import * as DiscordFunctions from 'backend/DiscordBotFunctions.jsw';
 import * as TwitterFunctions from 'backend/TwitterApiFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
-
-// MOVED TO SOCKET/SECTION DBS.
-/*const WAYPOINT_TO_SITE_CUSTOMIZATION_TYPES = {
-	"ArmorCore": KeyConstants.ARMOR_CORE_KEY,
-	"ArmorTheme": KeyConstants.ARMOR_KIT_KEY,
-	"ArmorCoating": KeyConstants.ARMOR_COATING_KEY,
-	"ArmorHelmet": KeyConstants.ARMOR_HELMET_KEY,
-	"ArmorVisor": KeyConstants.ARMOR_VISOR_KEY,
-	"ArmorChestAttachment": KeyConstants.ARMOR_CHEST_KEY,
-	"ArmorLeftShoulderPad": KeyConstants.ARMOR_LEFT_SHOULDER_PAD_KEY,
-	"ArmorRightShoulderPad": KeyConstants.ARMOR_RIGHT_SHOULDER_PAD_KEY,
-	"ArmorGlove": KeyConstants.ARMOR_GLOVES_KEY,
-	"ArmorWristAttachment": KeyConstants.ARMOR_WRIST_KEY,
-	"ArmorHipAttachment": KeyConstants.ARMOR_UTILITY_KEY,
-	"ArmorKneePad": KeyConstants.ARMOR_KNEE_PADS_KEY,
-	"ArmorEmblem": KeyConstants.ARMOR_EMBLEM_KEY,
-	"ArmorFx": KeyConstants.ARMOR_EFFECT_KEY,
-	"ArmorMythicFx": KeyConstants.ARMOR_MYTHIC_EFFECT_SET_KEY,
-	"ArmorHelmetAttachment": KeyConstants.ARMOR_HELMET_ATTACHMENT_KEY,
-	"WeaponCore": KeyConstants.WEAPON_CORE_KEY,
-	"WeaponTheme": KeyConstants.WEAPON_KIT_KEY,
-	"WeaponCoating": KeyConstants.WEAPON_COATING_KEY,
-	"WeaponAlternateGeometryRegion": KeyConstants.WEAPON_MODEL_KEY,
-	"WeaponCharm": KeyConstants.WEAPON_CHARM_KEY,
-	"WeaponEmblem": KeyConstants.WEAPON_EMBLEM_KEY,
-	"WeaponDeathFx": KeyConstants.WEAPON_KILL_EFFECT_KEY,
-	"VehicleCore": KeyConstants.VEHICLE_CORE_KEY,
-	"VehicleCoating": KeyConstants.VEHICLE_COATING_KEY,
-	"VehicleAlternateGeometryRegion": KeyConstants.VEHICLE_MODEL_KEY,
-	"VehicleEmblem": KeyConstants.VEHICLE_EMBLEM_KEY,
-	"AiModel": KeyConstants.BODY_AND_AI_MODEL,
-	"AiColor": KeyConstants.BODY_AND_AI_COLOR,
-	"SpartanEmblem": KeyConstants.SPARTAN_ID_NAMEPLATE_KEY,
-	"SpartanBackdropImage": KeyConstants.SPARTAN_ID_BACKDROP_KEY,
-	"SpartanActionPose": KeyConstants.SPARTAN_ID_STANCE_KEY
-};*/
-
-// MOVED TO CustomizationConstants.js.
-/*const CUSTOMIZATION_CATEGORY_TO_REFERENCE_FIELD_DICT = {
-	[KeyConstants.ARMOR_KEY]: KeyConstants.SHOP_ARMOR_REFERENCE_FIELD, 
-	[KeyConstants.ARMOR_ATTACHMENT_KEY]: KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD, 
-	[KeyConstants.WEAPON_KEY]: KeyConstants.SHOP_WEAPON_REFERENCE_FIELD,
-	[KeyConstants.VEHICLE_KEY]: KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD,
-	[KeyConstants.BODY_AND_AI_KEY]: KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD, 
-	[KeyConstants.SPARTAN_ID_KEY]: KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD, 
-	[KeyConstants.CONSUMABLES_KEY]: KeyConstants.SHOP_CONSUMABLE_REFERENCE_FIELD
-};*/
-
-// MOVED TO CustomizationConstants.js.
-/*const CUSTOMIZATION_CATEGORY_TO_CORE_REFERENCE_FIELD_DICT = {
-	[KeyConstants.ARMOR_KEY]: KeyConstants.PASS_ARMOR_CORE_REFERENCE_FIELD, 
-	[KeyConstants.WEAPON_KEY]: KeyConstants.PASS_WEAPON_CORE_REFERENCE_FIELD,
-	[KeyConstants.VEHICLE_KEY]: KeyConstants.PASS_VEHICLE_CORE_REFERENCE_FIELD,
-}*/
-
-// MOVED TO CustomizationConstants.js.
-/*const PENDING_SOURCE_ID = "682d9532-14a9-4f27-9454-6c0d2275a4f4";
-const BATTLE_PASS_FREE_SOURCE_ID = "bbdf3b9b-ef04-498c-8b22-ac20ae5db98a";
-const BATTLE_PASS_PAID_SOURCE_ID = "eb4a06fa-423a-49ac-ba87-dab281442fa5";
-const EVENT_PASS_SOURCE_ID = "bbff99ba-c34a-46f0-adcd-a5dab25a1f65";*/
+import * as ApiFunctions from 'backend/ApiFunctions.jsw';
+import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 
 // We have a few tasks here. For one, we need to add all the Ranks to the PassRanks DB. While we do that, we need to update the sourcetype and source for each item within the ranks.
-// MOVED TO CustomizationConstants.js.
-//const CUSTOMIZATION_CATEGORY_ARRAY = [KeyConstants.ARMOR_KEY, KeyConstants.ARMOR_ATTACHMENT_KEY, KeyConstants.WEAPON_KEY, KeyConstants.VEHICLE_KEY, KeyConstants.BODY_AND_AI_KEY, 
-//KeyConstants.SPARTAN_ID_KEY];
 
 async function getItemData(headers, path) {
-	let itemJson = await CustomizationFunctions.getCustomizationItem(headers, path);
+	let itemJson = await ApiFunctions.getCustomizationItem(headers, path);
 	if (!itemJson.CommonData.Title) {
 		console.error("Can't find name of item whose path is " + path + " and whose json is ", itemJson);
 	}
@@ -104,7 +43,7 @@ async function getItemData(headers, path) {
 	if ("IsKit" in itemJson) {
 		isKit = itemJson.IsKit;
 		if (!isKit) {
-			let coreJson = await CustomizationFunctions.getCustomizationItem(headers, itemJson.CommonData.ParentPaths[0].Path); // Assumes there is only one core for this theme.
+			let coreJson = await ApiFunctions.getCustomizationItem(headers, itemJson.CommonData.ParentPaths[0].Path); // Assumes there is only one core for this theme.
 			waypointId = coreJson.CommonData.Id;
 		}
 	}
@@ -119,9 +58,9 @@ async function getItemData(headers, path) {
 
 export async function getPassList(passPath, headers=null) {
     if (!headers) {
-		headers = await CustomizationFunctions.makeWaypointHeaders();
+		headers = await ApiFunctions.makeWaypointHeaders();
 	}
-	let passJson = await CustomizationFunctions.getCustomizationItem(headers, passPath);
+	let passJson = await ApiFunctions.getCustomizationItem(headers, passPath);
 	let rankArray = [];
 	/* Items in the rank array will be of the form {
 		rank: [rank],
@@ -723,8 +662,8 @@ export async function generatePassSocialNotifications(newlyAvailablePasses) {
 export async function importAllPasses() {
 	let previouslyAvailablePassWaypointIds = await getPreviouslyAvailablePassWaypointIdsFromDb();
 
-	let headers = await CustomizationFunctions.makeWaypointHeaders();
-	let passSummaryJson = await CustomizationFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_SEASON_CALENDAR);
+	let headers = await ApiFunctions.makeWaypointHeaders();
+	let passSummaryJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_SEASON_CALENDAR);
 
 	let folderDict;
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
@@ -823,7 +762,7 @@ export async function importAllPasses() {
 					continue;
 				}
 
-				let passWaypointJson = await CustomizationFunctions.getCustomizationItem(headers, battlePassPath);
+				let passWaypointJson = await ApiFunctions.getCustomizationItem(headers, battlePassPath);
 
 				// We need to get the site ID of the Season to which this item belongs. We'll query the Releases DB for items with a matching ordinal.
 				let releaseResults = await wixData.query(CustomizationConstants.RELEASE_DB)
@@ -851,7 +790,7 @@ export async function importAllPasses() {
 					[PassConstants.PASS_TITLE_FIELD]: passWaypointJson.Name,
 					[PassConstants.PASS_WAYPOINT_ID_FIELD]: passWaypointJson.TrackId,
 					[PassConstants.PASS_IS_EVENT_FIELD]: passWaypointJson.IsRitual, // This should always be false.
-					[PassConstants.PASS_IMAGE_FIELD]: await CustomizationFunctions.getCustomizationImageUrl(
+					[PassConstants.PASS_IMAGE_FIELD]: await MediaManagerFunctions.getCustomizationImageUrl(
 						folderDict,
 						headers,
 						passWaypointJson.Name,
@@ -935,7 +874,7 @@ export async function importAllPasses() {
 					continue;
 				}
 
-				let passWaypointJson = await CustomizationFunctions.getCustomizationItem(headers, eventPassPath);
+				let passWaypointJson = await ApiFunctions.getCustomizationItem(headers, eventPassPath);
 
 				// We need to get the site ID of the Season to which this item belongs. We'll query the Releases DB for items with a matching ordinal.
 				let results = await wixData.query(CustomizationConstants.RELEASE_DB)
@@ -963,7 +902,7 @@ export async function importAllPasses() {
 					[PassConstants.PASS_TITLE_FIELD]: passWaypointJson.Name,
 					[PassConstants.PASS_WAYPOINT_ID_FIELD]: passWaypointJson.TrackId,
 					[PassConstants.PASS_IS_EVENT_FIELD]: passWaypointJson.IsRitual, // This should always be true.
-					[PassConstants.PASS_IMAGE_FIELD]: await CustomizationFunctions.getCustomizationImageUrl(
+					[PassConstants.PASS_IMAGE_FIELD]: await MediaManagerFunctions.getCustomizationImageUrl(
 						folderDict,
 						headers,
 						passWaypointJson.Name,
@@ -1044,40 +983,10 @@ export async function importAllPasses() {
 
 }
 
-/*export async function getListOfCustomizationItemNamesByType(waypointType) {
-	let headers = await Customization.makeWaypointHeaders();
-	let customizationListJson = await Customization.getCustomizationItem(headers, "inventory/catalog/inventory_catalog.json");
-	let customizationNameList = [];
-
-	for (let i = 0; i < customizationListJson.Items.length; ++i) {
-		if (customizationListJson.Items[i].ItemType == waypointType) {
-			//console.log(customizationListJson.Items[i].ItemId);
-			let waypointJson = await Customization.getCustomizationItem(headers, customizationListJson.Items[i].ItemPath);
-			customizationNameList.push(waypointJson.CommonData.Title);
-		}
-	}
-
-	return customizationNameList;
-}
-
-export async function getListOfCustomizationPathsByType(waypointType) {
-	let headers = await Customization.makeWaypointHeaders();
-	let customizationListJson = await Customization.getCustomizationItem(headers, "inventory/catalog/inventory_catalog.json");
-	let customizationNameList = [];
-
-	for (let i = 0; i < customizationListJson.Items.length; ++i) {
-		if (customizationListJson.Items[i].ItemType == waypointType) {
-			customizationNameList.push(customizationListJson.Items[i].ItemPath);
-		}
-	}
-
-	return customizationNameList;
-}*/
-
 // This function returns the JSON representation of the player's current Challenge decks.
 export async function getCurrentChallengeDecks() {
 	// The headers for this request are quite unique. If we try to pass a 343 Clearance value, it will forbid us from access. We also want to force a JSON response since it's easier for us.
-	let spartanToken = await CustomizationFunctions.getSpartanToken(false);
+	let spartanToken = await ApiFunctions.getSpartanToken(false);
 	let headers = {
 		[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER]: spartanToken,
 		"Accept": "application/json, text/plain, */*"
@@ -1114,7 +1023,7 @@ export async function getCurrentChallengeDecks() {
 			});
 		
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await CustomizationFunctions.getSpartanToken();
+			let spartanToken = await ApiFunctions.getSpartanToken();
 			
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 
@@ -1129,34 +1038,18 @@ export async function getCurrentChallengeDecks() {
 export async function getCurrentCapstoneChallengeJson(headers) {
 	let currentChallengeDecksJson = await getCurrentChallengeDecks();
 	for (let i = 0; i < currentChallengeDecksJson.AssignedDecks.length; ++i) {
-		let deckJson = await CustomizationFunctions.getCustomizationItem(headers, currentChallengeDecksJson.AssignedDecks[i].Path);
+		let deckJson = await ApiFunctions.getCustomizationItem(headers, currentChallengeDecksJson.AssignedDecks[i].Path);
 		if (deckJson.CapstoneChallengePath) {
-			return await CustomizationFunctions.getCustomizationItem(headers, deckJson.CapstoneChallengePath);
+			return await ApiFunctions.getCustomizationItem(headers, deckJson.CapstoneChallengePath);
 		}
 	}
 }
 
 // Gets the current Capstone Challenge JSON from Waypoint and converts it to a site JSON object.
 export async function getCurrentCapstoneChallengeDbJson() {
-	let headers = await CustomizationFunctions.makeWaypointHeaders();
+	let headers = await ApiFunctions.makeWaypointHeaders();
 
-	let typeDict = await GeneralBackendFunctions.generateTypeDict();
-
-	/*let folderDict;
-	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
-		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
-		.find()
-
-	if (results.items.length > 0) {
-		folderDict = results.items[0].value;
-	}
-	else {
-		throw "Could not retrieve folder dict. Cannot get customization image Info.";
-	}
-
-	let generalFolderDicts = await CustomizationFunctions.getGeneralDictsAndArraysFromDbs(headers);*/
-
-	//let spartanIdCategorySpecificFolderDicts = await Customization.getCategorySpecificDictsAndArraysFromDbs(KeyConstants.SPARTAN_ID_KEY);
+	let typeDict = await ApiFunctions.generateTypeDict();
 
 	let capstoneChallengeJson = await getCurrentCapstoneChallengeJson(headers);
 	let challengeDbJson = {};
@@ -1206,69 +1099,6 @@ export async function getCurrentCapstoneChallengeDbJson() {
 		else {
 			console.warn("Discovered item with type " + includedItemsArray[j].Type + " that does not fit within an expected category.");
         }
-
-		/*if (includedItemsArray[j].Type in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.ARMOR_KEY]) {
-			let itemJson = await Customization.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
-			challengeDbJson.armorItems.push(await Shop.getItemId(KeyConstants.ARMOR_KEY, itemJson)); // Add the ID to our array.
-			
-			if (!challengeDbJson.fieldsWithItems.includes("armorItems")) {
-				challengeDbJson.fieldsWithItems.push("armorItems");
-			}
-		}
-		else if (includedItemsArray[j].Type in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.ARMOR_ATTACHMENT_KEY]) {
-			let itemJson = await Customization.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
-			challengeDbJson.armorAttachmentItems.push(await Shop.getItemId(KeyConstants.ARMOR_ATTACHMENT_KEY, itemJson)); // Add the ID to our array.
-
-			if (!challengeDbJson.fieldsWithItems.includes("armorAttachmentItems")) {
-				challengeDbJson.fieldsWithItems.push("armorAttachmentItems");
-			}
-		}
-		else if (includedItemsArray[j].Type in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.WEAPON_KEY]) {
-			let itemJson = await Customization.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
-			challengeDbJson.weaponItems.push(await Shop.getItemId(KeyConstants.WEAPON_KEY, itemJson)); // Add the ID to our array.
-
-			if (!challengeDbJson.fieldsWithItems.includes("weaponItems")) {
-				challengeDbJson.fieldsWithItems.push("weaponItems");
-			}
-		}
-		else if (includedItemsArray[j].Type in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.VEHICLE_KEY]) {
-			let itemJson = await Customization.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
-			challengeDbJson.vehicleItems.push(await Shop.getItemId(KeyConstants.VEHICLE_KEY, itemJson)); // Add the ID to our array.
-
-			if (!challengeDbJson.fieldsWithItems.includes("vehicleItems")) {
-				challengeDbJson.fieldsWithItems.push("vehicleItems");
-			}
-		}
-		else if (includedItemsArray[j].Type in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.BODY_AND_AI_KEY]) {
-			let itemJson = await Customization.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
-			challengeDbJson.bodyAiItems.push(await Shop.getItemId(KeyConstants.BODY_AND_AI_KEY, itemJson)); // Add the ID to our array.
-
-			if (!challengeDbJson.fieldsWithItems.includes("bodyAiItems")) {
-				challengeDbJson.fieldsWithItems.push("bodyAiItems");
-			}
-		}
-		else if (includedItemsArray[j].Type in Customization.CUSTOMIZATION_WAYPOINT_TO_SITE_KEYS[KeyConstants.SPARTAN_ID_KEY]) {
-			let itemJson = await Customization.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
-
-			try {
-				let itemId = await Shop.getItemId(KeyConstants.SPARTAN_ID_KEY, itemJson); // Just in case this doesn't exist.
-				if (!itemId) {
-					itemId = await Shop.addSpartanIdItem(folderDict, headers, generalFolderDicts, spartanIdCategorySpecificFolderDicts, itemJson);
-				}
-
-				challengeDbJson.spartanIdItems.push(itemId);
-
-				if (!challengeDbJson.fieldsWithItems.includes("spartanIdItems")) {
-					challengeDbJson.fieldsWithItems.push("spartanIdItems");
-				}
-			}
-			catch(error) {
-				console.error("Error", error, "occurred when fetching Spartan ID item ID.", itemJson);
-			}
-		}
-		else {
-			console.warn("Discovered item with type " + includedItemsArray[j].ItemType + " that does not fit within an expected category.");
-		}*/
 	}
 
 	return challengeDbJson;
@@ -1288,9 +1118,6 @@ export async function getPreviousAvailableCapstoneChallenge() {
 		});
 	
 	// We need to get the multi-references for each capstone challenge; namely, the items each challenge includes.
-	/*const ITEM_CATEGORY_ARRAY = [KeyConstants.SHOP_ARMOR_REFERENCE_FIELD, KeyConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD, KeyConstants.SHOP_WEAPON_REFERENCE_FIELD, KeyConstants.SHOP_VEHICLE_REFERENCE_FIELD,
-		KeyConstants.SHOP_BODY_AND_AI_REFERENCE_FIELD, KeyConstants.SHOP_SPARTAN_ID_REFERENCE_FIELD];*/
-
 	for (let i = 0; i < currentlyAvailableCapstoneChallenges.length; ++i) {
 		for (let j = 0; j < currentlyAvailableCapstoneChallenges[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].length; ++j) {
 			const FIELD = currentlyAvailableCapstoneChallenges[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][j];
@@ -1453,14 +1280,6 @@ async function addCapstoneChallengeToDb(capstoneChallengeJson) {
 		.then((results) => {
 			console.log("Inserted this bundle to the Capstone Challenge DB: ", results);
 
-			/*let temp = new Date(results.lastAvailableDatetime);
-			results.lastAvailableDatetime = temp;
-
-			wixData.update(KeyConstants.CAPSTONE_CHALLENGE_DB, results, options)
-				.catch((error) => {
-					console.error("Failed to add datetime for this item", results, "due to error", error);
-				});*/
-
 			return results;
 		})
 		.catch((error) => {
@@ -1476,17 +1295,9 @@ async function addCapstoneChallengeToDb(capstoneChallengeJson) {
 			CustomizationConstants.CAPSTONE_CHALLENGE_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT[FIELD],
 			capstoneChallengeJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]
 		));
-    }
+	}
 
-	/*addedBundle.childItemInfo = addedBundle.childItemInfo.concat(await addItemIdArrayToCapstoneChallenge(addedBundle._id, "armorItems", capstoneChallengeJson.armorItems, KeyConstants.ARMOR_KEY, capstoneChallengeJson.title));
-	addedBundle.childItemInfo = addedBundle.childItemInfo.concat(await addItemIdArrayToCapstoneChallenge(addedBundle._id, "armorAttachmentItems", capstoneChallengeJson.armorAttachmentItems, KeyConstants.ARMOR_ATTACHMENT_KEY, capstoneChallengeJson.title));
-	addedBundle.childItemInfo = addedBundle.childItemInfo.concat(await addItemIdArrayToCapstoneChallenge(addedBundle._id, "weaponItems", capstoneChallengeJson.weaponItems, KeyConstants.WEAPON_KEY, capstoneChallengeJson.title));
-	addedBundle.childItemInfo = addedBundle.childItemInfo.concat(await addItemIdArrayToCapstoneChallenge(addedBundle._id, "vehicleItems", capstoneChallengeJson.vehicleItems, KeyConstants.VEHICLE_KEY, capstoneChallengeJson.title));
-	addedBundle.childItemInfo = addedBundle.childItemInfo.concat(await addItemIdArrayToCapstoneChallenge(addedBundle._id, "bodyAiItems", capstoneChallengeJson.bodyAiItems, KeyConstants.BODY_AND_AI_KEY, capstoneChallengeJson.title));
-	addedBundle.childItemInfo = addedBundle.childItemInfo.concat(await addItemIdArrayToCapstoneChallenge(addedBundle._id, "spartanIdItems", capstoneChallengeJson.spartanIdItems, KeyConstants.SPARTAN_ID_KEY, capstoneChallengeJson.title));
-	*/
 	return addedBundle;
-
 }
 
 // This function generates the Twitter and Discord notifications
