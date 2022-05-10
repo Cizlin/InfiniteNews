@@ -1,15 +1,4 @@
 // Filename: public/Constants/GeneralConstants.js
-// Constants used within general helper functions.
-
-import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
-import * as WeaponConstants from 'public/Constants/WeaponConstants.js';
-import * as VehicleConstants from 'public/Constants/VehicleConstants.js';
-import * as BodyAndAiConstants from 'public/Constants/BodyAndAiConstants.js';
-import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
-import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
-import * as ShopConstants from 'public/Constants/ShopConstants.js';
-import * as PassConstants from 'public/Constants/PassConstants.js';
-import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 
 // Extracting the Waypoint ID from a path.
 export const REGEX_WAYPOINT_ID_FROM_PATH = /\d[^.]+/;

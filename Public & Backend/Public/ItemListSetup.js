@@ -1,7 +1,6 @@
 // Filename: public/ItemListSetup.js
 // This file contains the code necessary to setup and update the Item List pages, including their filters.
 
-
 import { session } from 'wix-storage';
 import wixLocation from 'wix-location';
 import wixData from 'wix-data';
@@ -16,7 +15,6 @@ import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
 import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
 
 import * as KeyConstants from 'public/Constants/KeyConstants.js';
-import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
 import * as PassConstants from 'public/Constants/PassConstants.js';

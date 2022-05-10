@@ -1,7 +1,6 @@
 // Filename: public/ItemSetup.js
 
 import wixData from 'wix-data';
-import * as KeyConstants from 'public/Constants/KeyConstants.js';
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js';
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
