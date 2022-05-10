@@ -626,10 +626,12 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	}
 
 	// Check to see if the ETag has changed, suggesting the item itself has changed.
+	const IS_KIT_ITEM_ONLY_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationIsKitItemOnlyField;
 	if (existingItem
 		&& existingItem.itemETag
 		&& existingItem.itemETag != ""
 		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]
+		&& !(!customizationDetails.IsKitItem && existingItem[IS_KIT_ITEM_ONLY_FIELD]) // We want to process items if we discover they aren't exclusively part of a kit.
 		&& !forceCheck) {
 
 		// The ETag is identical. No need to process further.
@@ -768,7 +770,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 				while (retry && retryCount < maxRetries) {
 					await wixData.query(ATTACHMENTS_CUSTOMIZATION_DB)
-						.hasSome(WAYPOINT_ID_FIELD, customizationDetails.Attachments)
+						.hasSome(WAYPOINT_ID_FIELD, customizationDetails.ChildAttachments)
 						.find()
 						.then((results) => {
 							retry = false;
@@ -813,7 +815,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	// We need to get the attachment multi-reference field separately through a queryReferenced command because query doesn't return it.
 	// When choosing between getting the core and the attachments, it was clear which would be the better choice.
 	let originalAttachmentIds = [];
-	if (existingItem && CustomizationConstants.HAS_KITS_ARRAY.includes(customizationCategory)) {
+	if (existingItem && CustomizationConstants.HAS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
 		const HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketHasAttachmentsField;
 
 		if (customizationType[HAS_ATTACHMENTS_FIELD]) {
@@ -1122,16 +1124,18 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		// If this is a Kit, we need to add arrays for its child items and attachments.
 		if (CustomizationConstants.HAS_KITS_ARRAY.includes(customizationCategory)) {
 			const IS_KIT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsKitField;
-			if (customizationType[IS_KIT_FIELD] && !arrayCompare(originalKitItemIds, kitItemIdArray)) {
-				const CUSTOMIZATION_KIT_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitItemReferenceField;
+			if (customizationType[IS_KIT_FIELD]) {
+				if (!arrayCompare(originalKitItemIds, kitItemIdArray)) {
+					const CUSTOMIZATION_KIT_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitItemReferenceField;
 
-				itemJson[CUSTOMIZATION_KIT_ITEM_REFERENCE_FIELD] = kitItemIdArray;
+					itemJson[CUSTOMIZATION_KIT_ITEM_REFERENCE_FIELD] = kitItemIdArray;
 
-				// Update the needs review item and add a log to the changelog.
-				changed = true;
-				let returnedJsons = markItemAsChanged(itemJson, existingItem, CUSTOMIZATION_KIT_ITEM_REFERENCE_FIELD, customizationCategory);
-				itemJson = returnedJsons[0];
-				existingItem = returnedJsons[1];
+					// Update the needs review item and add a log to the changelog.
+					changed = true;
+					let returnedJsons = markItemAsChanged(itemJson, existingItem, CUSTOMIZATION_KIT_ITEM_REFERENCE_FIELD, customizationCategory);
+					itemJson = returnedJsons[0];
+					existingItem = returnedJsons[1];
+				}
 
 				if (CustomizationConstants.HAS_ATTACHMENTS_ARRAY.includes(customizationCategory) && !arrayCompare(originalKitAttachmentIds, kitAttachmentIdArray)) {
 					const CUSTOMIZATION_KIT_ATTACHMENT_REFERENCE_FIELD =
@@ -2392,7 +2396,7 @@ async function generateJsonsFromItemAndAttachmentList(
 					"waypointThemePathToCoreDict": ("waypointThemePathToCoreDict" in options) ? options.waypointThemePathToCoreDict : {},
 					"attachmentArray": parentPathToAttachmentArrayDict[itemPath],
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
-					"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
+					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
 					"forceCheck": true, // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
 					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : ""
 				}
@@ -2706,13 +2710,6 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					console.log("Item added or updated: ", customizationItemDbJson);
 
 					// This part may no longer be necessary thanks to structuredCopy.
-					/*let temp = new Date(item.apiLastUpdatedDatetime);
-					item.apiLastUpdatedDatetime = temp;
-
-					wixData.update(CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb, item, options)
-						.catch((error) => {
-							console.error("Failed to add datetime for this item", itemCopy, "due to error", error);
-						});*/
 
 					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) &&
 						CORE_REFERENCE_FIELD in customizationItemDbJson) {
@@ -3024,18 +3021,6 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
 		//console.log("Spartan ID Paths to Process: ", customizationItemPathArray);
 		let customizationItemPathsProcessed = [];
-
-		/*let spartanIdWaypointTypes = ["SpartanActionPose", "SpartanBackdropImage", "SpartanEmblem"];
-
-		for (let i = 0; i < spartanIdWaypointTypes.length; ++i) {
-			let additionalItemPaths = await Waypoint.getListOfCustomizationPathsByType(spartanIdWaypointTypes[i]);
-			for (let k = 0; k < additionalItemPaths.length; ++k) {
-				if (!customizationItemPathArray.includes(additionalItemPaths[k])) {
-					console.log("Found additional " + spartanIdWaypointTypes[i] + ": " + additionalItemPaths[k]);
-					customizationItemPathArray.push(additionalItemPaths[k]);
-				}
-			}
-		}*/
 
 		await generateJsonsFromItemList(
 			headers,
