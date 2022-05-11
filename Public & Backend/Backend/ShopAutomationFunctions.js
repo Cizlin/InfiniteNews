@@ -229,7 +229,7 @@ export async function getItemId(customizationCategory, waypointJson) {
 	}
 */
 export async function getConvertedShopList() {
-	let headers = await CustomizationFunctions.makeWaypointHeaders();
+	let headers = await ApiFunctions.makeWaypointHeaders();
 
 	let typeDict = await GeneralBackendFunctions.generateTypeDict();
 
@@ -371,7 +371,7 @@ export async function getConvertedShopList() {
 						for (let typeCategory in typeDict) {
 							if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
 								foundType = true; // We found the type.
-								let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
+								let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
 
 								const SHOP_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].ShopReferenceField;
 								mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].push(await getItemId(typeCategory, itemJson));
