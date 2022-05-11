@@ -431,6 +431,8 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreType": "Armor Core",
 		"CoreWaypointType": "ArmorCore",
 		"CoreUrlField": "link-armor-cores-name",
+		"CoreDefaultItemsField": "defaultItems",
+		"CoreDefaultAttachmentsField": "defaultAttachments",
 		"AnyCoreId": ArmorConstants.ANY_ARMOR_CORE_ID
 	},
 
@@ -457,6 +459,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreType": "Weapon Core",
 		"CoreWaypointType": "WeaponCore",
 		"CoreUrlField": "link-weapon-cores-name",
+		"CoreDefaultItemsField": "defaultItems",
 		"AnyCoreId": WeaponConstants.ANY_WEAPON_CORE_ID
 	},
 
@@ -483,6 +486,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreType": "Vehicle Core",
 		"CoreWaypointType": "VehicleCore",
 		"CoreUrlField": "link-vehicle-cores-name",
+		"CoreDefaultItemsField": "defaultItems",
 		"AnyCoreId": VehicleConstants.ANY_VEHICLE_CORE_ID
 	}
 };

@@ -343,11 +343,13 @@ export async function processRank(
 							// First, we need to get the existing Core item.
 							const CORE_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreDb;
 							const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreWaypointIdField;
+							const CORE_DEFAULT_ITEMS_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreDefaultItemsField;
 
 							await wixData.query(CORE_DB)
 								.eq(CORE_WAYPOINT_ID_FIELD, itemWaypointId)
+								.include(CORE_DEFAULT_ITEMS_FIELD)
 								.find()
-								.then((results) => {
+								.then(async (results) => {
 									if (results.items.length > 0) {
 										if (results.items.length > 1) {
 											throw "Error: Found too many items for given ID. Uniqueness was assumed. Found " + results.items.length + " items";
@@ -373,15 +375,160 @@ export async function processRank(
 
 										// If the source text needs to be updated, let's do it.
 										const CORE_SOURCE_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreSourceField;
+										let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
+											passName + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
+
 										if (matchingCore[CORE_SOURCE_FIELD].includes("Pending")) {
-											let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
-												passName + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
 											matchingCore[CORE_SOURCE_FIELD] = sourceText;
 											itemChanged = true;
 										}
 
-										// At this point, we could totally automate the process needed to copy this information over to the default items, but that's a lot of effort for such a small payoff.
-										// Let's just not and let the poor sap that monitors the logs do it manually for now, eh?
+										// Let's update the default items for this core.
+										const CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationCurrentlyAvailableField;
+										const CUSTOMIZATION_SOURCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSourceField;
+										const CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSourceTypeField;
+										const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationDb;
+
+										for (let i = 0; i < matchingCore[CORE_DEFAULT_ITEMS_FIELD].length; ++i) {
+											let item = matchingCore[CORE_DEFAULT_ITEMS_FIELD][i];
+											if (item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] != currentlyAvailable) {
+												item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] = currentlyAvailable;
+												itemChanged = true;
+											}
+
+											if (item[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
+												item[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
+												itemChanged = true;
+											}
+
+											// If this is an Event Pass, use the Event Pass source ID. If it isn't, but is premium, use Battle Pass (Paid). Otherwise, use Battle Pass (Free).
+											let sourceIdToUse = ((isEvent) ? CustomizationConstants.SOURCE_TYPE_EVENT_PASS_ID
+												: ((isPremium) ? CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_PAID_ID : CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_FREE_ID));
+
+											// We only want to add a source type reference if it isn't already there. It won't hurt if it is, but it will change the Updated Datetime of the item.
+											let sourceTypeReferenceIncludesDesiredId = false;
+
+											let itemSourceTypes = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)).items;
+
+											for (let i = 0; i < itemSourceTypes.length; ++i) {
+												if (itemSourceTypes[i]._id == sourceIdToUse) {
+													sourceTypeReferenceIncludesDesiredId = true;
+													break;
+												}
+											}
+
+											// We also need to update or replace the sourcetype. Thankfully, we included this field.
+											if (itemSourceTypes.length == 1 &&
+												itemSourceTypes[0]._id == CustomizationConstants.SOURCE_TYPE_PENDING_ID) {
+												// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
+												wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [sourceIdToUse])
+													.then(() => {
+														console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
+													})
+													.catch((error) => {
+														console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
+														throw error;
+													});
+											}
+											else if (!sourceTypeReferenceIncludesDesiredId) {
+												// We just want to insert the source type in this case.
+												wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [sourceIdToUse])
+													.then(() => {
+														console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
+													})
+													.catch((error) => {
+														console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
+														throw error;
+													});
+											}
+
+											if (itemChanged) {
+												// Update the customizationItem.
+												wixData.update(CUSTOMIZATION_DB, item)
+													.catch((error) => {
+														console.error(error + " occurred while saving Customization Item changes to " + CUSTOMIZATION_DB + " with ID " + itemWaypointId);
+														throw error;
+													});
+											}
+										}
+
+										if (CustomizationConstants.HAS_ATTACHMENTS_ARRAY.includes(CUSTOMIZATION_CATEGORY)) {
+											const CORE_DEFAULT_ATTACHMENTS_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreDefaultAttachmentsField;
+											const ATTACHMENT_KEY = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].AttachmentKey;
+
+											const ATTACHMENT_CURRENTLY_AVAILABLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationCurrentlyAvailableField;
+											const ATTACHMENT_SOURCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationSourceField;
+											const ATTACHMENT_SOURCE_TYPE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationSourceTypeField;
+											const ATTACHMENT_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationDb;
+
+											// We also need to process attachments.
+											let attachmentList = (await wixData.queryReferenced(CORE_DB, matchingCore._id, CORE_DEFAULT_ATTACHMENTS_FIELD)).items;
+
+											for (let i = 0; i < attachmentList.length; ++i) {
+												let item = attachmentList[i];
+												if (item[ATTACHMENT_CURRENTLY_AVAILABLE_FIELD] != currentlyAvailable) {
+													item[ATTACHMENT_CURRENTLY_AVAILABLE_FIELD] = currentlyAvailable;
+													itemChanged = true;
+												}
+
+												if (item[ATTACHMENT_SOURCE_FIELD].includes("Pending")) {
+													item[ATTACHMENT_SOURCE_FIELD] = sourceText;
+													itemChanged = true;
+												}
+
+												// If this is an Event Pass, use the Event Pass source ID. If it isn't, but is premium, use Battle Pass (Paid). Otherwise, use Battle Pass (Free).
+												let sourceIdToUse = ((isEvent) ? CustomizationConstants.SOURCE_TYPE_EVENT_PASS_ID
+													: ((isPremium) ? CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_PAID_ID : CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_FREE_ID));
+
+												// We only want to add a source type reference if it isn't already there. It won't hurt if it is, but it will change the Updated Datetime of the item.
+												let sourceTypeReferenceIncludesDesiredId = false;
+
+												let itemSourceTypes = (await wixData.queryReferenced(ATTACHMENT_DB, item._id, ATTACHMENT_SOURCE_TYPE_FIELD)).items;
+
+												for (let i = 0; i < itemSourceTypes.length; ++i) {
+													if (itemSourceTypes[i]._id == sourceIdToUse) {
+														sourceTypeReferenceIncludesDesiredId = true;
+														break;
+													}
+												}
+
+												// We also need to update or replace the sourcetype. Thankfully, we included this field.
+												if (itemSourceTypes.length == 1 &&
+													itemSourceTypes[0]._id == CustomizationConstants.SOURCE_TYPE_PENDING_ID) {
+													// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
+													wixData.replaceReferences(ATTACHMENT_DB, ATTACHMENT_SOURCE_TYPE_FIELD, item._id, [sourceIdToUse])
+														.then(() => {
+															console.log("Added source type reference for item " + item._id + " in DB " + ATTACHMENT_DB);
+														})
+														.catch((error) => {
+															console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + ATTACHMENT_DB);
+															throw error;
+														});
+												}
+												else if (!sourceTypeReferenceIncludesDesiredId) {
+													// We just want to insert the source type in this case.
+													wixData.insertReference(ATTACHMENT_DB, ATTACHMENT_SOURCE_TYPE_FIELD, item._id, [sourceIdToUse])
+														.then(() => {
+															console.log("Added source type reference for item " + item._id + " in DB " + ATTACHMENT_DB);
+														})
+														.catch((error) => {
+															console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + ATTACHMENT_DB);
+															throw error;
+														});
+												}
+
+												if (itemChanged) {
+													// Update the customizationItem.
+													wixData.update(ATTACHMENT_DB, item)
+														.catch((error) => {
+															console.error(error + " occurred while saving Customization Item changes to " + ATTACHMENT_DB + " with ID " + itemWaypointId);
+															throw error;
+														});
+												}
+											}
+										}
+
+
 										if (itemChanged) {
 											const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreNameField;
 											console.warn("Updated a Core as part of the Pass processing: " + matchingCore[CORE_WAYPOINT_ID_FIELD] + ", " + matchingCore[CORE_NAME_FIELD]);
@@ -1048,7 +1195,7 @@ export async function getCurrentCapstoneChallengeJson(headers) {
 export async function getCurrentCapstoneChallengeDbJson() {
 	let headers = await ApiFunctions.makeWaypointHeaders();
 
-	let typeDict = await ApiFunctions.generateTypeDict();
+	let typeDict = await GeneralBackendFunctions.generateTypeDict();
 
 	let capstoneChallengeJson = await getCurrentCapstoneChallengeJson(headers);
 	let challengeDbJson = {};

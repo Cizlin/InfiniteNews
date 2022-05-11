@@ -632,6 +632,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		&& existingItem.itemETag != ""
 		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]
 		&& !(!customizationDetails.IsKitItem && existingItem[IS_KIT_ITEM_ONLY_FIELD]) // We want to process items if we discover they aren't exclusively part of a kit.
+		&& customizationDetails.DefaultOfCore // We want to process an item if it's the default of a core.
 		&& !forceCheck) {
 
 		// The ETag is identical. No need to process further.
@@ -671,9 +672,13 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 	// If this is a default item, note its parent core.
 	let defaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
+	//console.log(customizationDetails);
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && customizationDetails.DefaultOfCore && customizationDetails.DefaultOfCore != "") {
-		defaultOfCoreIdArray.push(customizationDetails.DefaultOfCore);
-    }
+		if (customizationDetails.DefaultOfCore in coreIdDict) {
+			defaultOfCoreIdArray.push(coreIdDict[customizationDetails.DefaultOfCore]);
+		}
+	}
+	//console.log(defaultOfCoreIdArray);
 
 	// We need to convert the array of attachment names to an array of attachment IDs. This one is probably best to filter first.
 	// TODO: Consider whether this would be worth including as a dict that gets passed in (would need to be generated after all attachments are added but before items using attachments).
@@ -1765,6 +1770,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	 * kitChildItemArray = [],					// Required for Kits.
 	 * kitChildAttachmentArray = []				// Required for Kits with attachments.
 	 * parentThemePath = ""						// Required for items with nothing in ParentPaths or ParentPath.
+	 * isDefault = false						// Required for items with cores.
 	 */
 
 	// We want to create this JSON structure:
@@ -1788,6 +1794,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			"IsKitItem": [isKitItem], // Only true if the item was added as part of a Kit.
 			"ChildItems": [kitChildItemArray],
 			"ChildAttachments": [kitChildAttachmentArray]
+			"DefaultOfCore": [coreForWhichThisIsDefaultItem]
 		}
 	*/
 
@@ -1920,12 +1927,12 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	}
 
 	if ("isDefault" in options && options.isDefault &&
-		"waypointThemePathToCoreDict" in options && "parentTheme" in options && options.parentThemePath in options.waypointThemePathToCoreDict) {
-		itemJson.DefaultOfCore = waypointThemePathToCoreDict[parentThemePath];
+		"waypointThemePathToCoreDict" in options && "parentThemePath" in options && options.parentThemePath in options.waypointThemePathToCoreDict) {
+		itemJson.DefaultOfCore = options.waypointThemePathToCoreDict[options.parentThemePath];
 	}
 	else {
 		itemJson.DefaultOfCore;
-    }
+	}
 
 	return itemJson;
 }
@@ -2269,7 +2276,7 @@ async function generateJsonsFromItemList(
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
 					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-					"isDefault": ("defaultPath" in options) ? (defaultPath == itemPath) : false
+					"isDefault": ("defaultPath" in options && options.defaultPath) ? (options.defaultPath.toLowerCase() == itemPath.toLowerCase()) : false
 				}
 			);
 
@@ -2355,9 +2362,9 @@ async function generateJsonsFromItemAndAttachmentList(
 
 		let attachmentParentPath = itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD]]; // TODO: Make this work for other attachments if they get added.
 		let defaultAttachmentPath = "";
-		if ("defaultPath" in options && options.defaultPath == attachmentParentPath) {
+		if ("defaultPath" in options && options.defaultPath && options.defaultPath.toLowerCase() == attachmentParentPath.toLowerCase()) {
 			defaultAttachmentPath = itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]].DefaultOptionPath;
-        }
+		}
 
 		let parentWaypointType = type[TYPE_WAYPOINT_ID_FIELD];
 		let attachmentArray = []; // This is an array of attachment names specifically meant for the parentPathToAttachmentArrayDict.
@@ -2381,7 +2388,7 @@ async function generateJsonsFromItemAndAttachmentList(
 						"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 						"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
 						"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-						"isDefault": (defaultAttachmentPath == attachmentPath)
+						"isDefault": (defaultAttachmentPath.toLowerCase() == attachmentPath.toLowerCase())
 					}
 				);
 
@@ -2432,7 +2439,7 @@ async function generateJsonsFromItemAndAttachmentList(
 					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
 					"forceCheck": true, // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
 					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-					"isDefault": ("defaultPath" in options) ? (defaultPath == itemPath) : false
+					"isDefault": ("defaultPath" in options && options.defaultPath) ? (options.defaultPath.toLowerCase() == itemPath.toLowerCase()) : false
 				}
 			);
 
@@ -2875,7 +2882,8 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					}
 
 					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) &&
-						DEFAULT_OF_CORE_REFERENCE_FIELD in customizationItemDbJson) {
+						DEFAULT_OF_CORE_REFERENCE_FIELD in customizationItemDbJson &&
+						customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD].length > 0) {
 						//console.log("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 
 						let retry = true;
@@ -3276,6 +3284,7 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays) {
 		existingEmblemPaletteResults.items.forEach((emblemPaletteDbObject) => {
 			existingEmblemPaletteETags[emblemPaletteDbObject[CustomizationConstants.EMBLEM_PALETTE_WAYPOINT_ID_FIELD]] = emblemPaletteDbObject[CustomizationConstants.EMBLEM_PALETTE_ITEM_E_TAG_FIELD];
 			existingEmblemPaletteDbObjects[emblemPaletteDbObject[CustomizationConstants.EMBLEM_PALETTE_WAYPOINT_ID_FIELD]] = emblemPaletteDbObject;
+			processedEmblemPaletteConfigurationIdsDict[emblemPaletteDbObject[CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD]] = emblemPaletteDbObject._id;
 		});
 
 		let inventoryJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
@@ -3355,6 +3364,10 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
 		// Add the Kits next.
+		if (!emblemPaletteImportCompleted) { // Need to process emblems before adding Kits.
+			await importEmblemPalettes(headers, generalDictsAndArrays);
+		}
+
 		returnCode = await updateDbsFromApi(headers, customizationCategory, [CustomizationConstants.KIT_PROCESSING_KEY], generalDictsAndArrays, categorySpecificDictsAndArrays)
 			.catch((error) => {
 				console.error("Error occurred while processing Kits for " + customizationCategory, error);
@@ -3365,15 +3378,12 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 			let processingGroups = [
 				["Coatings"],
 				["Emblems"],
+				["Helmets"],
 				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				["Helmets", "ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+				["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
-				if (processingGroup.includes("Emblems") && !emblemPaletteImportCompleted) {
-					await importEmblemPalettes(headers, generalDictsAndArrays);
-				}
-
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
 					.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
@@ -3410,6 +3420,10 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 	if (!returnCode) { // Return code 0 means success.
 		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
+		if (!emblemPaletteImportCompleted) { // Need to process emblems before adding Kits.
+			await importEmblemPalettes(headers, generalDictsAndArrays);
+		}
+
 		// Add the Kits next.
 		returnCode = await updateDbsFromApi(headers, customizationCategory, [CustomizationConstants.KIT_PROCESSING_KEY], generalDictsAndArrays, categorySpecificDictsAndArrays)
 			.catch((error) => {
@@ -3425,10 +3439,6 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
-				if (processingGroup.includes("Emblems") && !emblemPaletteImportCompleted) {
-					await importEmblemPalettes(headers, generalDictsAndArrays);
-				}
-
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
 					.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
@@ -3467,8 +3477,8 @@ export async function vehicleImport(headers = null, manufacturerImportCompleted 
 
 		let processingGroups = [
 			["Coatings"],
-			["Emblems"],
-			["AlternateGeometryRegions"]
+			["AlternateGeometryRegions"],
+			["Emblems"]
 		];
 
 		processingGroups.forEach(async (processingGroup) => {
