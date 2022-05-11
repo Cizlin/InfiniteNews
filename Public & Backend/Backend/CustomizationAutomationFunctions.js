@@ -632,7 +632,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		&& existingItem.itemETag != ""
 		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]
 		&& !(!customizationDetails.IsKitItem && existingItem[IS_KIT_ITEM_ONLY_FIELD]) // We want to process items if we discover they aren't exclusively part of a kit.
-		&& customizationDetails.DefaultOfCore // We want to process an item if it's the default of a core.
+		&& !customizationDetails.DefaultOfCore // We want to process an item if it's the default of a core.
 		&& !forceCheck) {
 
 		// The ETag is identical. No need to process further.
@@ -971,6 +971,39 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 	}
 
+	let originalDefaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
+	//console.log(customizationDetails);
+	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+		const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
+		const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
+
+		let retry = true;
+		let retryCount = 0;
+		const maxRetries = 10;
+
+		while (retry && retryCount < maxRetries) {
+			await wixData.queryReferenced(CUSTOMIZATION_DB, existingItem._id, DEFAULT_OF_CORE_REFERENCE_FIELD)
+				.then((results) => {
+					retry = false;
+					if (results.items.length > 0) {
+						// Push each ID onto the array.
+						results.items.forEach((item) => {
+							originalDefaultOfCoreIdArray.push(item._id);
+						});
+					}
+				})
+				.catch((error) => {
+					console.error(error + " occurred. Try " + (++retryCount) + " of " + maxRetries + "...");
+				});
+		}
+
+		if (retry) {
+			return -1;
+		}
+
+		existingItem[DEFAULT_OF_CORE_REFERENCE_FIELD] = originalDefaultOfCoreIdArray;
+	}
+
 	// The next step is to compare the current item with things in our arguments, but we need to translate some names into IDs, namely for quality, manufacturer, and release.
 	// Let's start with quality.
 	let qualityId = qualityDict[customizationDetails.Quality];
@@ -1255,8 +1288,19 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			existingItem = returnedJsons[1];
 		}
 
-		const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
-		itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = defaultOfCoreIdArray;
+
+		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+			const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
+
+			if (!arrayCompare(originalDefaultOfCoreIdArray, defaultOfCoreIdArray)) {
+				itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = defaultOfCoreIdArray;
+
+				changed = true;
+				let returnedJsons = markItemAsChanged(itemJson, existingItem, DEFAULT_OF_CORE_REFERENCE_FIELD, customizationCategory);
+				itemJson = returnedJsons[0];
+				existingItem = returnedJsons[1];
+			}
+		}
 
 		if (!changed) { // If we didn't make any changes to the item, we can just skip it by returning 1.
 			return 1;
