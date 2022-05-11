@@ -14,17 +14,15 @@ function loadRankPage(pageNumber) {
 }
 
 function setPassPaginationIndexFromSave() {
-    let savedPage = session.getItem(paginationKey);
-    if (parseInt(savedPage) > 0)
-    {
-        $w("#passItemPagination").currentPage = parseInt(savedPage);
-        loadRankPage(parseInt(savedPage));
-    }
-    else
-    {
-        $w("#passItemPagination").currentPage = 1;
+	let savedPage = session.getItem(paginationKey);
+	if (parseInt(savedPage) > 0) {
+		$w("#passItemPagination").currentPage = parseInt(savedPage);
+		loadRankPage(parseInt(savedPage));
+	}
+	else {
+		$w("#passItemPagination").currentPage = 1;
 		loadRankPage(1);
-    }
+	}
 }
 
 function showCorrectAvailability(currentlyAvailable) {
@@ -123,7 +121,7 @@ $w.onReady(function () {
 
 					const CATEGORY_SPECIFIC_VARS = (categoryIsCore) ? CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory] :
 						((categoryIsConsumable) ? ConsumablesConstants.CONSUMABLES_CATEGORY_SPECIFIC_VARS[customizationCategory] :
-						CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory]);
+							CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory]);
 
 					let itemDb = CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "Db"]; // The DB containing the item.
 
@@ -167,12 +165,7 @@ $w.onReady(function () {
 
 					let customizationTypeString = ""; // The string we'll be using for the CustomizationTypeText box.
 					if (!categoryIsCore && CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
-						if (CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
-							// Armor attachments really need to have their type added as a DB field in case more attachment types appear in the future. 
-							// For now, let's just assume they're Helmet Attachments.
-							customizationTypeString = "Helmet Attachment"; // TODO: Improve this.
-						}
-						else if (categoryIsConsumable) {
+						if (categoryIsConsumable) {
 							customizationTypeString = "Amount: ";
 							// The Consumable name already tells its type, so we can use this for the number of Consumables offered at each tier (just 1 for now, but could be more later).
 							if (childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]] == ConsumablesConstants.CONSUMABLES_CHALLENGE_SWAP_NAME) {
@@ -186,7 +179,7 @@ $w.onReady(function () {
 							}
 							else if (childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]] == ConsumablesConstants.CONSUMABLES_CREDITS_NAME) {
 								customizationTypeString += itemData[PassConstants.PASS_RANK_NUMBER_OF_CREDITS_FIELD];
-                            }
+							}
 						}
 						else {
 							// In general, we can just use the customization type referenced by the childItem.
@@ -211,9 +204,9 @@ $w.onReady(function () {
 		$w("#passItemPagination").onChange((event) => {
 			// Normally, we can just keep this part of the code in the masterPage.js file, but we really don't want to scroll and filtering by URL is a bit tedious.
 			// So let's just rename the pagination and work on it separately.
-            session.setItem(paginationKey, event.target.currentPage);
+			session.setItem(paginationKey, event.target.currentPage);
 			loadRankPage(event.target.currentPage);
-        });
+		});
 
 		$w("#freePassRanksDataset").onReady(setPassPaginationIndexFromSave);
 		$w("#premiumPassRanksDataset").onReady(setPassPaginationIndexFromSave);

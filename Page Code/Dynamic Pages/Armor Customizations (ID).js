@@ -15,15 +15,15 @@ $w.onReady(function () {
 
 	$w("#hideHiddenButton").hide();
 
-	$w("#dataset1").onReady(async () => { 
+	$w("#dataset1").onReady(async () => {
 		// If there are no attachments for the item, hide the attachment list and header.
 		if (!($w("#listRepeater").data.length > 0)) {
 			$w("#attachmentContainer").collapse();
 		}
 		else {
 			// Otherwise update the customization type displayed for each attachment.
-			const SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
-			const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
+			//const SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
+			//const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
 
 			const ATTACHMENT_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationDb;
 			const ATTACHMENT_SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationSourceTypeField;
@@ -32,7 +32,7 @@ $w.onReady(function () {
 				$item("#image2").fitMode = "fit";
 				//console.log(itemData);
 				let currentAttachment = itemData;
-				$item("#attachmentCustomizationType").text = currentItem[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD] + " Attachment";
+				//$item("#attachmentCustomizationType").text = currentItem[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD] + " Attachment";
 				let sourceString = "";
 				wixData.queryReferenced(ATTACHMENT_DB, currentAttachment._id, ATTACHMENT_SOURCE_TYPE_REFERENCE_FIELD)
 					.then((results) => {
@@ -51,9 +51,9 @@ $w.onReady(function () {
 					});
 			});
 
-			$w("#showHiddenButton").onClick(function() {
+			$w("#showHiddenButton").onClick(function () {
 				// We don't really want to filter on anything other than the parent item. We actually want to remove the existing filters.
-				let showHiddenFilter = baseFilter; 
+				let showHiddenFilter = baseFilter;
 				$w("#dataset1").setFilter(showHiddenFilter)
 					.then(() => {
 						$w("#showHiddenButton").hide();

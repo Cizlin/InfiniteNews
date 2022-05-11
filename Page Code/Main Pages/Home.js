@@ -2,7 +2,6 @@ import * as CustomizationConstants from 'public/Constants/CustomizationConstants
 import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
-import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
 
 import wixData from 'wix-data';
 
@@ -11,10 +10,10 @@ import * as SocketSetupFunctions from 'public/SocketSetup.js';
 $w.onReady(async function () {
 	// The choice here is non-specific to the challenges. We could also use Shop Key or anything else that doesn't have cores.
 	// The goal is to refresh the saved session data for our filters and search.
-	SocketSetupFunctions.initialSocketSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY); 
+	SocketSetupFunctions.initialSocketSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY);
 
 	$w("#blog1").hide();
-	
+
 	$w("#ultimateChallengeDataset").onReady(async () => {
 		let ultimateChallenge = $w("#ultimateChallengeDataset").getCurrentItem();
 		$w("#ultimateChallengeDescription").text = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD] + " - " +
@@ -39,19 +38,16 @@ $w.onReady(async function () {
 		if (ultimateChallenge[categoryWithItems].length > 0) {
 			let childItem = ultimateChallenge[categoryWithItems][0];
 
-			let childItemCustomizationType = "Helmet Attachment"; // This is for the Armor Attachment category only. TODO: Improve this.
-			if (ArmorConstants.ARMOR_ATTACHMENT_KEY != CUSTOMIZATION_CATEGORY) {
-				// We need to retrieve the customization type. Soon will do this for all items including attachments.
-				const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
-				const CUSTOMIZATION_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
-				const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
+			// We need to retrieve the customization type.
+			const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
+			const CUSTOMIZATION_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
+			const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketNameField;
 
-				let customizationTypeResults = await wixData.query(SOCKET_DB)
-					.eq("_id", childItem[CUSTOMIZATION_TYPE_REFERENCE_FIELD])
-					.find();
+			let customizationTypeResults = await wixData.query(SOCKET_DB)
+				.eq("_id", childItem[CUSTOMIZATION_TYPE_REFERENCE_FIELD])
+				.find();
 
-				childItemCustomizationType = customizationTypeResults.items[0][SOCKET_NAME_FIELD];
-			}
+			let childItemCustomizationType = customizationTypeResults.items[0][SOCKET_NAME_FIELD];
 
 			const CUSTOMIZATION_URL_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationUrlField;
 			const CUSTOMIZATION_IMAGE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationImageField;

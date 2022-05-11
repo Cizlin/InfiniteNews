@@ -28,8 +28,8 @@ import * as CustomizationFunctions from 'backend/CustomizationAutomationFunction
 import * as ApiFunctions from 'backend/ApiFunctions.jsw';
 import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 
-import {sendTweet} from 'backend/TwitterApiFunctions.jsw';
-import {sendDiscordMessage} from 'backend/DiscordBotFunctions.jsw';
+import { sendTweet } from 'backend/TwitterApiFunctions.jsw';
+import { sendDiscordMessage } from 'backend/DiscordBotFunctions.jsw';
 import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
@@ -43,11 +43,11 @@ export async function getCurrentlyAvailableShopListings() {
 		.then((results) => {
 			return results.items;
 		})
-		.catch ((error) => {
+		.catch((error) => {
 			console.error("Error occurred while retrieving currently available shop listings from DB: " + error);
 			return [];
 		});
-	
+
 	// We need to get the multi-references for each shop listing; namely, the items each listing includes.
 	for (let i = 0; i < currentlyAvailableShopListings.length; ++i) {
 		// We can actually improve the performance by only querying the fields with items.
@@ -86,19 +86,19 @@ export async function getMainShopListFromWaypoint(headers) {
 
 	while (retry) {
 		waypointJson = await wixFetch.fetch(url, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -133,19 +133,19 @@ export async function getHcsShopListFromWaypoint(headers) {
 
 	while (retry) {
 		waypointJson = await wixFetch.fetch(url, {
-				"method": "get",
-				"headers": headers
-			})
-			.then( (httpResponse) => {
+			"method": "get",
+			"headers": headers
+		})
+			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				} 
+				}
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			} )
+			})
 			.then((json) => {
 				return json;
 			})
@@ -157,7 +157,7 @@ export async function getHcsShopListFromWaypoint(headers) {
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await ApiFunctions.getSpartanToken();
 			let clearance = await ApiFunctions.getClearance();
-			
+
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
@@ -229,7 +229,7 @@ export async function getItemId(customizationCategory, waypointJson) {
 	}
 */
 export async function getConvertedShopList() {
-	let headers = await CustomizationFunctions.makeWaypointHeaders();
+	let headers = await ApiFunctions.makeWaypointHeaders();
 
 	let typeDict = await GeneralBackendFunctions.generateTypeDict();
 
@@ -371,7 +371,7 @@ export async function getConvertedShopList() {
 						for (let typeCategory in typeDict) {
 							if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
 								foundType = true; // We found the type.
-								let itemJson = await CustomizationFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
+								let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
 
 								const SHOP_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].ShopReferenceField;
 								mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].push(await getItemId(typeCategory, itemJson));
@@ -381,7 +381,7 @@ export async function getConvertedShopList() {
 								}
 
 								break;
-                            }
+							}
 						}
 
 						if (foundType) {
@@ -479,13 +479,8 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 						item[CURRENTLY_AVAILABLE_FIELD] = currentlyAvailableStatus;
 						itemsToUpdate.push(item);
 					}
-					let itemType;
-					if (!CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) { // If this isn't an attachment.
-						itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
-					}
-					else {
-						itemType = "Helmet Attachment"; // TODO: Fix this if more attachment types are added.
-					}
+
+					let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
 
 					itemInfoArray.push({
 						itemName: item[NAME_FIELD],
@@ -505,12 +500,12 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 		.catch((error) => {
 			console.error("Error", error, "occurred while marking items as no longer available for category", customizationCategory, "and ID array", itemIdArray);
 		});
-	
+
 	return itemInfoArray;
 }
 
 // Accepts a site JSON file and marks all currentlyAvailable flags on the associated items as false within the DBs.
-export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, currentlyAvailableStatus, itemDb=ShopConstants.SHOP_DB) {
+export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, currentlyAvailableStatus, itemDb = ShopConstants.SHOP_DB) {
 
 	let options = {
 		"suppressAuth": true,
@@ -536,7 +531,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 	}
 	else {
 		throw "Unable to run updateBundleAndItemsCurrentlyAvailableStatus with itemDb " + itemDb + ". Exiting...";
-    }
+	}
 
 	let itemJsonCopy = structuredClone(itemJson);
 
@@ -576,7 +571,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 						itemJsonCopy[ShopConstants.SHOP_COST_CREDITS_FIELD],
 						itemJsonCopy[ShopConstants.SHOP_IS_HCS_FIELD]
 					);
-                }
+				}
 			}
 			// Add the item(s) to the Ultimate Challenge.
 			else if (itemDb == CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB && currentlyAvailableStatus) {
@@ -594,7 +589,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 		.catch((error) => {
 			console.error("Error", error, "occurred while updating item availability", itemJson);
 		});
-	
+
 	return itemInfoArray;
 }
 
@@ -670,7 +665,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 						if (item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 && item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == PENDING_SOURCE_ID) {
 							// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
 							wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
-								.then (() => {
+								.then(() => {
 									console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 								})
 								.catch((error) => {
@@ -680,7 +675,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 						else if (!sourceTypeReferenceIncludesDesiredId) {
 							// We just want to insert the source type in this case.
 							wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
-								.then (() => {
+								.then(() => {
 									console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 								})
 								.catch((error) => {
@@ -895,7 +890,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 	// Then, we need to assemble the lines summarizing each bundle/item.
 	// These arrays will includes strings with one of two formats: " - [bundleName] ([creditCost] Credits)" or " - [bundleName] ([creditCost] Credits, last added [MM/DD/YYYY])"
-	let mainItemListingArray = []; 
+	let mainItemListingArray = [];
 	let mainItemArray = [];
 	let hcsItemListingArray = [];
 	let hcsItemArray = [];
@@ -1051,7 +1046,7 @@ export async function refreshShop() {
 
 	// The bundles should always have unique waypoint IDs so we can just check to see if each currently available item is in the newlyAvailable list.
 	// If not, we mark it as not currently available.
-	let newlyAvailableShopListingIds = []; 
+	let newlyAvailableShopListingIds = [];
 	let currentlyAvailableShopListingIds = []; // We need this array so that we can check each newly available listing and see if we already have it available.
 
 	for (let i = 0; i < newlyAvailableShopListings.length; ++i) {
@@ -1074,7 +1069,7 @@ export async function refreshShop() {
 		if (!currentlyAvailableShopListingIds.includes(newlyAvailableShopListings[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD])) {
 			// If there's a listing not in the previously available array, we need to update it or add it and report that it's new.
 			newShopListingsToUpdate.push(newlyAvailableShopListings[i]);
-		}			
+		}
 	}
 
 	if (newlyAvailableShopListingIds.length > 0) {
@@ -1086,7 +1081,7 @@ export async function refreshShop() {
 				let items = results.items;
 				console.log("Items returned: ", items);
 				let itemIds = [];
-				
+
 				for (let i = 0; i < items.length; i++) {
 					itemIds.push(items[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD]);
 				}
@@ -1095,7 +1090,7 @@ export async function refreshShop() {
 
 				console.log("Arrays to process:", itemIds, newShopListingsToUpdate);
 
-				for(let i = 0; i < newShopListingsToUpdate.length; ++i) { // We're assuming everything else has been marked correctly. Big assumption, yes, but potentially more efficient.
+				for (let i = 0; i < newShopListingsToUpdate.length; ++i) { // We're assuming everything else has been marked correctly. Big assumption, yes, but potentially more efficient.
 					let item;
 					let itemIndex = itemIds.findIndex((itemId) => { return newShopListingsToUpdate[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD] == itemId; });
 					console.log("Item index is ", itemIndex, "for item ID", newShopListingsToUpdate[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD]);
@@ -1109,7 +1104,7 @@ export async function refreshShop() {
 						newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] = item[ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] || [];
 
 						// We have to add this here because we need the existing array of datetimes.
-						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]); 
+						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
 						newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
 
 						console.log("Last added datetime for ", item[ShopConstants.SHOP_WAYPOINT_ID_FIELD], " is ", item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
@@ -1133,7 +1128,7 @@ export async function refreshShop() {
 
 					updateItemArray.push(item);
 				}
-				
+
 				console.log("Update item array:", updateItemArray);
 
 				generateSocialNotifications(updateItemArray);

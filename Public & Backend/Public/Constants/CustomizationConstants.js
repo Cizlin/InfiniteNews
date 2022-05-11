@@ -185,6 +185,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationUrlField": "link-armor-customizations-itemName",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
+		"CustomizationDefaultOfCoreReferenceField": "ArmorCores",
 		"ShopReferenceField": ShopConstants.SHOP_ARMOR_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_ARMOR_CUSTOMIZATION,
@@ -227,6 +228,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationUrlField": "link-armor-customization-attachments-itemName",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"CustomizationParentReferenceField": ArmorConstants.ARMOR_CUSTOMIZATION_ATTACHMENTS_PARENT_REFERENCE_FIELD,
+		"CustomizationDefaultOfCoreReferenceField": "ArmorCores",
 		"ParentKey": ArmorConstants.ARMOR_KEY,
 		"ShopReferenceField": ShopConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_ATTACHMENT_REFERENCE_FIELD
@@ -272,6 +274,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationUrlField": "link-items-title",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
+		"CustomizationDefaultOfCoreReferenceField": "WeaponCores",
 		"ShopReferenceField": ShopConstants.SHOP_WEAPON_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_WEAPON_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_WEAPON_CUSTOMIZATION,
@@ -320,6 +323,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationUrlField": "link-vehicle-customizations-title",
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
+		"CustomizationDefaultOfCoreReferenceField": "VehicleCores",
 		"ShopReferenceField": ShopConstants.SHOP_VEHICLE_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_VEHICLE_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_VEHICLE_CUSTOMIZATION,
@@ -427,6 +431,8 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreType": "Armor Core",
 		"CoreWaypointType": "ArmorCore",
 		"CoreUrlField": "link-armor-cores-name",
+		"CoreDefaultItemsField": "defaultItems",
+		"CoreDefaultAttachmentsField": "defaultAttachments",
 		"AnyCoreId": ArmorConstants.ANY_ARMOR_CORE_ID
 	},
 
@@ -453,6 +459,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreType": "Weapon Core",
 		"CoreWaypointType": "WeaponCore",
 		"CoreUrlField": "link-weapon-cores-name",
+		"CoreDefaultItemsField": "defaultItems",
 		"AnyCoreId": WeaponConstants.ANY_WEAPON_CORE_ID
 	},
 
@@ -479,6 +486,7 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreType": "Vehicle Core",
 		"CoreWaypointType": "VehicleCore",
 		"CoreUrlField": "link-vehicle-cores-name",
+		"CoreDefaultItemsField": "defaultItems",
 		"AnyCoreId": VehicleConstants.ANY_VEHICLE_CORE_ID
 	}
 };
