@@ -1,7 +1,7 @@
 // Filename: public/SocketSetup.js
 // This code is designed to run on all Socket pages (Armor, Weapons, Vehicles, Body & AI, and Spartan ID).
 
-import {session} from 'wix-storage';
+import { session } from 'wix-storage';
 import wixLocation from 'wix-location';
 import wixData from 'wix-data';
 import * as KeyConstants from 'public/Constants/KeyConstants.js';
@@ -11,13 +11,13 @@ import * as CustomizationConstants from 'public/Constants/CustomizationConstants
 export function initialSocketSetup(customizationCategory) {
     //#region Resetting session values for each filter.
     // Reset the session values for each of the filters on the item list pages.
-	session.setItem(KeyConstants.QUALITY_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
+    session.setItem(KeyConstants.QUALITY_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
     session.setItem(KeyConstants.HIDDEN_KEY, KeyConstants.DEFAULT_HIDDEN_FILTER_VALUE);
-	session.setItem(KeyConstants.AVAILABLE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
-	session.setItem(KeyConstants.RELEASE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
-	session.setItem(KeyConstants.QUICK_SEARCH_KEY, KeyConstants.DEFAULT_QUICK_SEARCH_VALUE);
-	session.setItem(KeyConstants.TIMEFRAME_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
-	session.setItem(KeyConstants.SHOP_TYPE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
+    session.setItem(KeyConstants.AVAILABLE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
+    session.setItem(KeyConstants.RELEASE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
+    session.setItem(KeyConstants.QUICK_SEARCH_KEY, KeyConstants.DEFAULT_QUICK_SEARCH_VALUE);
+    session.setItem(KeyConstants.TIMEFRAME_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
+    session.setItem(KeyConstants.SHOP_TYPE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
     session.setItem(KeyConstants.PASS_TYPE_KEY, KeyConstants.DEFAULT_FILTER_VALUE);
 
     wixData.query(CustomizationConstants.SOURCE_TYPE_DB)
@@ -67,9 +67,9 @@ export function initialSocketSetup(customizationCategory) {
         wixData.query(coreDB)
             .eq("_id", coreID)
             .find()
-            .then( (results) => {
+            .then((results) => {
                 //console.log(results);
-                if(results.items.length > 0) {
+                if (results.items.length > 0) {
                     let firstItem = results.items[0]; // The matching item
                     coreName = firstItem[coreNameField];
                 }
@@ -101,12 +101,12 @@ export function socketItemSetup($item, itemData, customizationCategory, coreID) 
     //#region Setting the button link value...
     // We have four cases for the URL link.
     if (coreID != "" && itemData._id != anySocketID) { // Core and socket specified
-        buttonLink = customizationURL 
+        buttonLink = customizationURL
             + "?" + coreURLParam + "=" + coreID
             + "&" + socketURLParam + "=" + itemData._id;
     }
     else if (coreID != "" && itemData._id == anySocketID) { // Core only specified
-        buttonLink = customizationURL 
+        buttonLink = customizationURL
             + "?" + coreURLParam + "=" + coreID;
     }
     else if (coreID == "" && itemData._id != anySocketID) { // Socket only specified
