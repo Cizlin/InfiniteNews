@@ -36,7 +36,7 @@ export const RELEASE_ORDINAL_FIELD = "ordinal";
 export const SOURCE_TYPE_DB = "Sources";
 export const SOURCE_TYPE_NAME_FIELD = "name";
 export const SOURCE_TYPE_PENDING = "(Pending)"; // The name of the (Pending) Source Type.
-export const SOURCE_TYPE_PENDING_ID = "682d9532-14a9-4f27-9454-6c0d2275a4f4"; 
+export const SOURCE_TYPE_PENDING_ID = "682d9532-14a9-4f27-9454-6c0d2275a4f4";
 export const SOURCE_TYPE_SHOP = "Shop";
 export const SOURCE_TYPE_SHOP_ID = "6f04a49e-7817-408c-aea9-ef7155f0df99";
 export const SOURCE_TYPE_KIT_ITEM = "Kit Item"; // The name of the Kit Item Source Type.
@@ -231,7 +231,10 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationDefaultOfCoreReferenceField": "ArmorCores",
 		"ParentKey": ArmorConstants.ARMOR_KEY,
 		"ShopReferenceField": ShopConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD,
-		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_ATTACHMENT_REFERENCE_FIELD
+		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_ATTACHMENT_REFERENCE_FIELD,
+		"UrlCustomization": GeneralConstants.URL_ARMOR_ATTACHMENT_CUSTOMIZATION,
+		"UrlSocketParam": GeneralConstants.URL_ARMOR_ATTACHMENT_SOCKET_PARAM,
+		"DefaultSocketName": "All Armor Attachment Categories"
 	},
 
 	[WeaponConstants.WEAPON_KEY]: {
