@@ -12,6 +12,10 @@ export const URL_ARMOR_SOCKETS = "/armor-sockets";
 export const URL_ARMOR_CORE_PARAM = "armorCore";
 export const URL_ARMOR_SOCKET_PARAM = "armorSocket";
 
+// These constants define URL slugs and parameters for Armor Attachment Customization.
+export const URL_ARMOR_ATTACHMENT_CUSTOMIZATION = "/armor-customizations/attachments";
+export const URL_ARMOR_ATTACHMENT_SOCKET_PARAM = "armorAttachmentSocket";
+
 // These constants define URL slugs and parameters for Weapon Customization.
 export const URL_WEAPON_CUSTOMIZATION = "/weapon-customizations";
 export const URL_WEAPON_SOCKETS = "/weapon-sockets";
