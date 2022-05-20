@@ -24,7 +24,6 @@ import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeC
 import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 
 // Import helper functions.
-import * as CustomizationFunctions from 'backend/CustomizationAutomationFunctions.jsw';
 import * as ApiFunctions from 'backend/ApiFunctions.jsw';
 import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 
@@ -264,8 +263,10 @@ export async function getConvertedShopList() {
 					let mainShopSiteJson = {};
 					let shopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i].OfferingDisplayPath);
 
+					// Weekly bundles have excluded the Flair Text since Season 2. Let's parse empty Flair Text values as "Weekly".
 					switch (shopWaypointJson.FlairText) {
 						case "Weekly":
+						case "":
 							mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
 							break;
 						case "Daily":
@@ -273,6 +274,11 @@ export async function getConvertedShopList() {
 							break;
 						default:
 							mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE];
+					}
+
+					if (shopWaypointJson.Title == "Boost and Swap Pack" || h == 1) {
+						// This is basically the only time we see Indefinite Shop Bundles (HCS or the Boost and Swap Pack).
+						mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE];
 					}
 
 					let qualityId = await wixData.query(CustomizationConstants.QUALITY_DB)
@@ -466,7 +472,7 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 
 	await wixData.query(CUSTOMIZATION_DB)
 		.hasSome("_id", itemIdArray)
-		.include()
+		.include(SOCKET_REFERENCE_FIELD)
 		.find()
 		.then(async (results) => {
 			if (results.items.length > 0) {
@@ -608,6 +614,8 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 		"suppressHooks": true
 	};
 
+	let itemInfoArray = [];
+
 	wixData.replaceReferences(ShopConstants.SHOP_DB, fieldName, bundleId, itemIdArray, options)
 		.then(() => {
 			//console.log("Added references for Shop item ", bundleId, " and fieldName ", fieldName);
@@ -624,8 +632,15 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 		const CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSourceTypeField;
 		const CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCurrentlyAvailableField;
 
-		wixData.query(CUSTOMIZATION_DB)
+		const SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
+		const NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField;
+		const URL_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_URL_FIELDS[customizationCategory];
+
+		const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
+
+		await wixData.query(CUSTOMIZATION_DB)
 			.hasSome("_id", itemIdArray)
+			.include(SOCKET_REFERENCE_FIELD)
 			.include(CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)
 			.find()
 			.then((results) => {
@@ -682,6 +697,14 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 									console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 								});
 						}
+
+						let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
+
+						itemInfoArray.push({
+							itemName: item[NAME_FIELD],
+							itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
+							itemType: itemType
+						});
 					});
 
 					console.log("Found the following items", items, "Only updating source and currentlyAvailable for these items", itemsToUpdate);
@@ -696,6 +719,20 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 				console.error("Error", error, "occurred while updating newly available items for category", customizationCategory, "and ID array", itemIdArray);
 			});
 	}
+	else {
+		// If we have Consumables, just update the itemInfoArray.
+		let consumables = (await wixData.query(ConsumablesConstants.CONSUMABLES_DB).hasSome("_id", itemIdArray).find()).items;
+
+		for (let i = 0; i < consumables.length; ++i) {
+			itemInfoArray.push({
+				itemName: consumables[ConsumablesConstants.CONSUMABLES_NAME_FIELD],
+				itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + consumables[ConsumablesConstants.CONSUMABLES_URL_FIELD],
+				itemType: "" // This is redundant.
+			});
+		}
+	}
+
+	return itemInfoArray;
 }
 
 async function addBundleToDb(shopBundleJson) {
@@ -719,7 +756,7 @@ async function addBundleToDb(shopBundleJson) {
 		});
 
 	for (const FIELD in CustomizationConstants.SHOP_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT) {
-		addItemIdArrayToShopItem(
+		addedBundle.childItemInfo = await addItemIdArrayToShopItem(
 			addedBundle._id,
 			FIELD,
 			shopBundleJson[FIELD],
@@ -971,13 +1008,74 @@ export async function generateSocialNotifications(updateItemArray) {
 		await sendDiscordMessage("shop", discordMessageText, true); // Include notification in the message.
 
 		for (let i = 0; i < mainItemArray.length; ++i) {
-			let subTweetText = "Full details for the " + mainItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " " + mainItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD][0] +
-				" Listing (" + mainItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] + " Credits) are available here.\n\n";
+			// Twitter links are always 23 characters, so while this may be longer at first, it should be parsed successfully when shortened down to 23 chars...I think...
+			const URL_LENGTH_SHORTENING_OFFSET = (GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD]).length - 23;
+			let subTweetText = GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD] +
+				"\nThe " + mainItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " Listing includes:\n";
 
-			subTweetText += GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD];
-			console.log(subTweetText);
-			parentId = await sendTweet(subTweetText, parentId);
-			await sendDiscordMessage("shop", subTweetText);
+			// Subtweets may not be longer than 280 characters. Need to adjust for this.
+			let subTweetTextArray = [subTweetText];
+			let currentSubTweetIndex = 0;
+
+			let emblemNamesToSkip = [];
+
+			for (let j = 0; j < mainItemArray[i].childItemInfo.length; ++j) {
+				let childItem = mainItemArray[i].childItemInfo[j];
+				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + "\n";
+
+				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
+				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
+					if (emblemNamesToSkip.includes(childItem.itemName)) { // We already noted this Emblem Set. Let's proceed.
+						continue;
+					}
+
+					let matchingEmblemsFound = 0; // Count the number of matching emblems in the list.
+					mainItemArray[i].childItemInfo.forEach((item) => {
+						if (item.itemName == childItem.itemName && (item.itemType.includes("Nameplate") || item.itemType.includes("Emblem"))) {
+							++matchingEmblemsFound;
+						}
+					});
+
+					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
+						childItemText = " - " + childItem.itemName + " Emblem Set\n";
+						emblemNamesToSkip.push(childItem.itemName);
+					}
+				}
+
+				if (currentSubTweetIndex != 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length > 280) {
+					++currentSubTweetIndex;
+					subTweetTextArray.push(childItemText);
+				}
+				// Account for URL shortening.
+				else if (currentSubTweetIndex == 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length - URL_LENGTH_SHORTENING_OFFSET > 280) {
+					++currentSubTweetIndex;
+					subTweetTextArray.push(childItemText);
+				}
+				else {
+					subTweetTextArray[currentSubTweetIndex] += childItemText;
+				}
+			}
+
+			console.log("Subtweet Array has length " + subTweetTextArray.length, subTweetTextArray);
+
+			for (let i = 0; i < subTweetTextArray.length; ++i) {
+				console.log(subTweetTextArray[i]);
+				parentId = await sendTweet(subTweetTextArray[i], parentId);
+			}
+
+			let discordMessageSubText = "";
+			subTweetTextArray.forEach((tweet) => {
+				discordMessageSubText += tweet;
+			});
+
+			await sendDiscordMessage("shop", discordMessageSubText); // Include notification in the message.
+
+			//let subTweetText = "Full details for the " + mainItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " " + mainItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD][0] +
+			//	" Listing (" + mainItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] + " Credits) are available here.\n\n";
+
+			//subTweetText += "\n" + GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD];
+			//parentId = await sendTweet(subTweetText, parentId);
+			//await sendDiscordMessage("shop", subTweetText);
 		}
 	}
 
@@ -997,14 +1095,80 @@ export async function generateSocialNotifications(updateItemArray) {
 		await sendDiscordMessage("shop", discordMessageText, true); // Include notification in the message.
 
 		for (let i = 0; i < hcsItemArray.length; ++i) {
+			// Twitter links are always 23 characters, so while this may be longer at first, it should be parsed successfully when shortened down to 23 chars...I think...
+			const URL_LENGTH_SHORTENING_OFFSET = (GeneralConstants.INFINITE_NEWS_URL_BASE + hcsItemArray[i][ShopConstants.SHOP_URL_FIELD]).length - 23;
+			let subTweetText = GeneralConstants.INFINITE_NEWS_URL_BASE + hcsItemArray[i][ShopConstants.SHOP_URL_FIELD] +
+				"\nThe " + hcsItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " Listing includes:\n";
+
+			// Subtweets may not be longer than 280 characters. Need to adjust for this.
+			let subTweetTextArray = [subTweetText];
+			let currentSubTweetIndex = 0;
+
+			let emblemNamesToSkip = [];
+
+			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
+				let childItem = hcsItemArray[i].childItemInfo[j];
+				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + "\n";
+
+				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
+				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
+					if (emblemNamesToSkip.includes(childItem.itemName)) { // We already noted this Emblem Set. Let's proceed.
+						continue;
+					}
+
+					let matchingEmblemsFound = 0; // Count the number of matching emblems in the list.
+					hcsItemArray[i].childItemInfo.forEach((item) => {
+						if (item.itemName == childItem.itemName && (item.itemType.includes("Nameplate") || item.itemType.includes("Emblem"))) {
+							++matchingEmblemsFound;
+						}
+					});
+
+					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
+						childItemText = " - " + childItem.itemName + " Emblem Set\n";
+						emblemNamesToSkip.push(childItem.itemName);
+					}
+				}
+
+				if (currentSubTweetIndex != 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length > 280) {
+					++currentSubTweetIndex;
+					subTweetTextArray.push(childItemText);
+				}
+				// Account for URL shortening.
+				else if (currentSubTweetIndex == 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length - URL_LENGTH_SHORTENING_OFFSET > 280) {
+					++currentSubTweetIndex;
+					subTweetTextArray.push(childItemText);
+				}
+				else {
+					subTweetTextArray[currentSubTweetIndex] += childItemText;
+				}
+			}
+
+			console.log("Subtweet Array has length " + subTweetTextArray.length, subTweetTextArray);
+
+			for (let i = 0; i < subTweetTextArray.length; ++i) {
+				console.log(subTweetTextArray[i]);
+				parentId = await sendTweet(subTweetTextArray[i], parentId);
+			}
+
+			let discordMessageSubText = "";
+			subTweetTextArray.forEach((tweet) => {
+				discordMessageSubText += tweet;
+			});
+
+			await sendDiscordMessage("shop", discordMessageSubText); // Include notification in the message.
+		}
+
+		/*for (let i = 0; i < hcsItemArray.length; ++i) {
 			let subTweetText = "Full details for the " + hcsItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " HCS Listing (" +
 				hcsItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] + " Credits) are available here.\n\n";
 
 			subTweetText += GeneralConstants.INFINITE_NEWS_URL_BASE + hcsItemArray[i][ShopConstants.SHOP_URL_FIELD];
 			console.log(subTweetText);
-			parentId = await sendTweet(subTweetText, parentId);
-			await sendDiscordMessage("shop", subTweetText);
-		}
+			//parentId = await sendTweet(subTweetText, parentId);
+			//await sendDiscordMessage("shop", subTweetText);
+		}*/
+
+
 	}
 }
 
@@ -1109,7 +1273,7 @@ export async function refreshShop() {
 
 						console.log("Last added datetime for ", item[ShopConstants.SHOP_WAYPOINT_ID_FIELD], " is ", item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
 						console.log(newShopListingsToUpdate[i]);
-						updateBundleAndItemsCurrentlyAvailableStatus(newShopListingsToUpdate[i], true);
+						item.childItemInfo = await updateBundleAndItemsCurrentlyAvailableStatus(newShopListingsToUpdate[i], true);
 
 						// We need to ensure that the name, cost, and bundle type are updated and passed to the Twitter and Push Notification functions.
 						item[ShopConstants.SHOP_ITEM_NAME_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_ITEM_NAME_FIELD];
