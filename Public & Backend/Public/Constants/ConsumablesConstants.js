@@ -12,6 +12,7 @@ export const CONSUMABLES_CURRENTLY_AVAILABLE_FIELD = "currentlyAvailable";
 export const CONSUMABLES_HIDDEN_FIELD = "hidden";
 export const CONSUMABLES_RELEASE_REFERENCE_FIELD = "releaseReference";
 export const CONSUMABLES_SOURCE_TYPE_REFERENCE_FIELD = "sourceTypeReference";
+export const CONSUMABLES_URL_FIELD = "link-consumables-itemName";
 
 // If we want to at-a-glance determine what type of consumable we have, we do an includes() check with these constants.
 export const CONSUMABLES_CHALLENGE_SWAP_PATH_CONTENTS = "rerollcurrency.json";
