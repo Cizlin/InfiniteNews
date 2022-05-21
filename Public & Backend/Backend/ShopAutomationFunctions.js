@@ -472,6 +472,7 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 
 	await wixData.query(CUSTOMIZATION_DB)
 		.hasSome("_id", itemIdArray)
+		.include()
 		.include(SOCKET_REFERENCE_FIELD)
 		.find()
 		.then(async (results) => {
@@ -488,10 +489,26 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 
 					let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
 
+					let itemCore = "";
+
+					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
+						// If we have cores for this item.
+						const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+						const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
+
+						let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
+
+						// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
+						if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
+							itemCore = parentCores[0][CORE_NAME_FIELD];
+						}
+					}
+
 					itemInfoArray.push({
 						itemName: item[NAME_FIELD],
 						itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
-						itemType: itemType
+						itemType: itemType,
+						itemCore: itemCore
 					});
 				}
 
@@ -643,11 +660,13 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 			.include(SOCKET_REFERENCE_FIELD)
 			.include(CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)
 			.find()
-			.then((results) => {
+			.then(async (results) => {
 				if (results.items.length > 0) {
 					let items = results.items;
 					let itemsToUpdate = []; // We only update items that need to be changed.
-					items.forEach((item) => {
+
+					for (let i = 0; i < items.length; ++i) {
+						let item = items[i];
 						let itemChanged = false;
 						if (!item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD]) {
 							item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] = true;
@@ -700,12 +719,28 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 
 						let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
 
+						let itemCore = "";
+
+						if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
+							// If we have cores for this item.
+							const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+							const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
+
+							let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
+
+							// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
+							if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
+								itemCore = parentCores[0][CORE_NAME_FIELD];
+							}
+						}
+
 						itemInfoArray.push({
 							itemName: item[NAME_FIELD],
 							itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
-							itemType: itemType
+							itemType: itemType,
+							itemCore: itemCore
 						});
-					});
+					}
 
 					console.log("Found the following items", items, "Only updating source and currentlyAvailable for these items", itemsToUpdate);
 
@@ -1021,7 +1056,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			for (let j = 0; j < mainItemArray[i].childItemInfo.length; ++j) {
 				let childItem = mainItemArray[i].childItemInfo[j];
-				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + "\n";
+				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
@@ -1108,7 +1143,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
 				let childItem = hcsItemArray[i].childItemInfo[j];
-				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + "\n";
+				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {

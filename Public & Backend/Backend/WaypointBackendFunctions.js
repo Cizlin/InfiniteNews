@@ -1477,7 +1477,7 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 
 		for (let j = 0; j < updateItemArray[i].childItemInfo.length; ++j) {
 			let rewardInfoDict = updateItemArray[i].childItemInfo[j];
-			let subTweetText = "Reward: " + rewardInfoDict.itemName + " " + rewardInfoDict.itemType + "\n" + rewardInfoDict.itemUrl;
+			let subTweetText = "Reward: " + rewardInfoDict.itemName + " " + rewardInfoDict.itemType + ((rewardInfoDict.itemCore != "") ? (" (" + rewardInfoDict.itemCore + ")") : "") + "\n" + rewardInfoDict.itemUrl;
 			console.log(subTweetText);
 			parentId = await TwitterFunctions.sendTweet(subTweetText, parentId);
 			await DiscordFunctions.sendDiscordMessage("weekly-reset", subTweetText);
