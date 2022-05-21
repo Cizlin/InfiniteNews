@@ -491,7 +491,7 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 
 					let itemCore = "";
 
-					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
 						// If we have cores for this item.
 						const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
 						const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
@@ -721,7 +721,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 
 						let itemCore = "";
 
-						if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+						if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
 							// If we have cores for this item.
 							const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
 							const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
