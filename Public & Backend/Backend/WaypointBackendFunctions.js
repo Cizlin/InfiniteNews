@@ -525,8 +525,8 @@ export async function processRank(
 															throw error;
 														});
 												}
-											}
-										}
+                                            }
+                                        }
 
 
 										if (itemChanged) {
@@ -1322,7 +1322,7 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 		.include(SOURCE_TYPE_REFERENCE_FIELD)
 		.include(CUSTOMIZATION_TYPE_REFERENCE_FIELD)
 		.find()
-		.then((results) => {
+		.then(async (results) => {
 			if (results.items.length > 0) {
 				let items = results.items;
 				let itemsToUpdate = []; // We only update items that need to be changed.
@@ -1383,12 +1383,28 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 					const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
 					itemType = item[CUSTOMIZATION_TYPE_REFERENCE_FIELD][SOCKET_NAME_FIELD];
 
+					let itemCore = "";
+
+					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
+						// If we have cores for this item.
+						const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+						const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
+
+						let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
+
+						// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
+						if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
+							itemCore = parentCores[0][CORE_NAME_FIELD];
+						}
+					}
+
 					const NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField
 					const URL_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_URL_FIELDS[customizationCategory];
 					itemInfoArray.push({
 						itemName: item[NAME_FIELD],
 						itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
-						itemType: itemType
+						itemType: itemType,
+						itemCore: itemCore
 					});
 				}
 
