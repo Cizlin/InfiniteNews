@@ -198,7 +198,7 @@ export async function updatePassInDb(passDbJson) {
 
 	let saveResults = await wixData.save(PassConstants.PASS_DB, passDbJson);
 
-	return saveResults._id;
+	return saveResults;
 
 }
 
@@ -1095,12 +1095,21 @@ export async function importAllPasses() {
 		delete passListCopyDict[battlePassPath].ranks;
 		delete passListCopyDict[battlePassPath].seasonNum;
 
-		passListJsonDict[battlePassPath].passDbId = await updatePassInDb(passListCopyDict[battlePassPath]);
+		let updatedItem = await updatePassInDb(passListCopyDict[battlePassPath]);
+
+		passListJsonDict[battlePassPath].passDbId = updatedItem._id;
+
+		// Get the URL field so we can link to the pass in our notifications.
+		newlyAvailablePasses.some((pass) => {
+			if (pass[PassConstants.PASS_WAYPOINT_ID_FIELD] == updatedItem[PassConstants.PASS_WAYPOINT_ID_FIELD]) {
+				pass[PassConstants.PASS_URL_FIELD] = updatedItem[PassConstants.PASS_URL_FIELD];
+			}
+		});
 	}
 
 	generatePassSocialNotifications(newlyAvailablePasses);
 
-	let typeDict = await GeneralBackendFunctions.generateTypeDict(true);
+	/*let typeDict = await GeneralBackendFunctions.generateTypeDict(true);
 
 	for (let battlePassPath in passListJsonDict) {
 		let rankArray = passListJsonDict[battlePassPath].ranks;
@@ -1123,7 +1132,7 @@ export async function importAllPasses() {
 			.catch((error) => {
 				console.error(error + " occurred when trying to update the ranks for the " + passName + " Pass");
 			});
-	}
+	}*/
 
 	//console.log("NewlyAvailablePasses for generating social notifications.", newlyAvailablePasses);
 
