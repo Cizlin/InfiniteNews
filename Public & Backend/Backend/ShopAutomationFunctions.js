@@ -27,8 +27,8 @@ import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 import * as ApiFunctions from 'backend/ApiFunctions.jsw';
 import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 
-import { sendTweet } from 'backend/TwitterApiFunctions.jsw';
-import { sendDiscordMessage } from 'backend/DiscordBotFunctions.jsw';
+import {sendTweet} from 'backend/TwitterApiFunctions.jsw';
+import {sendDiscordMessage} from 'backend/DiscordBotFunctions.jsw';
 import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
@@ -42,11 +42,11 @@ export async function getCurrentlyAvailableShopListings() {
 		.then((results) => {
 			return results.items;
 		})
-		.catch((error) => {
+		.catch ((error) => {
 			console.error("Error occurred while retrieving currently available shop listings from DB: " + error);
 			return [];
 		});
-
+	
 	// We need to get the multi-references for each shop listing; namely, the items each listing includes.
 	for (let i = 0; i < currentlyAvailableShopListings.length; ++i) {
 		// We can actually improve the performance by only querying the fields with items.
@@ -85,19 +85,19 @@ export async function getMainShopListFromWaypoint(headers) {
 
 	while (retry) {
 		waypointJson = await wixFetch.fetch(url, {
-			"method": "get",
-			"headers": headers
-		})
-			.then((httpResponse) => {
+				"method": "get",
+				"headers": headers
+			})
+			.then( (httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				}
+				} 
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			})
+			} )
 			.then((json) => {
 				return json;
 			})
@@ -132,19 +132,19 @@ export async function getHcsShopListFromWaypoint(headers) {
 
 	while (retry) {
 		waypointJson = await wixFetch.fetch(url, {
-			"method": "get",
-			"headers": headers
-		})
-			.then((httpResponse) => {
+				"method": "get",
+				"headers": headers
+			})
+			.then( (httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
 					return httpResponse.json();
-				}
+				} 
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
 					return {};
 				}
-			})
+			} )
 			.then((json) => {
 				return json;
 			})
@@ -156,7 +156,7 @@ export async function getHcsShopListFromWaypoint(headers) {
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await ApiFunctions.getSpartanToken();
 			let clearance = await ApiFunctions.getClearance();
-
+			
 			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
@@ -387,7 +387,7 @@ export async function getConvertedShopList() {
 								}
 
 								break;
-							}
+                            }
 						}
 
 						if (foundType) {
@@ -523,12 +523,12 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 		.catch((error) => {
 			console.error("Error", error, "occurred while marking items as no longer available for category", customizationCategory, "and ID array", itemIdArray);
 		});
-
+	
 	return itemInfoArray;
 }
 
 // Accepts a site JSON file and marks all currentlyAvailable flags on the associated items as false within the DBs.
-export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, currentlyAvailableStatus, itemDb = ShopConstants.SHOP_DB) {
+export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, currentlyAvailableStatus, itemDb=ShopConstants.SHOP_DB) {
 
 	let options = {
 		"suppressAuth": true,
@@ -554,7 +554,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 	}
 	else {
 		throw "Unable to run updateBundleAndItemsCurrentlyAvailableStatus with itemDb " + itemDb + ". Exiting...";
-	}
+    }
 
 	let itemJsonCopy = structuredClone(itemJson);
 
@@ -594,7 +594,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 						itemJsonCopy[ShopConstants.SHOP_COST_CREDITS_FIELD],
 						itemJsonCopy[ShopConstants.SHOP_IS_HCS_FIELD]
 					);
-				}
+                }
 			}
 			// Add the item(s) to the Ultimate Challenge.
 			else if (itemDb == CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB && currentlyAvailableStatus) {
@@ -612,7 +612,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 		.catch((error) => {
 			console.error("Error", error, "occurred while updating item availability", itemJson);
 		});
-
+	
 	return itemInfoArray;
 }
 
@@ -623,7 +623,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 
 	if (itemIdArray.length <= 0) {
 		console.log("No processing necessary as itemIdArray is empty for " + customizationCategory + " and Shop Bundle Name " + bundleName);
-		return;
+		return [];
 	}
 
 	let options = {
@@ -699,7 +699,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 						if (item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 && item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == PENDING_SOURCE_ID) {
 							// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
 							wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
-								.then(() => {
+								.then (() => {
 									console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 								})
 								.catch((error) => {
@@ -709,7 +709,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 						else if (!sourceTypeReferenceIncludesDesiredId) {
 							// We just want to insert the source type in this case.
 							wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
-								.then(() => {
+								.then (() => {
 									console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 								})
 								.catch((error) => {
@@ -790,8 +790,10 @@ async function addBundleToDb(shopBundleJson) {
 			console.error("Error", error, "occurred while attempting to add this Bundle to DB:", shopBundleJsonCopy);
 		});
 
+	addedBundle.childItemInfo = [];
+
 	for (const FIELD in CustomizationConstants.SHOP_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT) {
-		addedBundle.childItemInfo = await addItemIdArrayToShopItem(
+		let childItemInfoArray = await addItemIdArrayToShopItem(
 			addedBundle._id,
 			FIELD,
 			shopBundleJson[FIELD],
@@ -800,6 +802,10 @@ async function addBundleToDb(shopBundleJson) {
 			shopBundleJson[ShopConstants.SHOP_COST_CREDITS_FIELD],
 			shopBundleJson[ShopConstants.SHOP_IS_HCS_FIELD]
 		);
+
+		if (childItemInfoArray) {
+			addedBundle.childItemInfo = addedBundle.childItemInfo.concat(childItemInfoArray);
+		}
 	}
 
 	return addedBundle;
@@ -962,7 +968,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 	// Then, we need to assemble the lines summarizing each bundle/item.
 	// These arrays will includes strings with one of two formats: " - [bundleName] ([creditCost] Credits)" or " - [bundleName] ([creditCost] Credits, last added [MM/DD/YYYY])"
-	let mainItemListingArray = [];
+	let mainItemListingArray = []; 
 	let mainItemArray = [];
 	let hcsItemListingArray = [];
 	let hcsItemArray = [];
@@ -1045,7 +1051,7 @@ export async function generateSocialNotifications(updateItemArray) {
 		for (let i = 0; i < mainItemArray.length; ++i) {
 			// Twitter links are always 23 characters, so while this may be longer at first, it should be parsed successfully when shortened down to 23 chars...I think...
 			const URL_LENGTH_SHORTENING_OFFSET = (GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD]).length - 23;
-			let subTweetText = GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD] +
+			let subTweetText = GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD] + 
 				"\nThe " + mainItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " Listing includes:\n";
 
 			// Subtweets may not be longer than 280 characters. Need to adjust for this.
@@ -1057,7 +1063,7 @@ export async function generateSocialNotifications(updateItemArray) {
 			for (let j = 0; j < mainItemArray[i].childItemInfo.length; ++j) {
 				let childItem = mainItemArray[i].childItemInfo[j];
 				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
-
+				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
 					if (emblemNamesToSkip.includes(childItem.itemName)) { // We already noted this Emblem Set. Let's proceed.
@@ -1080,7 +1086,7 @@ export async function generateSocialNotifications(updateItemArray) {
 				if (currentSubTweetIndex != 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length > 280) {
 					++currentSubTweetIndex;
 					subTweetTextArray.push(childItemText);
-				}
+				} 
 				// Account for URL shortening.
 				else if (currentSubTweetIndex == 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length - URL_LENGTH_SHORTENING_OFFSET > 280) {
 					++currentSubTweetIndex;
@@ -1090,7 +1096,7 @@ export async function generateSocialNotifications(updateItemArray) {
 					subTweetTextArray[currentSubTweetIndex] += childItemText;
 				}
 			}
-
+			
 			console.log("Subtweet Array has length " + subTweetTextArray.length, subTweetTextArray);
 
 			for (let i = 0; i < subTweetTextArray.length; ++i) {
@@ -1132,7 +1138,7 @@ export async function generateSocialNotifications(updateItemArray) {
 		for (let i = 0; i < hcsItemArray.length; ++i) {
 			// Twitter links are always 23 characters, so while this may be longer at first, it should be parsed successfully when shortened down to 23 chars...I think...
 			const URL_LENGTH_SHORTENING_OFFSET = (GeneralConstants.INFINITE_NEWS_URL_BASE + hcsItemArray[i][ShopConstants.SHOP_URL_FIELD]).length - 23;
-			let subTweetText = GeneralConstants.INFINITE_NEWS_URL_BASE + hcsItemArray[i][ShopConstants.SHOP_URL_FIELD] +
+			let subTweetText = GeneralConstants.INFINITE_NEWS_URL_BASE + hcsItemArray[i][ShopConstants.SHOP_URL_FIELD] + 
 				"\nThe " + hcsItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " Listing includes:\n";
 
 			// Subtweets may not be longer than 280 characters. Need to adjust for this.
@@ -1144,7 +1150,7 @@ export async function generateSocialNotifications(updateItemArray) {
 			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
 				let childItem = hcsItemArray[i].childItemInfo[j];
 				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
-
+				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
 					if (emblemNamesToSkip.includes(childItem.itemName)) { // We already noted this Emblem Set. Let's proceed.
@@ -1167,7 +1173,7 @@ export async function generateSocialNotifications(updateItemArray) {
 				if (currentSubTweetIndex != 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length > 280) {
 					++currentSubTweetIndex;
 					subTweetTextArray.push(childItemText);
-				}
+				} 
 				// Account for URL shortening.
 				else if (currentSubTweetIndex == 0 && subTweetTextArray[currentSubTweetIndex].length + childItemText.length - URL_LENGTH_SHORTENING_OFFSET > 280) {
 					++currentSubTweetIndex;
@@ -1177,7 +1183,7 @@ export async function generateSocialNotifications(updateItemArray) {
 					subTweetTextArray[currentSubTweetIndex] += childItemText;
 				}
 			}
-
+			
 			console.log("Subtweet Array has length " + subTweetTextArray.length, subTweetTextArray);
 
 			for (let i = 0; i < subTweetTextArray.length; ++i) {
@@ -1245,7 +1251,7 @@ export async function refreshShop() {
 
 	// The bundles should always have unique waypoint IDs so we can just check to see if each currently available item is in the newlyAvailable list.
 	// If not, we mark it as not currently available.
-	let newlyAvailableShopListingIds = [];
+	let newlyAvailableShopListingIds = []; 
 	let currentlyAvailableShopListingIds = []; // We need this array so that we can check each newly available listing and see if we already have it available.
 
 	for (let i = 0; i < newlyAvailableShopListings.length; ++i) {
@@ -1268,7 +1274,7 @@ export async function refreshShop() {
 		if (!currentlyAvailableShopListingIds.includes(newlyAvailableShopListings[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD])) {
 			// If there's a listing not in the previously available array, we need to update it or add it and report that it's new.
 			newShopListingsToUpdate.push(newlyAvailableShopListings[i]);
-		}
+		}			
 	}
 
 	if (newlyAvailableShopListingIds.length > 0) {
@@ -1280,7 +1286,7 @@ export async function refreshShop() {
 				let items = results.items;
 				console.log("Items returned: ", items);
 				let itemIds = [];
-
+				
 				for (let i = 0; i < items.length; i++) {
 					itemIds.push(items[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD]);
 				}
@@ -1289,7 +1295,7 @@ export async function refreshShop() {
 
 				console.log("Arrays to process:", itemIds, newShopListingsToUpdate);
 
-				for (let i = 0; i < newShopListingsToUpdate.length; ++i) { // We're assuming everything else has been marked correctly. Big assumption, yes, but potentially more efficient.
+				for(let i = 0; i < newShopListingsToUpdate.length; ++i) { // We're assuming everything else has been marked correctly. Big assumption, yes, but potentially more efficient.
 					let item;
 					let itemIndex = itemIds.findIndex((itemId) => { return newShopListingsToUpdate[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD] == itemId; });
 					console.log("Item index is ", itemIndex, "for item ID", newShopListingsToUpdate[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD]);
@@ -1303,7 +1309,7 @@ export async function refreshShop() {
 						newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] = item[ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] || [];
 
 						// We have to add this here because we need the existing array of datetimes.
-						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
+						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]); 
 						newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
 
 						console.log("Last added datetime for ", item[ShopConstants.SHOP_WAYPOINT_ID_FIELD], " is ", item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
@@ -1327,7 +1333,7 @@ export async function refreshShop() {
 
 					updateItemArray.push(item);
 				}
-
+				
 				console.log("Update item array:", updateItemArray);
 
 				generateSocialNotifications(updateItemArray);
