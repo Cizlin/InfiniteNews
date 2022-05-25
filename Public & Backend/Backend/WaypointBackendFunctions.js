@@ -1109,7 +1109,7 @@ export async function importAllPasses() {
 
 	generatePassSocialNotifications(newlyAvailablePasses);
 
-	/*let typeDict = await GeneralBackendFunctions.generateTypeDict(true);
+	let typeDict = await GeneralBackendFunctions.generateTypeDict(true);
 
 	for (let battlePassPath in passListJsonDict) {
 		let rankArray = passListJsonDict[battlePassPath].ranks;
@@ -1132,7 +1132,7 @@ export async function importAllPasses() {
 			.catch((error) => {
 				console.error(error + " occurred when trying to update the ranks for the " + passName + " Pass");
 			});
-	}*/
+	}
 
 	//console.log("NewlyAvailablePasses for generating social notifications.", newlyAvailablePasses);
 
