@@ -20,6 +20,9 @@ import * as ShopConstants from 'public/Constants/ShopConstants.js';
 import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 
+//#region Initializing Atomic locks.
+let filterLock = 0; // SharedArrayBuffer can't be used safely unless some specific security measures are taken, so we're doing a bad poor man's method instead.
+
 //#region Initializing all filter objects.
 let filter = wixData.filter(); // The filter for the dataset content displayed. The value will be established based on URL parameters. DO NOT CHANGE AFTER THIS!!!
 let searchFilter = wixData.filter(); // The filter for the dataset content displayed, plus the search in the name.
@@ -36,7 +39,7 @@ let sourceTypeReferenceField = "sourceTypeReference";	// Should always be source
 //#endregion
 
 // This function is used to collapse the Filter menu.
-function collapseFilterMenu() {
+function collapseFilterMenu () {
 	$w("#filterButton").disable();
 	$w("#filterButtonClose").disable();
 	let rollOptions = {
@@ -45,16 +48,16 @@ function collapseFilterMenu() {
 	};
 
 	$w("#box1").hide("roll", rollOptions)
-		//$w("#box1").collapse()
-		.then(function () {
-			$w("#box1").collapse()
-				.then(function () {
-					$w("#filterButton").show();
-					$w("#filterButtonClose").hide();
-					$w("#filterButton").enable();
-					$w("#filterButtonClose").enable();
-				});
+	//$w("#box1").collapse()
+	.then(function () {
+		$w("#box1").collapse()
+		.then(function() {
+			$w("#filterButton").show();
+			$w("#filterButtonClose").hide();
+			$w("#filterButton").enable();
+			$w("#filterButtonClose").enable();
 		});
+	});
 }
 
 // This function is used to expand the Filter menu.
@@ -67,26 +70,26 @@ function expandFilterMenu() {
 	};
 
 	$w("#box1").expand()
-		.then(function () {
-			$w("#box1").show("roll", rollOptions)
-				.then(function () {
-					$w("#filterButtonClose").show();
-					$w("#filterButton").hide();
-					$w("#filterButton").enable();
-					$w("#filterButtonClose").enable();
-				});
+	.then(function() {
+		$w("#box1").show("roll", rollOptions)
+		.then(function() {
+			$w("#filterButtonClose").show();
+			$w("#filterButton").hide();
+			$w("#filterButton").enable();
+			$w("#filterButtonClose").enable();
 		});
+	});
 }
 
 // This function is used to set the optional filters (e.g. quality, release, etc.).
-async function setOptionalFilters() {
+async function setOptionalFilters(setPaginationFromSave = false) {
 	optionalFilter = filter;
 
 	// First we add the Quality filter.
 	let qualityDropdownSelection = $w("#qualityDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.QUALITY_KEY, qualityDropdownSelection);
 
-	switch (qualityDropdownSelection) {
+	switch(qualityDropdownSelection) {
 		case "Any":
 			break;
 		default:
@@ -94,9 +97,9 @@ async function setOptionalFilters() {
 			await wixData.query(CustomizationConstants.QUALITY_DB)
 				.eq(CustomizationConstants.QUALITY_FIELD, qualityDropdownSelection)
 				.find()
-				.then((results) => {
+				.then( (results) => {
 					//console.log(results);
-					if (results.items.length > 0) {
+					if(results.items.length > 0) {
 						let firstItem = results.items[0]; // The matching item
 						let selectedKey = firstItem._id;
 						// Add the filter to the set.
@@ -110,7 +113,7 @@ async function setOptionalFilters() {
 	let availableDropdownSelection = $w("#availableDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.AVAILABLE_KEY, availableDropdownSelection);
 
-	switch (availableDropdownSelection) {
+	switch(availableDropdownSelection) {
 		case "Yes":
 			optionalFilter = optionalFilter.eq(currentlyAvailableField, true);
 			break;
@@ -126,7 +129,7 @@ async function setOptionalFilters() {
 	let hiddenDropdownSelection = $w("#hiddenDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.HIDDEN_KEY, hiddenDropdownSelection);
 
-	switch (hiddenDropdownSelection) {
+	switch(hiddenDropdownSelection) {
 		case "Hidden Only":
 			optionalFilter = optionalFilter.eq(hiddenField, true);
 			break;
@@ -141,7 +144,7 @@ async function setOptionalFilters() {
 	let releaseDropdownSelection = $w("#releaseDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.RELEASE_KEY, releaseDropdownSelection);
 
-	switch (releaseDropdownSelection) {
+	switch(releaseDropdownSelection) {
 		case "Any":
 			break;
 		default:
@@ -149,15 +152,15 @@ async function setOptionalFilters() {
 			await wixData.query(CustomizationConstants.RELEASE_DB)
 				.eq(CustomizationConstants.RELEASE_FIELD, releaseDropdownSelection)
 				.find()
-				.then((results) => {
-					if (results.items.length > 0) {
+				.then( (results) => {
+					if(results.items.length > 0) {
 						let firstItem = results.items[0]; // The matching item
 						let selectedKey = firstItem._id;
 						// filter
 						optionalFilter = optionalFilter.eq(releaseReferenceField, selectedKey);
-
+							
 					}
-				});
+				});	
 			break;
 	}
 
@@ -170,7 +173,7 @@ async function setOptionalFilters() {
 	let pendingSelected = false; // If the (Pending) option is selected, we also want it to match items with an empty sourcetype field.
 
 	// Fill the array with the relevant IDs
-	$w("#sourceRepeater").forEachItem(($item, itemData, index) => {
+	$w("#sourceRepeater").forEachItem( ($item, itemData, index) => {
 		let isChecked = $item("#sourceCheckbox").checked;
 		let id = itemData._id;
 		let name = itemData[CustomizationConstants.SOURCE_TYPE_NAME_FIELD];
@@ -200,26 +203,36 @@ async function setOptionalFilters() {
 		optionalFilter = optionalFilter.or(tempFilter.not(wixData.filter().hasSome(sourceTypeReferenceField, fullSourceIdArray)));
 	}
 
-	// Append the searchFilter contents to the optionalFilter.
-	$w("#dynamicDataset").setFilter(optionalFilter.and(searchFilter.isNotEmpty(nameField)))
-		//$w("#dynamicDataset").setFilter(optionalFilter.not(wixData.filter().hasSome("sourceTypeReference", fullSourceIdArray)))
-		.then(function () {
-			console.log("Resetting pagination to 1 after optional filter.");
-			$w("#pagination1").currentPage = 1;
-			$w("#dynamicDataset").loadPage(1);
+	console.log("Search filter while in optional filter: ", JSON.stringify(searchFilter));
+
+	let finalFilter = optionalFilter.and(searchFilter.isNotEmpty(nameField));
+
+	await $w("#dynamicDataset").setFilter(finalFilter)
+		.then(function() {
+			console.log("Filter applied ", JSON.stringify(finalFilter));
+			if (!setPaginationFromSave) {
+				console.log("Resetting pagination to 1 after optional filter.");
+				$w("#pagination1").currentPage = 1;
+				$w("#dynamicDataset").loadPage(1);
+			}
+			else {
+				console.log("Setting Pagination Index after initial optional filter.");
+				setPaginationIndexFromSave();
+				console.log("Pagination Index Set after initial optional filter.");
+			}
 		})
 		.catch((error) => { console.error("Could not add filter " + error) });
 }
 
 // This function is used to set the optional filters (e.g. quality, release, etc.).
-async function setOptionalFiltersShop() {
+async function setOptionalFiltersShop(setPaginationFromSave = false) {
 	optionalFilter = filter;
 
 	// First we add the Quality filter.
 	let qualityDropdownSelection = $w("#qualityDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.QUALITY_KEY, qualityDropdownSelection);
 
-	switch (qualityDropdownSelection) {
+	switch(qualityDropdownSelection) {
 		case "Any":
 			break;
 		default:
@@ -227,8 +240,8 @@ async function setOptionalFiltersShop() {
 			await wixData.query(CustomizationConstants.QUALITY_DB)
 				.eq(CustomizationConstants.QUALITY_FIELD, qualityDropdownSelection)
 				.find()
-				.then((results) => {
-					if (results.items.length > 0) {
+				.then( (results) => {
+					if(results.items.length > 0) {
 						let firstItem = results.items[0]; // The matching item
 						let selectedKey = firstItem._id;
 						// Add the filter to the set.
@@ -243,7 +256,7 @@ async function setOptionalFiltersShop() {
 	let availableDropdownSelection = $w("#availableDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.AVAILABLE_KEY, availableDropdownSelection);
 
-	switch (availableDropdownSelection) {
+	switch(availableDropdownSelection) {
 		case "Yes":
 			optionalFilter = optionalFilter.eq(currentlyAvailableField, true);
 			break;
@@ -258,7 +271,7 @@ async function setOptionalFiltersShop() {
 	let timeframeDropdownSelection = $w("#timeframeDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.TIMEFRAME_KEY, timeframeDropdownSelection);
 
-	switch (timeframeDropdownSelection) {
+	switch(timeframeDropdownSelection) {
 		case "Any":
 			break;
 		default:
@@ -269,7 +282,7 @@ async function setOptionalFiltersShop() {
 	let shopTypeDropdownSelection = $w("#shopTypeDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.SHOP_TYPE_KEY, shopTypeDropdownSelection);
 
-	switch (shopTypeDropdownSelection) {
+	switch(shopTypeDropdownSelection) {
 		case "HCS":
 			optionalFilter = optionalFilter.eq(ShopConstants.SHOP_IS_HCS_FIELD, true);
 			break;
@@ -287,24 +300,34 @@ async function setOptionalFiltersShop() {
 	console.log("After name filtering is added.");
 	console.log(optionalFilter.and(searchFilter.isNotEmpty(nameField)));
 
-	$w("#dynamicDataset").setFilter(optionalFilter.and(searchFilter.isNotEmpty(nameField)))
-		.then(function () {
-			console.log("Resetting pagination to 1 after optional filter.");
-			$w("#pagination1").currentPage = 1;
-			$w("#dynamicDataset").loadPage(1);
+	let finalFilter = optionalFilter.and(searchFilter.isNotEmpty(nameField));
+
+	await $w("#dynamicDataset").setFilter(finalFilter)
+		.then(function() {
+			console.log("Filter applied ", JSON.stringify(finalFilter));
+			if (!setPaginationFromSave) {
+				console.log("Resetting pagination to 1 after optional filter.");
+				$w("#pagination1").currentPage = 1;
+				$w("#dynamicDataset").loadPage(1);
+			}
+			else {
+				console.log("Setting Pagination Index after initial optional filter.");
+				setPaginationIndexFromSave();
+				console.log("Pagination Index Set after initial optional filter.");
+			}
 		})
 		.catch((error) => { console.error("Could not add filter " + error) });
 }
 
 // This function is used to set the optional filters (e.g. quality, release, etc.).
-async function setOptionalFiltersPasses() {
+async function setOptionalFiltersPasses(setPaginationFromSave = false) {
 	optionalFilter = filter;
 
 	// First we add the Release filter.
 	let releaseDropdownSelection = $w("#releaseDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.RELEASE_KEY, releaseDropdownSelection);
 
-	switch (releaseDropdownSelection) {
+	switch(releaseDropdownSelection) {
 		case "Any":
 			break;
 		default:
@@ -312,8 +335,8 @@ async function setOptionalFiltersPasses() {
 			await wixData.query(CustomizationConstants.RELEASE_DB)
 				.eq(CustomizationConstants.RELEASE_FIELD, releaseDropdownSelection)
 				.find()
-				.then((results) => {
-					if (results.items.length > 0) {
+				.then( (results) => {
+					if(results.items.length > 0) {
 						let firstItem = results.items[0]; // The matching item
 						let selectedKey = firstItem._id;
 						// Add the filter to the set.
@@ -322,13 +345,13 @@ async function setOptionalFiltersPasses() {
 					}
 				});
 			break;
-	}
+	}	
 
 	// Finally, we add the Shop Type filter.
 	let passTypeDropdownSelection = $w("#passTypeDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.PASS_TYPE_KEY, passTypeDropdownSelection);
 
-	switch (passTypeDropdownSelection) {
+	switch(passTypeDropdownSelection) {
 		case "Event":
 			optionalFilter = optionalFilter.eq(PassConstants.PASS_IS_EVENT_FIELD, true);
 			break;
@@ -346,11 +369,21 @@ async function setOptionalFiltersPasses() {
 	console.log("After name filtering is added.");
 	console.log(optionalFilter.and(searchFilter.isNotEmpty(nameField)));
 
-	$w("#dynamicDataset").setFilter(optionalFilter.and(searchFilter.isNotEmpty(nameField)))
-		.then(function () {
-			console.log("Resetting pagination to 1 after optional filter.");
-			$w("#pagination1").currentPage = 1;
-			$w("#dynamicDataset").loadPage(1);
+	let finalFilter = optionalFilter.and(searchFilter.isNotEmpty(nameField));
+
+	await $w("#dynamicDataset").setFilter(finalFilter)
+		.then(function() {
+			console.log("Filter applied ", JSON.stringify(finalFilter));
+			if (!setPaginationFromSave) {
+				console.log("Resetting pagination to 1 after optional filter.");
+				$w("#pagination1").currentPage = 1;
+				$w("#dynamicDataset").loadPage(1);
+			}
+			else {
+				console.log("Setting Pagination Index after initial optional filter.");
+				setPaginationIndexFromSave();
+				console.log("Pagination Index Set after initial optional filter.");
+			}
 		})
 		.catch((error) => { console.error("Could not add filter " + error) });
 }
@@ -360,39 +393,59 @@ let debounceTimer; // If the debounceTimer is set when we update the text input,
 // This lets us wait for a few ms before filtering upon text input change, implementing effective debounce.
 
 // Filter by search criteria.
-function filterBySearch() {
+// If setPaginationFromSave is true, then we need to set the Pagination index from the save.
+function filterBySearch (setPaginationFromSave = false) {
 	if (debounceTimer) {
-		clearTimeout(debounceTimer);
-		debounceTimer = undefined;
-	}
-	debounceTimer = setTimeout(() => {
-		//console.log($w("#nameSearch").value);
+      	clearTimeout(debounceTimer);
+      	debounceTimer = undefined;
+   	}
+   	debounceTimer = setTimeout(async () => {
+      	//console.log($w("#nameSearch").value);
 		let searchFilterApplied = optionalFilter; // The filter for the dataset content displayed.
 
 		// Define the filter. We use a second filter to store just the search part.
+		console.log("Performing name search on " + $w("#nameSearch").value);
 		searchFilter = filter.contains(nameField, $w("#nameSearch").value);
 		searchFilterApplied = optionalFilter.contains(nameField, $w("#nameSearch").value);
 
 		session.setItem(KeyConstants.QUICK_SEARCH_KEY, $w("#nameSearch").value);
 
-		//console.log(searchFilterApplied);
+		console.log(searchFilterApplied);
+		
+		let finalFilter = searchFilterApplied;
 
-		$w("#dynamicDataset").setFilter(searchFilterApplied)
-			.then(function () {
-				console.log("Resetting pagination to 1 after search filter.");
-				$w("#pagination1").currentPage = 1;
-				$w("#dynamicDataset").loadPage(1);
+		$w("#dynamicDataset").setFilter(finalFilter)
+			.then(function() {
+				console.log("Filter applied ", JSON.stringify(finalFilter));
+				if (!setPaginationFromSave) {
+					console.log("Resetting pagination to 1 after search filter.");
+					$w("#pagination1").currentPage = 1;
+					$w("#dynamicDataset").loadPage(1);
+				}
+				else {
+					console.log("Setting Pagination Index after inital name filter.");
+					setPaginationIndexFromSave();
+					console.log("Pagination Index Set after initial name filter.");
+				}
 			})
-			.catch((err) => {
+			.catch( (err) => {
 				console.error(err);
 			});
-		// some sort of query that might overlap execution 
-	}, 250); // 250 milliseconds works for me, your mileage may vary
+		
+   	}, 250); // 250 milliseconds works for me, your mileage may vary
 }
 //#endregion
 
-export function initialItemListSetup(customizationCategory) {
-	//#region Setting up Filter menu buttons and collapsing the menu.
+export async function initialItemListSetup(customizationCategory) {
+	// We want to update the name search text ASAP.
+	let savedQuickSearchText = session.getItem(KeyConstants.QUICK_SEARCH_KEY);
+	if (savedQuickSearchText)
+	{
+		$w("#nameSearch").value = savedQuickSearchText;
+		$w("#nameSearch").readOnly = false;
+	}
+
+    //#region Setting up Filter menu buttons and collapsing the menu.
 	// Set up the Filter menu by setting the closeButton to collapse the Filter menu and collapsing the menu.
 	if (customizationCategory != CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY) { // We don't have any Challenge filters for now.
 		$w("#closeButton").onClick(collapseFilterMenu);
@@ -400,13 +453,7 @@ export function initialItemListSetup(customizationCategory) {
 		$w("#filterButtonClose").onClick(collapseFilterMenu);
 		collapseFilterMenu();
 	}
-	//#endregion
-
-	// We want to update the name search text ASAP.
-	let savedQuickSearchText = session.getItem(KeyConstants.QUICK_SEARCH_KEY);
-	if (savedQuickSearchText) {
-		$w("#nameSearch").value = savedQuickSearchText;
-	}
+    //#endregion
 
 	switch (customizationCategory) {
 		case ArmorConstants.ARMOR_KEY:
@@ -447,370 +494,372 @@ export function initialItemListSetup(customizationCategory) {
 		case CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY:
 			// We only need to set the name field.
 			nameField = CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD;
-	}
+    }
 
-	//#region Checking to see if Core/socket filtering is necessary (i.e. we are working with Armor, Weapons, or Vehicles).
+    //#region Checking to see if Core/socket filtering is necessary (i.e. we are working with Armor, Weapons, or Vehicles).
 	let filterByCore = (customizationCategory in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT); // By default, we don't need to do core filtering
 	let filterBySocket = CustomizationConstants.IS_CUSTOMIZATION_ARRAY.includes(customizationCategory);
 	// We almost always want to filter by socket, but we don't for Consumables and non-customization items.
 
-	//#endregion
+    //#endregion
+	
+	$w("#dynamicDataset").onReady(async () => {
+		if (filterByCore || filterBySocket) {
+			//#region Creating and initializing variables based on customizationSection. Contains return statement.
+			let query = wixLocation.query; // Needed to get URL parameters.
 
-	if (filterByCore || filterBySocket) {
-		//#region Creating and initializing variables based on customizationSection. Contains return statement.
-		let query = wixLocation.query; // Needed to get URL parameters.
+			let coreID = null; // The Core ID
+			let coreName = null; // The name of the selected Core (or All * Cores if not found.)
+			let coreDB = null; // The name of the Core database.
+			let coreReferenceField = null; // The name of the Core Multireference Field in the Customization database.
+			let anyCoreID = null; // The ID of the "Any" Core.
+			let coreNameField = null;
 
-		let coreID = null; // The Core ID
-		let coreName = null; // The name of the selected Core (or All * Cores if not found.)
-		let coreDB = null; // The name of the Core database.
-		let coreReferenceField = null; // The name of the Core Multireference Field in the Customization database.
-		let anyCoreID = null; // The ID of the "Any" Core.
-		let coreNameField = null;
+			let socketID = null; // The socket ID
+			let socketName = null; // The name of the selected socket (or All * Sockets if not found.)
+			let socketDB = null; // The name of the socket database.
+			let socketReferenceField = null; // The name of the socket Multireference Field in the Customization database.
+			let socketNamefield = null;
 
-		let socketID = null; // The socket ID
-		let socketName = null; // The name of the selected socket (or All * Sockets if not found.)
-		let socketDB = null; // The name of the socket database.
-		let socketReferenceField = null; // The name of the socket Multireference Field in the Customization database.
-		let socketNamefield = null;
+			let tempCoreID; // We want to use a temporary Core ID since we are checking to see if the URL param is undefined.
+			let tempSocketID; // We want to use a temporary socket ID for a similar reason.
 
-		let tempCoreID; // We want to use a temporary Core ID since we are checking to see if the URL param is undefined.
-		let tempSocketID; // We want to use a temporary socket ID for a similar reason.
+			// Initialize the variables with the appropriate values.
+			switch (customizationCategory) {
+				case ArmorConstants.ARMOR_KEY:
+				case WeaponConstants.WEAPON_KEY:
+				case VehicleConstants.VEHICLE_KEY:
+					tempCoreID = query[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].UrlCoreParam];
+					coreName = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].DefaultCoreName;
+					coreDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
+					coreReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+					anyCoreID = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].AnyCoreId;
+					coreNameField = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
 
-		// Initialize the variables with the appropriate values.
-		switch (customizationCategory) {
-			case ArmorConstants.ARMOR_KEY:
-			case WeaponConstants.WEAPON_KEY:
-			case VehicleConstants.VEHICLE_KEY:
-				tempCoreID = query[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].UrlCoreParam];
-				coreName = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].DefaultCoreName;
-				coreDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
-				coreReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
-				anyCoreID = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].AnyCoreId;
-				coreNameField = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
+				case ArmorConstants.ARMOR_ATTACHMENT_KEY:
+				case BodyAndAiConstants.BODY_AND_AI_KEY:
+				case SpartanIdConstants.SPARTAN_ID_KEY:
+					tempSocketID = query[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].UrlSocketParam];
+					socketName = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].DefaultSocketName;
+					socketDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketDb;
+					socketReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
+					socketNamefield = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
+					break; 
 
-			case ArmorConstants.ARMOR_ATTACHMENT_KEY:
-			case BodyAndAiConstants.BODY_AND_AI_KEY:
-			case SpartanIdConstants.SPARTAN_ID_KEY:
-				tempSocketID = query[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].UrlSocketParam];
-				socketName = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].DefaultSocketName;
-				socketDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketDb;
-				socketReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
-				socketNamefield = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
-				break;
+				default:
+					console.error("initialItemListSetup: Failed to find matching customization section. Was given " + customizationCategory);
+					return -1;
+			}
+			//#endregion
 
-			default:
-				console.error("initialItemListSetup: Failed to find matching customization section. Was given " + customizationCategory);
-				return -1;
-		}
-		//#endregion
+			if (CustomizationConstants.HAS_KITS_ARRAY.includes(customizationCategory)) {
+				const IS_KIT_ITEM_ONLY_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationIsKitItemOnlyField;
+				filter = filter.not(filter.eq(IS_KIT_ITEM_ONLY_FIELD, true)); // Hide items we don't want to include in the general list (Kit-exclusive items).
+			}
 
-		if (CustomizationConstants.HAS_KITS_ARRAY.includes(customizationCategory)) {
-			const IS_KIT_ITEM_ONLY_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationIsKitItemOnlyField;
-			filter = filter.not(filter.eq(IS_KIT_ITEM_ONLY_FIELD, true)); // Hide items we don't want to include in the general list (Kit-exclusive items).
-		}
+			//#region Setting URL filters
+			// Set the filter based on the content we have been provided in the URL. No filter if no parameters provided in URL.
+			if (tempCoreID && tempSocketID) { // Checking nulls lets us more easily see if this variables have values.
+				// The Core and socket were provided in the URL parameters.
+				coreID = tempCoreID;
+				socketID = tempSocketID;
 
-		//#region Setting URL filters
-		// Set the filter based on the content we have been provided in the URL. No filter if no parameters provided in URL.
-		if (tempCoreID && tempSocketID) { // Checking nulls lets us more easily see if this variables have values.
-			// The Core and socket were provided in the URL parameters.
-			coreID = tempCoreID;
-			socketID = tempSocketID;
+				filter = filter.hasSome(coreReferenceField, [coreID, anyCoreID])
+					.and(filter.eq(socketReferenceField, socketID));
+			}
+			else if (tempCoreID) {
+				// Only the Core was provided in the URL parameters.
+				coreID = tempCoreID;
+				
+				filter = filter.hasSome(coreReferenceField, [coreID, anyCoreID]);
+			}
+			else if (tempSocketID) {
+				// Only the socket was provided in the URL parameters.
+				socketID = tempSocketID;
+				filter = filter.eq(socketReferenceField, socketID);
+			}
+			//#endregion
+		
+			//#region Initializing search and optional filters.
+			// Initialize the search and optional filters.
+			searchFilter = filter;
+			optionalFilter = filter;
+			//#endregion
 
-			filter = filter.hasSome(coreReferenceField, [coreID, anyCoreID])
-				.and(filter.eq(socketReferenceField, socketID));
-		}
-		else if (tempCoreID) {
-			// Only the Core was provided in the URL parameters.
-			coreID = tempCoreID;
+			//#region Setting Filter and using saved pagination index.
+			/*await $w("#dynamicDataset").setFilter(filter)
+				.then(function(){
+					console.log("Setting Pagination Index after initial filter...");
+					setPaginationIndexFromSave();
+					console.log("Pagination Index Set");
+				})
+				.catch( (err) => {
+					console.log(err);
+				});*/
+			//#endregion
 
-			filter = filter.hasSome(coreReferenceField, [coreID, anyCoreID]);
-		}
-		else if (tempSocketID) {
-			// Only the socket was provided in the URL parameters.
-			socketID = tempSocketID;
-			filter = filter.eq(socketReferenceField, socketID);
-		}
-		//#endregion
+			//#region Update the Core text field.
+			if (filterByCore) {
+				wixData.query(coreDB)
+					.eq("_id", coreID)
+					.find()
+					.then( (results) => {
+						//console.log(results);
+						if(results.items.length > 0) {
+							let firstItem = results.items[0]; // The matching item
+							coreName = firstItem[coreNameField];
+						}
 
-		//#region Initializing search and optional filters.
-		// Initialize the search and optional filters.
-		searchFilter = filter;
-		optionalFilter = filter;
-		//#endregion
+						$w("#coreText").text = coreName; // The name of the matching item
+					});
+			}
+			//#endregion
 
-		//#region Setting Filter and using saved pagination index.
-		$w("#dynamicDataset").setFilter(filter)
-			.then(function () {
-				console.log("Setting Pagination Index");
-				setPaginationIndexFromSave();
-				console.log("Pagination Index Set");
-			})
-			.catch((err) => {
-				console.log(err);
-			});
-		//#endregion
-
-		//#region Update the Core text field.
-		if (filterByCore) {
-			wixData.query(coreDB)
-				.eq("_id", coreID)
+			//#region Update the socket text field.
+			wixData.query(socketDB)
+				.eq("_id", socketID)
 				.find()
-				.then((results) => {
+				.then( (results) => {
 					//console.log(results);
-					if (results.items.length > 0) {
+					if(results.items.length > 0) {
 						let firstItem = results.items[0]; // The matching item
-						coreName = firstItem[coreNameField];
+						socketName = firstItem[socketNamefield]; // The name of the matching item
 					}
 
-					$w("#coreText").text = coreName; // The name of the matching item
+					$w("#socketText").text = socketName;	
 				});
+			//#endregion
 		}
+
+		//#region Setting quick search auto-update behavior
+		$w("#nameSearch").onKeyPress(filterBySearch);
 		//#endregion
 
-		//#region Update the socket text field.
-		wixData.query(socketDB)
-			.eq("_id", socketID)
-			.find()
-			.then((results) => {
-				//console.log(results);
-				if (results.items.length > 0) {
-					let firstItem = results.items[0]; // The matching item
-					socketName = firstItem[socketNamefield]; // The name of the matching item
+		//#region Setting user's saved filter values.
+		// If we have saved configurations for the filters, set them now.
+		if (CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
+			let savedQualityValue = session.getItem(KeyConstants.QUALITY_KEY);
+			let savedHiddenValue = session.getItem(KeyConstants.HIDDEN_KEY);
+			let savedAvailableValue = session.getItem(KeyConstants.AVAILABLE_KEY);
+			let savedReleaseValue = session.getItem(KeyConstants.RELEASE_KEY);
+
+			$w("#qualityDataset").onReady(function () {
+				$w("#releaseDataset").onReady(function () {
+					$w("#sourcesDataset").onReady(async function() {
+						if (savedQualityValue)
+						{
+							console.log("Found saved Quality value: " + savedQualityValue);
+							$w("#qualityDropdown").value = savedQualityValue;
+						}
+						if (savedHiddenValue)
+						{
+							console.log("Found saved Hidden value: " + savedHiddenValue);
+							$w("#hiddenDropdown").value = savedHiddenValue;
+						}
+						if (savedAvailableValue)
+						{
+							console.log("Found saved Available value: " + savedAvailableValue);
+							$w("#availableDropdown").value = savedAvailableValue;
+						}
+						if (savedReleaseValue)
+						{
+							console.log("Found saved Release value: " + savedReleaseValue);
+							$w("#releaseDropdown").value = savedReleaseValue;
+						}
+
+						// Set up the initial checkbox states.
+						$w("#sourceRepeater").forEachItem(($item, itemData, index) => {
+							let name = itemData[CustomizationConstants.SOURCE_TYPE_NAME_FIELD];
+							let isChecked = session.getItem(name);
+							if (isChecked == "true") {
+								$item("#sourceCheckbox").checked = true;
+							}
+							else if (isChecked == "false") {
+								$item("#sourceCheckbox").checked = false;
+							}
+
+							//$item("#sourceCheckbox").onChange(setOptionalFilters);
+							$item("#checkBoxButton").onClick(function() {
+								$item("#sourceCheckbox").checked = !$item("#sourceCheckbox").checked;
+								setOptionalFilters();
+							})
+						});
+
+						await setOptionalFilters(true);
+
+						filterBySearch(true);
+
+						// If the Quality filter is set.
+						$w("#qualityDropdown").onChange(setOptionalFilters);
+
+						// If the Hidden filter is set.
+						$w("#hiddenDropdown").onChange(setOptionalFilters);
+
+						// If the Available filter is set.
+						$w("#availableDropdown").onChange(setOptionalFilters);
+
+						// If the Release filter is set.
+						$w("#releaseDropdown").onChange(setOptionalFilters);
+
+						// If the Select All button is set, we set all checkboxes to true and then retrigger optional filters.
+						$w("#selectAllButton").onClick(function() {
+							$w("#sourceRepeater").forEachItem(($item, itemData, index) => {
+								$item("#sourceCheckbox").checked = true;
+								session.setItem(itemData[CustomizationConstants.SOURCE_TYPE_NAME_FIELD], String($item("#sourceCheckbox").checked));
+							});
+
+							setOptionalFilters();
+						});
+
+						// If the Deselect All button is clicked, we set all checkboxes to false and then retrigger optional filters.
+						$w("#deselectAllButton").onClick(function() {
+							$w("#sourceRepeater").forEachItem(($item, itemData, index) => {
+								$item("#sourceCheckbox").checked = false;
+								session.setItem(itemData[CustomizationConstants.SOURCE_TYPE_NAME_FIELD], String($item("#sourceCheckbox").checked));
+							});
+
+							setOptionalFilters();
+						});
+					});
+				});
+			});
+		}
+		else if (customizationCategory == ShopConstants.SHOP_KEY) {
+			// This setup is for the Shop only.
+			let savedQualityValue = session.getItem(KeyConstants.QUALITY_KEY);
+			let savedTimeframeValue = session.getItem(KeyConstants.TIMEFRAME_KEY);
+			let savedAvailableValue = session.getItem(KeyConstants.AVAILABLE_KEY);
+			let savedShopTypeValue = session.getItem(KeyConstants.SHOP_TYPE_KEY);
+
+			$w("#qualityDataset").onReady(async function () {
+				if (savedQualityValue)
+				{
+					console.log("Found saved Quality value: " + savedQualityValue);
+					$w("#qualityDropdown").value = savedQualityValue;
+				}
+				if (savedTimeframeValue)
+				{
+					console.log("Found saved Timeframe value: " + savedTimeframeValue);
+					$w("#timeframeDropdown").value = savedTimeframeValue;
+				}
+				if (savedAvailableValue)
+				{
+					console.log("Found saved Available value: " + savedAvailableValue);
+					$w("#availableDropdown").value = savedAvailableValue;
+				}
+				if (savedShopTypeValue)
+				{
+					console.log("Found saved Shop Type value: " + savedShopTypeValue);
+					$w("#shopTypeDropdown").value = savedShopTypeValue;
 				}
 
-				$w("#socketText").text = socketName;
+				await setOptionalFiltersShop(true);
+
+				filterBySearch(true);
+
+				// If the Quality filter is set.
+				$w("#qualityDropdown").onChange(setOptionalFiltersShop);
+
+				// If the Timeframe filter is set.
+				$w("#timeframeDropdown").onChange(setOptionalFiltersShop);
+
+				// If the Available filter is set.
+				$w("#availableDropdown").onChange(setOptionalFiltersShop);
+
+				// If the Shop Type filter is set.
+				$w("#shopTypeDropdown").onChange(setOptionalFiltersShop);
 			});
+		}
+		else if (customizationCategory == PassConstants.PASS_KEY) {
+			// This setup is for the Shop only.
+			let savedReleaseValue = session.getItem(KeyConstants.RELEASE_KEY);
+			let savedPassTypeValue = session.getItem(KeyConstants.PASS_TYPE_KEY);
+
+			$w("#releaseDataset").onReady(async function () {
+				if (savedReleaseValue)
+				{
+					console.log("Found saved Release value: " + savedReleaseValue);
+					$w("#releaseDropdown").value = savedReleaseValue;
+				}
+				if (savedPassTypeValue)
+				{
+					console.log("Found saved Pass Type value: " + savedPassTypeValue);
+					$w("#passTypeDropdown").value = savedPassTypeValue;
+				}
+
+				await setOptionalFiltersPasses(true);
+
+				filterBySearch(true);
+
+				// If the Release filter is set.
+				$w("#releaseDropdown").onChange(setOptionalFiltersPasses);
+
+				// If the PassType filter is set.
+				$w("#passTypeDropdown").onChange(setOptionalFiltersPasses);
+			});
+		}
 		//#endregion
-	}
 
-	//#region Setting user's saved quick search value.
-	// If we have a saved quick search text string, apply it now.
-	filterBySearch();
-	console.log("Setting Pagination Index after inital name filter.");
-	setPaginationIndexFromSave();
-	console.log("Pagination Index Set after initial name filter.");
-	//#endregion
+		//#region Setting user's saved quick search value.
+		// If we have a saved quick search text string, apply it now.
+		//#endregion
 
-	//#region Setting quick search auto-update behavior
-	$w("#nameSearch").onKeyPress(filterBySearch);
-	//#endregion
+		//#region Creating and initializing variables based on customizationSection. Contains return statement.
+		let hasSourceText = CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory);
 
-	//#region Setting user's saved filter values.
-	// If we have saved configurations for the filters, set them now.
-	if (CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory)) {
-		let savedQualityValue = session.getItem(KeyConstants.QUALITY_KEY);
-		let savedHiddenValue = session.getItem(KeyConstants.HIDDEN_KEY);
-		let savedAvailableValue = session.getItem(KeyConstants.AVAILABLE_KEY);
-		let savedReleaseValue = session.getItem(KeyConstants.RELEASE_KEY);
+		let customizationDB = null; // The customization DB to be queried.
+		// We want to grab the source categories for customization items and consumables, but not other uses of this code.
+		if (hasSourceText) {
+			// Initialize the variables with the appropriate values.
+			switch (customizationCategory) {
+				case ArmorConstants.ARMOR_KEY:
+				case ArmorConstants.ARMOR_ATTACHMENT_KEY:
+				case WeaponConstants.WEAPON_KEY:
+				case VehicleConstants.VEHICLE_KEY:
+				case BodyAndAiConstants.BODY_AND_AI_KEY:
+				case SpartanIdConstants.SPARTAN_ID_KEY:
+					customizationDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
+					break;
 
-		$w("#qualityDataset").onReady(function () {
-			$w("#releaseDataset").onReady(function () {
-				$w("#sourcesDataset").onReady(function () {
-					if (savedQualityValue) {
-						console.log("Found saved Quality value: " + savedQualityValue);
-						$w("#qualityDropdown").value = savedQualityValue;
-					}
-					if (savedHiddenValue) {
-						console.log("Found saved Hidden value: " + savedHiddenValue);
-						$w("#hiddenDropdown").value = savedHiddenValue;
-					}
-					if (savedAvailableValue) {
-						console.log("Found saved Available value: " + savedAvailableValue);
-						$w("#availableDropdown").value = savedAvailableValue;
-					}
-					if (savedReleaseValue) {
-						console.log("Found saved Release value: " + savedReleaseValue);
-						$w("#releaseDropdown").value = savedReleaseValue;
-					}
+				case ConsumablesConstants.CONSUMABLES_KEY:
+					customizationDB = ConsumablesConstants.CONSUMABLES_DB;
+					break;
 
-					// Set up the initial checkbox states.
-					$w("#sourceRepeater").forEachItem(($item, itemData, index) => {
-						let name = itemData[CustomizationConstants.SOURCE_TYPE_NAME_FIELD];
-						let isChecked = session.getItem(name);
-						if (isChecked == "true") {
-							$item("#sourceCheckbox").checked = true;
-						}
-						else if (isChecked == "false") {
-							$item("#sourceCheckbox").checked = false;
-						}
+				default:
+					console.error("initialItemListSetup: Failed to find matching customization section. Was given " + customizationCategory);
+					return -1;
+			}
+		}
+		//#endregion
 
-						//$item("#sourceCheckbox").onChange(setOptionalFilters);
-						$item("#checkBoxButton").onClick(function () {
-							$item("#sourceCheckbox").checked = !$item("#sourceCheckbox").checked;
-							setOptionalFilters();
-						})
-					});
+		//#region Setting image fit mode to "fit" for all items and setting Source text.
+		$w("#listRepeater").onItemReady(($item, itemData) => {
+			if (customizationCategory != PassConstants.PASS_KEY) { // If we aren't working with Passes, fit the image.
+				$item("#image").fitMode = "fit";
+			}
+			else {
+				$item("#passTypeText").text = ((itemData[PassConstants.PASS_IS_EVENT_FIELD]) ? "Event" : "Battle") + " Pass";
+			}
 
-					setOptionalFilters();
-
-					// If the Quality filter is set.
-					$w("#qualityDropdown").onChange(setOptionalFilters);
-
-					// If the Hidden filter is set.
-					$w("#hiddenDropdown").onChange(setOptionalFilters);
-
-					// If the Available filter is set.
-					$w("#availableDropdown").onChange(setOptionalFilters);
-
-					// If the Release filter is set.
-					$w("#releaseDropdown").onChange(setOptionalFilters);
-
-					// If the Select All button is set, we set all checkboxes to true and then retrigger optional filters.
-					$w("#selectAllButton").onClick(function () {
-						$w("#sourceRepeater").forEachItem(($item, itemData, index) => {
-							$item("#sourceCheckbox").checked = true;
-							session.setItem(itemData[CustomizationConstants.SOURCE_TYPE_NAME_FIELD], String($item("#sourceCheckbox").checked));
+			if (hasSourceText) { // If we're working with a customization item or consumable.
+				let currentItem = itemData;
+				let sourceString = "";
+				wixData.queryReferenced(customizationDB, currentItem._id, sourceTypeReferenceField)
+					.then((results) => {
+						results.items.forEach(element => {
+							sourceString += element[CustomizationConstants.SOURCE_TYPE_NAME_FIELD] + ", ";
 						});
 
-						setOptionalFilters();
+						// Remove the final comma.
+						sourceString = sourceString.substr(0, sourceString.length - 2);
+
+						$item("#itemSources").text = sourceString;
+					})
+					.catch((error) => {
+						console.error("Error occurred while querying " + customizationDB + ": " + error);
 					});
-
-					// If the Deselect All button is clicked, we set all checkboxes to false and then retrigger optional filters.
-					$w("#deselectAllButton").onClick(function () {
-						$w("#sourceRepeater").forEachItem(($item, itemData, index) => {
-							$item("#sourceCheckbox").checked = false;
-							session.setItem(itemData[CustomizationConstants.SOURCE_TYPE_NAME_FIELD], String($item("#sourceCheckbox").checked));
-						});
-
-						setOptionalFilters();
-					});
-
-					console.log("Setting Pagination Index after initial optional filter.");
-					setPaginationIndexFromSave();
-					console.log("Pagination Index Set after initial optional filter.");
-				});
-			});
+			}
 		});
-	}
-	else if (customizationCategory == ShopConstants.SHOP_KEY) {
-		// This setup is for the Shop only.
-		let savedQualityValue = session.getItem(KeyConstants.QUALITY_KEY);
-		let savedTimeframeValue = session.getItem(KeyConstants.TIMEFRAME_KEY);
-		let savedAvailableValue = session.getItem(KeyConstants.AVAILABLE_KEY);
-		let savedShopTypeValue = session.getItem(KeyConstants.SHOP_TYPE_KEY);
-
-		$w("#qualityDataset").onReady(function () {
-			if (savedQualityValue) {
-				console.log("Found saved Quality value: " + savedQualityValue);
-				$w("#qualityDropdown").value = savedQualityValue;
-			}
-			if (savedTimeframeValue) {
-				console.log("Found saved Timeframe value: " + savedTimeframeValue);
-				$w("#timeframeDropdown").value = savedTimeframeValue;
-			}
-			if (savedAvailableValue) {
-				console.log("Found saved Available value: " + savedAvailableValue);
-				$w("#availableDropdown").value = savedAvailableValue;
-			}
-			if (savedShopTypeValue) {
-				console.log("Found saved Shop Type value: " + savedShopTypeValue);
-				$w("#shopTypeDropdown").value = savedShopTypeValue;
-			}
-
-			setOptionalFiltersShop();
-
-			// If the Quality filter is set.
-			$w("#qualityDropdown").onChange(setOptionalFiltersShop);
-
-			// If the Timeframe filter is set.
-			$w("#timeframeDropdown").onChange(setOptionalFiltersShop);
-
-			// If the Available filter is set.
-			$w("#availableDropdown").onChange(setOptionalFiltersShop);
-
-			// If the Shop Type filter is set.
-			$w("#shopTypeDropdown").onChange(setOptionalFiltersShop);
-
-			console.log("Setting Pagination Index after initial optional filter.");
-			setPaginationIndexFromSave();
-			console.log("Pagination Index Set after initial optional filter.");
-		});
-	}
-	else if (customizationCategory == PassConstants.PASS_KEY) {
-		// This setup is for the Shop only.
-		let savedReleaseValue = session.getItem(KeyConstants.RELEASE_KEY);
-		let savedPassTypeValue = session.getItem(KeyConstants.PASS_TYPE_KEY);
-
-		$w("#releaseDataset").onReady(function () {
-			if (savedReleaseValue) {
-				console.log("Found saved Release value: " + savedReleaseValue);
-				$w("#releaseDropdown").value = savedReleaseValue;
-			}
-			if (savedPassTypeValue) {
-				console.log("Found saved Pass Type value: " + savedPassTypeValue);
-				$w("#passTypeDropdown").value = savedPassTypeValue;
-			}
-
-			setOptionalFiltersPasses();
-
-			// If the Release filter is set.
-			$w("#releaseDropdown").onChange(setOptionalFiltersPasses);
-
-			// If the PassType filter is set.
-			$w("#passTypeDropdown").onChange(setOptionalFiltersPasses);
-
-			console.log("Setting Pagination Index after initial optional filter.");
-			setPaginationIndexFromSave();
-			console.log("Pagination Index Set after initial optional filter.");
-		});
-	}
-	//#endregion
-
-	//#region Creating and initializing variables based on customizationSection. Contains return statement.
-	let hasSourceText = CustomizationConstants.IS_CUSTOMIZATION_OR_CONSUMABLE_ARRAY.includes(customizationCategory);
-
-	let customizationDB = null; // The customization DB to be queried.
-	// We want to grab the source categories for customization items and consumables, but not other uses of this code.
-	if (hasSourceText) {
-		// Initialize the variables with the appropriate values.
-		switch (customizationCategory) {
-			case ArmorConstants.ARMOR_KEY:
-			case ArmorConstants.ARMOR_ATTACHMENT_KEY:
-			case WeaponConstants.WEAPON_KEY:
-			case VehicleConstants.VEHICLE_KEY:
-			case BodyAndAiConstants.BODY_AND_AI_KEY:
-			case SpartanIdConstants.SPARTAN_ID_KEY:
-				customizationDB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
-				break;
-
-			case ConsumablesConstants.CONSUMABLES_KEY:
-				customizationDB = ConsumablesConstants.CONSUMABLES_DB;
-				break;
-
-			default:
-				console.error("initialItemListSetup: Failed to find matching customization section. Was given " + customizationCategory);
-				return -1;
-		}
-	}
-	//#endregion
-
-	//#region Setting image fit mode to "fit" for all items and setting Source text.
-	$w("#listRepeater").onItemReady(($item, itemData) => {
-		if (customizationCategory != PassConstants.PASS_KEY) { // If we aren't working with Passes, fit the image.
-			$item("#image").fitMode = "fit";
-		}
-		else {
-			$item("#passTypeText").text = ((itemData[PassConstants.PASS_IS_EVENT_FIELD]) ? "Event" : "Battle") + " Pass";
-		}
-
-		if (hasSourceText) { // If we're working with a customization item or consumable.
-			let currentItem = itemData;
-			let sourceString = "";
-			wixData.queryReferenced(customizationDB, currentItem._id, sourceTypeReferenceField)
-				.then((results) => {
-					results.items.forEach(element => {
-						sourceString += element[CustomizationConstants.SOURCE_TYPE_NAME_FIELD] + ", ";
-					});
-
-					// Remove the final comma.
-					sourceString = sourceString.substr(0, sourceString.length - 2);
-
-					$item("#itemSources").text = sourceString;
-				})
-				.catch((error) => {
-					console.error("Error occurred while querying " + customizationDB + ": " + error);
-				});
-		}
+		//#endregion
 	});
-	//#endregion
 }
