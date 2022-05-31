@@ -28,7 +28,7 @@ console.log("Pagination Key: " + paginationKey);
 
 export function setPaginationIndexFromSave() {
     let savedPage = session.getItem(paginationKey);
-    if (parseInt(savedPage) > 0)
+    if (savedPage && parseInt(savedPage) > 0)
     {
         $w("#pagination1").currentPage = parseInt(savedPage);
         $w("#dynamicDataset").loadPage(parseInt(savedPage))
