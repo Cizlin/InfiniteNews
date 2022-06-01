@@ -10,10 +10,13 @@ import * as SocketSetupFunctions from 'public/SocketSetup.js';
 $w.onReady(async function () {
 	// The choice here is non-specific to the challenges. We could also use Shop Key or anything else that doesn't have cores.
 	// The goal is to refresh the saved session data for our filters and search.
-	SocketSetupFunctions.initialSocketSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY);
+	SocketSetupFunctions.initialSocketSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY); 
+
+	$w("#effectVideoPlayer").collapse();
+	$w("#effectVideoPlayer").hide();
 
 	$w("#blog1").hide();
-
+	
 	$w("#ultimateChallengeDataset").onReady(async () => {
 		let ultimateChallenge = $w("#ultimateChallengeDataset").getCurrentItem();
 		$w("#ultimateChallengeDescription").text = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD] + " - " +
@@ -57,6 +60,18 @@ $w.onReady(async function () {
 			$w("#ultimateChallengeImage").src = childItem[CUSTOMIZATION_IMAGE_FIELD];
 			$w("#ultimateChallengeImage").fitMode = "fit";
 			$w("#ultimateChallengeRewardText").text = childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType;
+
+			if ("CustomizationEffectVideoField" in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY] &&
+				childItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationEffectVideoField]) {
+
+				$w("#effectVideoPlayer").src = childItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationEffectVideoField];
+
+				console.log("Showing video and hiding image.")
+				$w("#ultimateChallengeImage").collapse();
+				$w("#ultimateChallengeImage").hide();
+				$w("#effectVideoPlayer").expand();
+				$w("#effectVideoPlayer").show();
+			}
 		}
 		else {
 			console.error("No rewards found for this capstone challenge: " + ultimateChallenge);
@@ -74,5 +89,24 @@ $w.onReady(async function () {
 		let shopBundle = $w("#shopDataset").getCurrentItem();
 		$w("#shopImage").fitMode = "fit";
 		$w("#shopCreditCost").text = "Credits: " + shopBundle[ShopConstants.SHOP_COST_CREDITS_FIELD];
-	})
+	});
+
+	// Update the Featured Shop Bundle Listing
+	$w("#shopDatasetDaily").onReady(() => {
+		let shopBundle = $w("#shopDatasetDaily").getCurrentItem();
+		if (shopBundle) {
+			$w("#shopImageDaily").fitMode = "fit";
+			$w("#shopCreditCostDaily").text = "Credits: " + shopBundle[ShopConstants.SHOP_COST_CREDITS_FIELD];
+		}
+		else {
+			$w("#shopImageDaily").hide();
+			$w("#shopImageDaily").collapse();
+			$w("#shopBundleTypeDaily").hide();
+			$w("#shopBundleTypeDaily").collapse();
+			$w("#shopCreditCostDaily").hide();
+			$w("#shopCreditCostDaily").collapse();
+			$w("#shopButtonDaily").hide();
+			$w("#shopButtonDaily").collapse();
+		}
+	});
 });
