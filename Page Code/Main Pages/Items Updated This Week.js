@@ -63,7 +63,23 @@ $w.onReady(async function () {
 				$w("#" + TYPE + "ListRepeater").onItemReady(($item, itemData) => {
 					$item("#" + TYPE + "Image").fitMode = "fit";
 
+					if ("CustomizationEffectVideoField" in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[TYPE_DICT[TYPE]]) {
+						$item("#" + TYPE + "EffectVideoPlayer").collapse();
+						$item("#" + TYPE + "EffectVideoPlayer").hide();
+					}
+
 					let currentItem = itemData;
+
+					if ("CustomizationEffectVideoField" in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[TYPE_DICT[TYPE]] && 
+						currentItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[TYPE_DICT[TYPE]].CustomizationEffectVideoField]) {
+							
+						console.log("Showing video and hiding image.")
+						$item("#" + TYPE + "Image").collapse();
+						$item("#" + TYPE + "Image").hide();
+						$item("#" + TYPE + "EffectVideoPlayer").expand();
+						$item("#" + TYPE + "EffectVideoPlayer").show();
+					}
+
 					let sourceString = "";
 
 					const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[TYPE_DICT[TYPE]].CustomizationDb;

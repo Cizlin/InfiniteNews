@@ -81,7 +81,23 @@ $w.onReady(function () {
 					$w("#" + TYPE + "ListRepeater").forEachItem(($item, itemData) => {
 						$item("#" + TYPE + "Image").fitMode = "fit";
 
+						if ("CustomizationEffectVideoField" in CATEGORY_SPECIFIC_VARS) {
+							$item("#" + TYPE + "EffectVideoPlayer").collapse();
+							$item("#" + TYPE + "EffectVideoPlayer").hide();
+						}
+
 						let currentItem = itemData;
+
+						if ("CustomizationEffectVideoField" in CATEGORY_SPECIFIC_VARS && 
+							currentItem[CATEGORY_SPECIFIC_VARS.CustomizationEffectVideoField]) {
+
+							console.log("Showing video and hiding image.")
+							$item("#" + TYPE + "Image").collapse();
+							$item("#" + TYPE + "Image").hide();
+							$item("#" + TYPE + "EffectVideoPlayer").expand();
+							$item("#" + TYPE + "EffectVideoPlayer").show();
+						}
+
 						let sourceString = "";
 						wixData.queryReferenced(CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "Db"], currentItem._id, CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SourceTypeField"])
 							.then((results) => {

@@ -4,14 +4,15 @@ import * as GeneralFunctions from 'public/General.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 
-import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
-
 $w.onReady(function () {
 	// Set up the name filter.
 	ItemListSetupFunctions.initialItemListSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY);
 
 	// Populate the data for each Capstone Challenge.
 	$w("#listRepeater").onItemReady(async ($item, itemData) => {
+		$item("#effectVideoPlayer").collapse();
+		$item("#effectVideoPlayer").hide();
+
 		let ultimateChallenge = itemData;
 		$item("#ultimateChallengeDescription").text = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD] + " - " +
 			ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD];
@@ -24,7 +25,7 @@ $w.onReady(function () {
 			if (queryResults.items.length > 0) {
 				ultimateChallenge[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
 			}
-		}
+		} 
 		else {
 			console.error("No reward categories found for this capstone challenge: " + ultimateChallenge);
 			return;
@@ -34,7 +35,7 @@ $w.onReady(function () {
 
 		if (ultimateChallenge[categoryWithItems].length > 0) {
 			let childItem = ultimateChallenge[categoryWithItems][0];
-
+			
 			// We need to retrieve the customization type. Soon will do this for all items including attachments.
 			const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
 			const CUSTOMIZATION_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSocketReferenceField;
@@ -54,6 +55,19 @@ $w.onReady(function () {
 			$item("#ultimateChallengeImage").src = childItem[CUSTOMIZATION_IMAGE_FIELD];
 			$item("#ultimateChallengeImage").fitMode = "fit";
 			$item("#ultimateChallengeRewardText").text = childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType;
+
+			if ("CustomizationEffectVideoField" in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY] &&
+				childItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationEffectVideoField]) {
+
+				$item("#effectVideoPlayer").src = childItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationEffectVideoField];
+
+				console.log("Showing video and hiding image.");
+
+				$item("#ultimateChallengeImage").collapse();
+				$item("#ultimateChallengeImage").hide();
+				$item("#effectVideoPlayer").expand();
+				$item("#effectVideoPlayer").show();
+			}
 
 			let lastAvailableDatetime;
 
