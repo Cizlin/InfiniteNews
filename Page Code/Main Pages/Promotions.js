@@ -71,7 +71,8 @@ $w.onReady(function () {
 
 		$w("#repeater1").onItemReady(($item) => {
 			// Hide the Updated datetime if it is not newer than the Published datetime. Keep it hidden by default.
-			$item("#group3").hide(); 
+			$item("#text24").hide(); 
+			$item("#text25").hide(); 
 			
 			//let unparsedPublishedDate = $item("#text22").text;
 			let publishedDate = Date.parse($item("#text22").text);
@@ -83,7 +84,8 @@ $w.onReady(function () {
 
 			// If the updatedDate is later than the publishedDate, show the Updated datetime. Otherwise, hide it.
 			if (updatedDate > publishedDate) {
-				$item("#group3").show();
+				$item("#text24").show(); 
+				$item("#text25").show(); 
 				//console.log("Updated datetime shown for " + $item("#text16").text + ".");
 			}
 			else
