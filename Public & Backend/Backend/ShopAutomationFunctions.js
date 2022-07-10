@@ -470,59 +470,67 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 
 	const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
 
-	await wixData.query(CUSTOMIZATION_DB)
-		.hasSome("_id", itemIdArray)
-		.include()
-		.include(SOCKET_REFERENCE_FIELD)
-		.find()
-		.then(async (results) => {
-			if (results.items.length > 0) {
-				let items = results.items;
-				let itemsToUpdate = []; // We're only going to add items that need to be changed to this array.
+	let retry = true; // This becomes false if the query succeeded.
+	let retryCount = 0; // This increments on each failed attempt.
+	const MAX_RETRIES = 10; // The total number of attempts to try.
 
-				for (let i = 0; i < items.length; ++i) {
-					let item = items[i];
-					if (item[CURRENTLY_AVAILABLE_FIELD] != currentlyAvailableStatus) {
-						item[CURRENTLY_AVAILABLE_FIELD] = currentlyAvailableStatus;
-						itemsToUpdate.push(item);
-					}
+	while (retry && retryCount < MAX_RETRIES) {
+		await wixData.query(CUSTOMIZATION_DB)
+			.hasSome("_id", itemIdArray)
+			.include()
+			.include(SOCKET_REFERENCE_FIELD)
+			.find()
+			.then(async (results) => {
+				if (results.items.length > 0) {
+					let items = results.items;
+					let itemsToUpdate = []; // We're only going to add items that need to be changed to this array.
 
-					let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
-
-					let itemCore = "";
-
-					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
-						// If we have cores for this item.
-						const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
-						const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
-
-						let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
-
-						// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
-						if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
-							itemCore = parentCores[0][CORE_NAME_FIELD];
+					for (let i = 0; i < items.length; ++i) {
+						let item = items[i];
+						if (item[CURRENTLY_AVAILABLE_FIELD] != currentlyAvailableStatus) {
+							item[CURRENTLY_AVAILABLE_FIELD] = currentlyAvailableStatus;
+							itemsToUpdate.push(item);
 						}
+
+						let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
+
+						let itemCore = "";
+
+						if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
+							// If we have cores for this item.
+							const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+							const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
+
+							let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
+
+							// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
+							if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
+								itemCore = parentCores[0][CORE_NAME_FIELD];
+							}
+						}
+
+						itemInfoArray.push({
+							itemName: item[NAME_FIELD],
+							itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
+							itemType: itemType,
+							itemCore: itemCore
+						});
 					}
 
-					itemInfoArray.push({
-						itemName: item[NAME_FIELD],
-						itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
-						itemType: itemType,
-						itemCore: itemCore
-					});
+					console.log("Given these items", items, "Only updating these items", itemsToUpdate, "Marking currentlyAvailable as " + currentlyAvailableStatus);
+
+					wixData.bulkUpdate(CUSTOMIZATION_DB, itemsToUpdate, options)
+						.then((results) => {
+							console.log("Results following update of currentlyAvailable for category", customizationCategory, "and item array", itemsToUpdate, ":", results);
+						});
 				}
 
-				console.log("Given these items", items, "Only updating these items", itemsToUpdate, "Marking currentlyAvailable as " + currentlyAvailableStatus);
-
-				wixData.bulkUpdate(CUSTOMIZATION_DB, itemsToUpdate, options)
-					.then((results) => {
-						console.log("Results following update of currentlyAvailable for category", customizationCategory, "and item array", itemsToUpdate, ":", results);
-					});
-			}
-		})
-		.catch((error) => {
-			console.error("Error", error, "occurred while marking items as no longer available for category", customizationCategory, "and ID array", itemIdArray);
-		});
+				retry = false;
+			})
+			.catch((error) => {
+				console.error("Error", error, "occurred while marking items as no longer available for category", customizationCategory, "and ID array", itemIdArray, "Try " + ++retryCount + " of " + MAX_RETRIES);
+			});
+	}
 	
 	return itemInfoArray;
 }
@@ -576,42 +584,50 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 		));
 	}
 
-	wixData.update(itemDb, itemJson, options)
-		.then((results) => {
-			console.log("Results following update of currentlyAvailable for item:", itemJson, ":", results);
+	let retry = true;
+	let retryCount = 0;
+	const MAX_RETRIES = 10;
 
-			// We only really need to add these if currentlyAvailableStatus is true, since this indicates the item has been added or updated.
+	while (retry && retryCount < MAX_RETRIES) {
+		wixData.update(itemDb, itemJson, options)
+			.then((results) => {
+				console.log("Results following update of currentlyAvailable for item:", itemJson, ":", results);
 
-			// Add the items to the Shop Bundle. We want to ensure the bundle has returned first.
-			if (itemDb == ShopConstants.SHOP_DB && currentlyAvailableStatus) {
-				for (const FIELD in referenceFieldToCategoryDict) {
-					addItemIdArrayToShopItem(
-						itemJson._id,
-						FIELD,
-						itemJsonCopy[FIELD],
-						referenceFieldToCategoryDict[FIELD],
-						itemJsonCopy[ShopConstants.SHOP_ITEM_NAME_FIELD],
-						itemJsonCopy[ShopConstants.SHOP_COST_CREDITS_FIELD],
-						itemJsonCopy[ShopConstants.SHOP_IS_HCS_FIELD]
-					);
-                }
-			}
-			// Add the item(s) to the Ultimate Challenge.
-			else if (itemDb == CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB && currentlyAvailableStatus) {
-				for (const FIELD in referenceFieldToCategoryDict) {
-					WaypointFunctions.addItemIdArrayToCapstoneChallenge(
-						itemJson._id,
-						FIELD,
-						itemJsonCopy[FIELD],
-						referenceFieldToCategoryDict[FIELD],
-						itemJsonCopy[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]
-					);
+				// We only really need to add these if currentlyAvailableStatus is true, since this indicates the item has been added or updated.
+
+				// Add the items to the Shop Bundle. We want to ensure the bundle has returned first.
+				if (itemDb == ShopConstants.SHOP_DB && currentlyAvailableStatus) {
+					for (const FIELD in referenceFieldToCategoryDict) {
+						addItemIdArrayToShopItem(
+							itemJson._id,
+							FIELD,
+							itemJsonCopy[FIELD],
+							referenceFieldToCategoryDict[FIELD],
+							itemJsonCopy[ShopConstants.SHOP_ITEM_NAME_FIELD],
+							itemJsonCopy[ShopConstants.SHOP_COST_CREDITS_FIELD],
+							itemJsonCopy[ShopConstants.SHOP_IS_HCS_FIELD]
+						);
+					}
 				}
-			}
-		})
-		.catch((error) => {
-			console.error("Error", error, "occurred while updating item availability", itemJson);
-		});
+				// Add the item(s) to the Ultimate Challenge.
+				else if (itemDb == CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB && currentlyAvailableStatus) {
+					for (const FIELD in referenceFieldToCategoryDict) {
+						WaypointFunctions.addItemIdArrayToCapstoneChallenge(
+							itemJson._id,
+							FIELD,
+							itemJsonCopy[FIELD],
+							referenceFieldToCategoryDict[FIELD],
+							itemJsonCopy[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]
+						);
+					}
+				}
+
+				retry = false;
+			})
+			.catch((error) => {
+				console.error("Error", error, "occurred while updating item availability", itemJson, "Try " + ++retryCount + " of " + MAX_RETRIES);
+			});
+	}
 	
 	return itemInfoArray;
 }
@@ -633,13 +649,20 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 
 	let itemInfoArray = [];
 
-	wixData.replaceReferences(ShopConstants.SHOP_DB, fieldName, bundleId, itemIdArray, options)
-		.then(() => {
-			//console.log("Added references for Shop item ", bundleId, " and fieldName ", fieldName);
-		})
-		.catch((error) => {
-			console.error("Error", error, "occurred. Failed to add references for Shop item ", bundleId, " and fieldName ", fieldName);
-		});
+	let retry = true;
+	let retryCount = 0;
+	const MAX_RETRIES = 10;
+
+	while (retry && retryCount < MAX_RETRIES) {
+		wixData.replaceReferences(ShopConstants.SHOP_DB, fieldName, bundleId, itemIdArray, options)
+			.then(() => {
+				retry = false;
+				//console.log("Added references for Shop item ", bundleId, " and fieldName ", fieldName);
+			})
+			.catch((error) => {
+				console.error("Error", error, "occurred. Failed to add references for Shop item ", bundleId, " and fieldName ", fieldName, "Try " + ++retryCount + " of " + MAX_RETRIES);
+			});
+	}
 
 	// We have three tasks for each item ID: update the source (if it is (Pending) or Pending), update the sourcetype reference, and mark it currently Available.
 	// Consumables need to be done manually due to the lack of a single source for them.
@@ -655,115 +678,146 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 
 		const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
 
-		await wixData.query(CUSTOMIZATION_DB)
-			.hasSome("_id", itemIdArray)
-			.include(SOCKET_REFERENCE_FIELD)
-			.include(CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)
-			.find()
-			.then(async (results) => {
-				if (results.items.length > 0) {
-					let items = results.items;
-					let itemsToUpdate = []; // We only update items that need to be changed.
+		let retry = true;
+		let retryCount = 0;
+		const MAX_RETRIES = 10;
 
-					for (let i = 0; i < items.length; ++i) {
-						let item = items[i];
-						let itemChanged = false;
-						if (!item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD]) {
-							item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] = true;
-							itemChanged = true;
-						}
+		while (retry && retryCount < MAX_RETRIES) {
+			await wixData.query(CUSTOMIZATION_DB)
+				.hasSome("_id", itemIdArray)
+				.include(SOCKET_REFERENCE_FIELD)
+				.include(CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)
+				.find()
+				.then(async (results) => {
+					if (results.items.length > 0) {
+						let items = results.items;
+						let itemsToUpdate = []; // We only update items that need to be changed.
 
-						// We need to update the source
-						if (item[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
-							let sourceText = "Purchase <i>" + bundleName + "</i> from the " + ((isHcs) ? "HCS " : "") + "Shop for " + bundleCost + " Credits";
-							item[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
-							itemChanged = true;
-						}
-
-						if (itemChanged) {
-							// Add the item to the list of items to change.
-							itemsToUpdate.push(item);
-						}
-
-						// We only want to add a source type reference if it isn't already there. It won't hurt if it is, but it will change the Updated Datetime of the item.
-						let sourceTypeReferenceIncludesDesiredId = false;
-
-						for (let i = 0; i < item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length; ++i) {
-							if (item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][i]._id == SHOP_SOURCE_ID) {
-								sourceTypeReferenceIncludesDesiredId = true;
-								break;
+						for (let i = 0; i < items.length; ++i) {
+							let item = items[i];
+							let itemChanged = false;
+							if (!item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD]) {
+								item[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] = true;
+								itemChanged = true;
 							}
-						}
 
-						// We also need to update or replace the sourcetype. Thankfully, we included this field.
-						if (item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 && item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == PENDING_SOURCE_ID) {
-							// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
-							wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
-								.then (() => {
-									console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
-								})
-								.catch((error) => {
-									console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
-								});
-						}
-						else if (!sourceTypeReferenceIncludesDesiredId) {
-							// We just want to insert the source type in this case.
-							wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
-								.then (() => {
-									console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
-								})
-								.catch((error) => {
-									console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
-								});
-						}
-
-						let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
-
-						let itemCore = "";
-
-						if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
-							// If we have cores for this item.
-							const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
-							const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
-
-							let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
-
-							// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
-							if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
-								itemCore = parentCores[0][CORE_NAME_FIELD];
+							// We need to update the source
+							if (item[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
+								let sourceText = "Purchase <i>" + bundleName + "</i> from the " + ((isHcs) ? "HCS " : "") + "Shop for " + bundleCost + " Credits";
+								item[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
+								itemChanged = true;
 							}
+
+							if (itemChanged) {
+								// Add the item to the list of items to change.
+								itemsToUpdate.push(item);
+							}
+
+							// We only want to add a source type reference if it isn't already there. It won't hurt if it is, but it will change the Updated Datetime of the item.
+							let sourceTypeReferenceIncludesDesiredId = false;
+
+							for (let i = 0; i < item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length; ++i) {
+								if (item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][i]._id == SHOP_SOURCE_ID) {
+									sourceTypeReferenceIncludesDesiredId = true;
+									break;
+								}
+							}
+
+							let sourceTypeRetry = true;
+							let sourceTypeRetryCount = 0;
+							const MAX_SOURCE_TYPE_RETRIES = 10;
+
+							// We also need to update or replace the sourcetype. Thankfully, we included this field.
+							while (sourceTypeRetry && sourceTypeRetryCount < MAX_SOURCE_TYPE_RETRIES) {
+								if (item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 && item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == PENDING_SOURCE_ID) {
+									// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
+									wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
+										.then (() => {
+											console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
+											sourceTypeRetry = false;
+										})
+										.catch((error) => {
+											console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB, "Try " + ++sourceTypeRetryCount + " of " + 
+												MAX_SOURCE_TYPE_RETRIES);
+										});
+								}
+								else if (!sourceTypeReferenceIncludesDesiredId) {
+									// We just want to insert the source type in this case.
+									wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
+										.then (() => {
+											console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
+											sourceTypeRetry = false;
+										})
+										.catch((error) => {
+											console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB, "Try " + ++sourceTypeRetryCount + " of " + 
+												MAX_SOURCE_TYPE_RETRIES);
+										});
+								}
+							}
+
+							let itemType = item[SOCKET_REFERENCE_FIELD][SOCKET_NAME_FIELD];
+
+							let itemCore = "";
+
+							if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
+								// If we have cores for this item.
+								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+								const CORE_NAME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreNameField;
+
+								let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
+
+								// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
+								if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
+									itemCore = parentCores[0][CORE_NAME_FIELD];
+								}
+							}
+
+							itemInfoArray.push({
+								itemName: item[NAME_FIELD],
+								itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
+								itemType: itemType,
+								itemCore: itemCore
+							});
 						}
 
-						itemInfoArray.push({
-							itemName: item[NAME_FIELD],
-							itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + item[URL_FIELD],
-							itemType: itemType,
-							itemCore: itemCore
-						});
+						console.log("Found the following items", items, "Only updating source and currentlyAvailable for these items", itemsToUpdate);
+
+						wixData.bulkUpdate(CUSTOMIZATION_DB, itemsToUpdate, options)
+							.then((results) => {
+								console.log("Results following update of currentlyAvailable and source for category", customizationCategory, "and items", itemsToUpdate, ":", results);
+							});
+
+						retry = false;
 					}
-
-					console.log("Found the following items", items, "Only updating source and currentlyAvailable for these items", itemsToUpdate);
-
-					wixData.bulkUpdate(CUSTOMIZATION_DB, itemsToUpdate, options)
-						.then((results) => {
-							console.log("Results following update of currentlyAvailable and source for category", customizationCategory, "and items", itemsToUpdate, ":", results);
-						});
-				}
-			})
-			.catch((error) => {
-				console.error("Error", error, "occurred while updating newly available items for category", customizationCategory, "and ID array", itemIdArray);
-			});
+				})
+				.catch((error) => {
+					console.error("Error", error, "occurred while updating newly available items for category", customizationCategory, "and ID array", itemIdArray, "Try " + ++retryCount + " of " + MAX_RETRIES);
+				});
+		}
 	}
 	else {
 		// If we have Consumables, just update the itemInfoArray.
-		let consumables = (await wixData.query(ConsumablesConstants.CONSUMABLES_DB).hasSome("_id", itemIdArray).find()).items;
+		let retry = true;
+		let retryCount = 0;
+		const MAX_RETRIES = 10;
 
-		for (let i = 0; i < consumables.length; ++i) {
-			itemInfoArray.push({
-				itemName: consumables[ConsumablesConstants.CONSUMABLES_NAME_FIELD],
-				itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + consumables[ConsumablesConstants.CONSUMABLES_URL_FIELD],
-				itemType: "" // This is redundant.
-			});
+		while (retry && retryCount < MAX_RETRIES) {
+			try {
+				let consumables = (await wixData.query(ConsumablesConstants.CONSUMABLES_DB).hasSome("_id", itemIdArray).find()).items;
+
+				for (let i = 0; i < consumables.length; ++i) {
+					itemInfoArray.push({
+						itemName: consumables[ConsumablesConstants.CONSUMABLES_NAME_FIELD],
+						itemUrl: GeneralConstants.INFINITE_NEWS_URL_BASE + consumables[ConsumablesConstants.CONSUMABLES_URL_FIELD],
+						itemType: "" // This is redundant.
+					});
+				}
+
+				retry = false;
+			}
+			catch(error) {
+				console.error("Error", error, "occurred while retrieving consumables information. Try " + ++retryCount + " of " + MAX_RETRIES);
+			}
 		}
 	}
 
@@ -780,15 +834,24 @@ async function addBundleToDb(shopBundleJson) {
 
 	console.log("Adding Shop Bundle " + shopBundleJson[ShopConstants.SHOP_ITEM_NAME_FIELD]);
 
-	let addedBundle = await wixData.insert(ShopConstants.SHOP_DB, shopBundleJsonCopy, options) // This needs to await since we need the URL from the bundle for Twitter API stuff.
-		.then((results) => {
-			console.log("Inserted this bundle to the Shop DB: ", results);
+	let addedBundle = {}
+	
+	let retry = true;
+	let retryCount = 0;
+	const MAX_RETRIES = 10;
 
-			return results;
-		})
-		.catch((error) => {
-			console.error("Error", error, "occurred while attempting to add this Bundle to DB:", shopBundleJsonCopy);
-		});
+	while (retry && retryCount < MAX_RETRIES) {
+		await wixData.insert(ShopConstants.SHOP_DB, shopBundleJsonCopy, options) // This needs to await since we need the URL from the bundle for Twitter API stuff.
+			.then((results) => {
+				console.log("Inserted this bundle to the Shop DB: ", results);
+
+				retry = false;
+				return results;
+			})
+			.catch((error) => {
+				console.error("Error", error, "occurred while attempting to add this Bundle to DB:", shopBundleJsonCopy, "Try " + ++retryCount + " of " + MAX_RETRIES);
+			});
+	}
 
 	addedBundle.childItemInfo = [];
 
