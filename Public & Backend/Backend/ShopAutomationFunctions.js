@@ -589,7 +589,7 @@ export async function updateBundleAndItemsCurrentlyAvailableStatus(itemJson, cur
 	const MAX_RETRIES = 10;
 
 	while (retry && retryCount < MAX_RETRIES) {
-		wixData.update(itemDb, itemJson, options)
+		await wixData.update(itemDb, itemJson, options)
 			.then((results) => {
 				console.log("Results following update of currentlyAvailable for item:", itemJson, ":", results);
 
@@ -654,7 +654,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 	const MAX_RETRIES = 10;
 
 	while (retry && retryCount < MAX_RETRIES) {
-		wixData.replaceReferences(ShopConstants.SHOP_DB, fieldName, bundleId, itemIdArray, options)
+		await wixData.replaceReferences(ShopConstants.SHOP_DB, fieldName, bundleId, itemIdArray, options)
 			.then(() => {
 				retry = false;
 				//console.log("Added references for Shop item ", bundleId, " and fieldName ", fieldName);
@@ -731,7 +731,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 							while (sourceTypeRetry && sourceTypeRetryCount < MAX_SOURCE_TYPE_RETRIES) {
 								if (item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 && item[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == PENDING_SOURCE_ID) {
 									// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
-									wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
+									await wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
 										.then (() => {
 											console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 											sourceTypeRetry = false;
@@ -743,7 +743,7 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 								}
 								else if (!sourceTypeReferenceIncludesDesiredId) {
 									// We just want to insert the source type in this case.
-									wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
+									await wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, item._id, [SHOP_SOURCE_ID])
 										.then (() => {
 											console.log("Added source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB);
 											sourceTypeRetry = false;
@@ -752,6 +752,10 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 											console.error("Error", error, "occurred while adding source type reference for item " + item._id + " in DB " + CUSTOMIZATION_DB, "Try " + ++sourceTypeRetryCount + " of " + 
 												MAX_SOURCE_TYPE_RETRIES);
 										});
+								}
+								else {
+									// Skip the source type retry.
+									sourceTypeRetry = false;
 								}
 							}
 
@@ -786,9 +790,9 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 							.then((results) => {
 								console.log("Results following update of currentlyAvailable and source for category", customizationCategory, "and items", itemsToUpdate, ":", results);
 							});
-
-						retry = false;
 					}
+
+					retry = false;
 				})
 				.catch((error) => {
 					console.error("Error", error, "occurred while updating newly available items for category", customizationCategory, "and ID array", itemIdArray, "Try " + ++retryCount + " of " + MAX_RETRIES);
@@ -841,7 +845,7 @@ async function addBundleToDb(shopBundleJson) {
 	const MAX_RETRIES = 10;
 
 	while (retry && retryCount < MAX_RETRIES) {
-		await wixData.insert(ShopConstants.SHOP_DB, shopBundleJsonCopy, options) // This needs to await since we need the URL from the bundle for Twitter API stuff.
+		addedBundle = await wixData.insert(ShopConstants.SHOP_DB, shopBundleJsonCopy, options) // This needs to await since we need the URL from the bundle for Twitter API stuff.
 			.then((results) => {
 				console.log("Inserted this bundle to the Shop DB: ", results);
 
