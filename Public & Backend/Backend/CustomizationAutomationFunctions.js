@@ -677,7 +677,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		if (customizationDetails.DefaultOfCore in coreIdDict) {
 			defaultOfCoreIdArray.push(coreIdDict[customizationDetails.DefaultOfCore]);
 		}
-	}
+    }
 	//console.log(defaultOfCoreIdArray);
 
 	// We need to convert the array of attachment names to an array of attachment IDs. This one is probably best to filter first.
@@ -976,7 +976,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 		const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 		const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
-
+		
 		let retry = true;
 		let retryCount = 0;
 		const maxRetries = 10;
@@ -1002,7 +1002,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 
 		existingItem[DEFAULT_OF_CORE_REFERENCE_FIELD] = originalDefaultOfCoreIdArray;
-	}
+    }
 
 	// The next step is to compare the current item with things in our arguments, but we need to translate some names into IDs, namely for quality, manufacturer, and release.
 	// Let's start with quality.
@@ -1061,7 +1061,6 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		const IS_PARTIAL_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsPartialCrossCoreField;
 		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationType[IS_CROSS_CORE_FIELD] && !customizationType[IS_PARTIAL_CROSS_CORE_FIELD]) {
 			// If we have a non-cross-core customization type.
-			// Note that this means we'll be storing cross-core items in random core-specific folders for now. TODO: Find a better option if this becomes problematic in the future.
 			let parentSiteType = null; // This only applies to attachments that have parent items (e.g. for Helmet Attachments, this will be "Helmet")
 			if ("ParentType" in customizationDetails && CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
 				const PARENT_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketParentTypeReferenceField;
@@ -1288,8 +1287,8 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			existingItem = returnedJsons[1];
 		}
 
-
-		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+		// We only want to check the Default Core field if we aren't adding this item as part of a Kit.
+		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationDetails.IsKitItem) {
 			const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 
 			if (!arrayCompare(originalDefaultOfCoreIdArray, defaultOfCoreIdArray)) {
@@ -1975,8 +1974,8 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		itemJson.DefaultOfCore = options.waypointThemePathToCoreDict[options.parentThemePath];
 	}
 	else {
-		itemJson.DefaultOfCore;
-	}
+		itemJson.DefaultOfCore = null;
+    }
 
 	return itemJson;
 }
@@ -2408,7 +2407,7 @@ async function generateJsonsFromItemAndAttachmentList(
 		let defaultAttachmentPath = "";
 		if ("defaultPath" in options && options.defaultPath && options.defaultPath.toLowerCase() == attachmentParentPath.toLowerCase()) {
 			defaultAttachmentPath = itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]].DefaultOptionPath;
-		}
+        }
 
 		let parentWaypointType = type[TYPE_WAYPOINT_ID_FIELD];
 		let attachmentArray = []; // This is an array of attachment names specifically meant for the parentPathToAttachmentArrayDict.
@@ -3420,6 +3419,7 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 		if (!returnCode) {
 			let processingGroups = [
+				//["Visors"]
 				["Coatings"],
 				["Emblems"],
 				["Helmets"],
