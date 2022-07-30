@@ -6,6 +6,7 @@ import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js'
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
 import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
+import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
 
 // This code is used to set up customization item pages.
 export function initialItemSetup(customizationCategory, isCore = false) {
@@ -184,6 +185,43 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 			$w("#emblemPaletteDataset").onReady(function() {
 				if ($w("#emblemPaletteRepeater").data.length > 0) {
 					$w("#emblemPaletteRepeater").forEachItem(($item, itemData) => {
+						let emblemPaletteImageMapping = itemData[CustomizationConstants.EMBLEM_PALETTE_IMAGE_MAPPING_FIELD];
+						let itemWaypointId = currentItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationWaypointIdField];
+
+						try {
+							if (customizationCategory != SpartanIdConstants.SPARTAN_ID_KEY) { // If we're working with an Emblem.
+								let matches = itemWaypointId.match(/-(\w+)$/);
+
+								if (matches.length > 0) {
+									let commonIdString = matches[0];
+									for (let waypointId in emblemPaletteImageMapping) {
+										if (waypointId.includes(commonIdString)) {
+											$item("#emblemPaletteImage").src = emblemPaletteImageMapping[waypointId].Emblem.URL;
+										}
+									}
+								}
+							}
+							else { // If we're working with a Nameplate.
+								$item("#emblemPaletteImage").src = emblemPaletteImageMapping[itemWaypointId].Emblem.URL;
+								$item("#nameplateBackgroundImage").src = emblemPaletteImageMapping[itemWaypointId].Nameplate.URL;
+
+								// Change the text color to match the one specified in the API.
+								while (!$item("#emblemPaletteName").html.includes("color:" + emblemPaletteImageMapping[itemWaypointId].TextColor)) {
+									$item("#emblemPaletteName").html = $item("#emblemPaletteName").html.replace("color:#FFFFFF", "color:" + emblemPaletteImageMapping[itemWaypointId].TextColor);
+								}
+
+								while (!$item("#emblemPaletteType").html.includes("color:" + emblemPaletteImageMapping[itemWaypointId].TextColor)) {
+									console.log("Updating Emblem Palette text color");
+									$item("#emblemPaletteType").html = $item("#emblemPaletteType").html.replace("color:#FFFFFF", "color:" + emblemPaletteImageMapping[itemWaypointId].TextColor);
+								}
+							}
+						}
+						catch (error) {
+							console.warn("Unable to properly set images due to " + error + ". Using fallback images.");
+							$item("#emblemPaletteImage").src = itemData[CustomizationConstants.EMBLEM_PALETTE_IMAGE_FIELD];
+							$item("#nameplateBackgroundImage").hide();
+						}
+
 						$item("#emblemPaletteImage").fitMode = "fit";
 					});
 				}
@@ -266,7 +304,7 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 						$item("#kitAttachmentImage").fitMode = "fit";
 						//console.log(itemData);
 						let currentItem = itemData;
-						$item("#kitAttachmentCustomizationType").text = "Helmet Attachment"; //TODO: Find a better way to do this in the future.
+						//$item("#kitAttachmentCustomizationType").text = "Helmet Attachment"; //TODO: Find a better way to do this in the future.
 						let sourceString = "";
 						wixData.queryReferenced(customizationDB, currentItem._id, sourceTypeReferenceField)
 							.then((results) => {
