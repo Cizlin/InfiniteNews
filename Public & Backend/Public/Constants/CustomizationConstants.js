@@ -57,6 +57,7 @@ export const EMBLEM_PALETTE_CONFIGURATION_ID_FIELD = "configurationId";
 export const EMBLEM_PALETTE_ITEM_E_TAG_FIELD = "itemETag";
 export const EMBLEM_PALETTE_CHANGE_LOG_FIELD = "changeLog";
 export const EMBLEM_PALETTE_KEY = "Emblem Palette";
+export const EMBLEM_PALETTE_IMAGE_MAPPING_FIELD = "imageMapping";
 
 // Usually, we use the Waypoint Field value for our processing keys, but Cores and Kits don't have this. We specify those keys here.
 export const CORE_PROCESSING_KEY = "Cores";

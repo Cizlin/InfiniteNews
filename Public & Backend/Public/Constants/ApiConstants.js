@@ -53,6 +53,7 @@ export const WAYPOINT_URL_SUFFIX_PROGRESSION_SEASON_CALENDAR = "/Calendars/Seaso
 
 // Use with WAYPOINT base.
 export const WAYPOINT_URL_SUFFIX_WAYPOINT_ARMOR_CORE_LIST = "armor-core-list.json";
+export const WAYPOINT_URL_SUFFIX_WAYPOINT_EMBLEM_MAPPING = "images/emblems/mapping.json";
 
 // Use with ECONOMY base.
 export const WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY = "inventory";
