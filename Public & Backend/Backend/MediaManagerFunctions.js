@@ -13,19 +13,59 @@ import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 import * as ShopConstants from 'public/Constants/ShopConstants.js';
 //#endregion
 
-
-// Retrieves an item's JSON file from the Waypoint API. Returns the Wix URL to the stored image. This is returned as a Promise that resolves to the URL on success.
-export async function addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaManagerPath, fileName) {
+// Returns the ETag provided by the headers of a remote image file.
+export async function getETag(headers, waypointPath, urlBase = ApiConstants.WAYPOINT_URL_BASE_IMAGE) {
 	var https = require('https');
 
 	let httpOptions = {
+		method: "HEAD",
 		headers: headers
 	};
 
 	return new Promise((resolve, reject) => {
-		let request = https.get(ApiConstants.WAYPOINT_URL_BASE_IMAGE + waypointPath, httpOptions, (response) => {
-			let { statusCode } = response;
-			console.log(`statusCode: ${statusCode}`)
+		let request = https.request(urlBase + waypointPath, httpOptions, (response) => {
+			let { statusCode, headers } = response;
+			//console.log(`statusCode: ${statusCode}`)
+			//console.log("ETag from headers: " + headers.etag);
+
+			let error;
+
+			if (statusCode !== 200) {
+				error = new Error('Request Failed.\n' +
+					`Status Code: ${statusCode}`);
+			}
+
+			if (error) {
+				//console.error(error.message);
+				// consume response data to free up memory
+				response.resume();
+			}
+
+			resolve(headers.etag);
+		});
+
+		request.on('error', error => {
+			console.error(`Got error: ${error.message} while fetching image at ${waypointPath}. Using placeholder image.`);
+			reject(error); // Assume the ETag doesn't match so we can try again.
+		});
+
+		request.end();
+	});
+}
+
+// Retrieves an item's image from the Waypoint API. Returns the Wix URL to the stored image. This is returned as a Promise that resolves to the URL on success.
+export async function addCustomizationImageToMediaManager(requestHeaders, waypointPath, mimeType, mediaManagerPath, fileName, urlBase = ApiConstants.WAYPOINT_URL_BASE_IMAGE) {
+	var https = require('https');
+
+	let httpOptions = {
+		headers: requestHeaders
+	};
+
+	return new Promise((resolve, reject) => {
+		let request = https.get(urlBase + waypointPath, httpOptions, (response) => {
+			let { statusCode, headers } = response;
+			console.log(`statusCode: ${statusCode}`);
+			console.log("ETag from headers:" + headers.etag);
 
 			let error;
 
@@ -67,18 +107,18 @@ export async function addCustomizationImageToMediaManager(headers, waypointPath,
 						}
 					});
 
-					resolve(imageInfo.fileUrl);
+					resolve([imageInfo.fileUrl, headers.etag]);
 				}
 				catch (e) {
 					console.error("Got error " + e + " while trying to upload image for " + fileName + ". Using placeholder image.");
-					resolve(CustomizationConstants.PLACEHOLDER_IMAGE_URL);
+					resolve([CustomizationConstants.PLACEHOLDER_IMAGE_URL, ""]); // Default the ETag returned to the empty string so we know to replace it ASAP.
 				}
 			})
 		});
 
 		request.on('error', error => {
 			console.error(`Got error: ${error.message} while fetching image at ${waypointPath}. Using placeholder image.`);
-			resolve(CustomizationConstants.PLACEHOLDER_IMAGE_URL);
+			resolve([CustomizationConstants.PLACEHOLDER_IMAGE_URL, ""]); // Default the ETag returned to the empty string so we know to replace it ASAP.
 		});
 
 		request.end();
@@ -121,6 +161,10 @@ export async function generateFolderDict() {
 		folderDict["/"][customizationImageFolderName + "/"][element.folderName + "/"] = { "_id": element.folderId }
 		parentFolderId = element.folderId;
 		customizationCategoryFolderName = element.folderName;
+
+		if (customizationCategoryFolderName == GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER) {
+			continue;
+		}
 
 		// For each of these category folders, we need to get the folders within.
 		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
@@ -381,5 +425,195 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		console.log("Directory not found for " + mediaPath + ".");
 	}
 
-	return await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png");
+	// We now return the ETag in [1], so just return [0] (the image URL) for now.
+	return (await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png"))[0];
+}
+
+// There will be a ton of Emblem Palette images, so we need to maintain this list separately.
+export async function generateEmblemPaletteFolderDict() {
+	// The folderDict will essentially be a hierarchical listing of the customization images folders. The ID of each folder is stored in _id, except for "/".
+	// We will also store the files in this dictionary with the user-readable filename as the key (with . replaced by , since JSON) and the file Name as the value. 
+	// Still need to fetch the file URL, but that should be quick. Speed. I am speed.
+
+	console.log("Starting Emblem Palette folder dict generation.");
+	let folderDict = {
+		"/": {}
+	};
+
+	let rootFolderList = await mediaManager.listFolders();
+	let parentFolderId = "";
+	let customizationImageFolderName = "";
+	rootFolderList.forEach((element) => {
+		if (element.folderName == GeneralConstants.CUSTOMIZATION_ROOT_FOLDER) {
+			folderDict["/"][element.folderName + "/"] = { "_id": element.folderId }
+			parentFolderId = element.folderId;
+			customizationImageFolderName = element.folderName;
+		}
+	});
+
+	// Now that we're in the Customization Images folder, we need to get the list of folders within it.
+	let customizationImagesFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+	let customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+	customizationImagesFileList.forEach((file) => {
+		folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+	});
+
+	let customizationCategoryFolderName;
+
+	for (let i = 0; i < customizationImagesFolderList.length; i++) {
+		let element = customizationImagesFolderList[i];
+		folderDict["/"][customizationImageFolderName + "/"][element.folderName + "/"] = { "_id": element.folderId }
+		parentFolderId = element.folderId;
+		customizationCategoryFolderName = element.folderName;
+
+		if (customizationCategoryFolderName != GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER) {
+			continue;
+		}
+
+		// We need to get the Emblem Palette Configuration ID folders within. There's a ton of them, so we need to increase the limit to several hundred (might need to make this more future-proof later).
+		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT });
+		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+		customizationCategoryFileList.forEach((file) => {
+			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+		});
+
+		let emblemConfigurationIdFolderName;
+		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
+			let waypointId = customizationCategoryFolderList[j];
+			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][waypointId.folderName + "/"] = { "_id": waypointId.folderId }
+			parentFolderId = waypointId.folderId;
+			emblemConfigurationIdFolderName = waypointId.folderName;
+
+			// We can just list the files now.
+			let emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+			emblemConfigurationIdFileList.forEach((file) => {
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][emblemConfigurationIdFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+			});
+		}
+	}
+
+	console.log("Emblem Palette Folder dict generated: ", folderDict);
+
+	wixData.query(KeyConstants.KEY_VALUE_DB)
+		.eq("key", KeyConstants.KEY_VALUE_EMBLEM_PALETTE_FOLDERS_KEY)
+		.find()
+		.then((results) => {
+			if (results.items.length > 0) {
+				let item = results.items[0];
+				item.value = folderDict;
+				wixData.save(KeyConstants.KEY_VALUE_DB, item);
+			}
+			else {
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_EMBLEM_PALETTE_FOLDERS_KEY, "value": folderDict });
+			}
+		})
+}
+
+// Retrieves an item's image URL based on the customizationCategory, customizationType, customizationCore (if applicable), parentCustomizationType (for attachments) path, and mimeType.
+// The Customization Category can be one of the accepted category keys (e.g. ARMOR_KEY or BODY_AND_AI_KEY) and is used to select the folder within Customization Images to open.
+// The Customization Type can be one of the valid customizationType values and is used to select the folder within "Customization Images/[Customization Category Folder]/"
+//	It can also be ITEM_TYPES.core to signify that a core is being added.
+// The Customization Core specifies the name of the core (e.g. "Yoroi"), which is necessary to place the image in "Customization Images/[Customization Category Folder]/[customizationCore]/"
+// The Parent Customization Type is only used for attachments. It is needed to place the attachment image in 
+//	"Customization Images/[Customization Category Folder]/[customizationCore]/[parentCustomizationType]"
+// The waypointPath is the Waypoint filepath used to retrieve the image from Waypoint if necessary.
+// The mimeType comes directly from the item JSON and is usually 'image/png'.
+// The folderDict is a dictionary representing the file system's structure as of **:50 prior to the execution of this import.
+// The headers are the standard items passed into any API access function.
+// The title is the name of the item prior to sanitization.
+// The categorySpecificDictsAndArrays are only used for the Customization Type array, which is only relevant for the Armor, Armor Attachment, Weapon, Vehicle, 
+//	Body And AI, and Spartan ID categories.
+export async function getEmblemPaletteImageUrl(folderDict, headers, paletteConfigurationId, nameplateWaypointId, type, waypointPath, eTag, mimeType) {
+	// The file path has the form 
+	// /Customization Images/Emblem Palettes/[paletteConfigurationId]/[nameplateWaypointId] [type].png
+	// [type] is either "Nameplate" or "Emblem".
+
+	// Time to traverse our folder tree while building the file path.
+	let subFolderDict = {}
+	let folderExists = true;
+	if ("/" in folderDict) {
+		subFolderDict = folderDict["/"];
+	}
+	else {
+		folderExists = false;
+	}
+
+	if (folderExists && (GeneralConstants.CUSTOMIZATION_ROOT_FOLDER + "/" in subFolderDict)) {
+		subFolderDict = subFolderDict[GeneralConstants.CUSTOMIZATION_ROOT_FOLDER + "/"];
+	}
+	else {
+		folderExists = false;
+	}
+	if (folderExists && ((GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER + "/") in subFolderDict)) {
+		subFolderDict = subFolderDict[GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER + "/"];
+	}
+	else {
+		folderExists = false;
+	}
+
+	//console.log(subFolderDict);
+
+	let mediaPath = "/" + GeneralConstants.CUSTOMIZATION_ROOT_FOLDER + "/" + GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER + "/" + paletteConfigurationId + "/";
+	if (folderExists && ((paletteConfigurationId + "/") in subFolderDict)) {
+		subFolderDict = subFolderDict[paletteConfigurationId + "/"];
+	}
+	else {
+		folderExists = false;
+	}
+
+	let fileSystemSafeTitle = nameplateWaypointId.replace(/[\\/?:]/g, "_"); // Clean out some of the common illegal characters (\, /, ?, :). There likely won't be any, but best to be safe.
+
+	if (folderExists) {
+
+		let fileKey = fileSystemSafeTitle.replace(/\./g, ",") + " " + type + ",png";
+
+		if (fileKey in subFolderDict) {
+			// We found a matching file, but now we need to confirm that it is up-to-date by checking the ETag.
+			let fileData = await mediaManager.getFileInfo(subFolderDict[fileKey]); // We'll either use this or delete it.
+
+			let newETag = "";
+
+			let retry = true;
+			let retryCount = 0;
+			const MAX_RETRIES = 10;
+			while (retry && retryCount < MAX_RETRIES) {
+				try {
+					newETag = await getETag(headers, waypointPath, ApiConstants.WAYPOINT_URL_BASE_WAYPOINT);
+					retry = false;
+				}
+				catch (error) {
+					console.error(error + " occurred while fetching ETag for " + waypointPath + "." +
+						((retry) ? ("Try " + (++retryCount) + " of " + MAX_RETRIES + "...") : ""));
+				}
+			}
+			if (eTag == newETag) { // If the ETag provided by the caller matches the one returned in the header of the image, then we just use what we have.
+				return [fileData.fileUrl, newETag]; // The existing ETag is still valid, so we send it back.
+			}
+			else {
+				// We need to replace the existing image. Let's move the old one to the trash first.
+				console.log("Deleting this file due to out-of-date ETag: ", fileData);
+				mediaManager.moveFilesToTrash([fileData.fileUrl]);
+			}
+		}
+		else {
+			console.log("File not found for " + fileKey + " in " + mediaPath);
+		}
+	}
+	else {
+		// If the directory didn't exist before, we need to make it by adding the image.
+		console.log("Directory not found for " + mediaPath + ".");
+	}
+
+	let retryCount = 0;
+	const MAX_RETRIES = 10;
+	while (retryCount < MAX_RETRIES) {
+		try {
+			return await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + type + ".png", ApiConstants.WAYPOINT_URL_BASE_WAYPOINT);
+		}
+		catch (error) {
+			console.error(error + " occurred while fetching image from " + waypointPath + "." +
+				"Try " + (++retryCount) + " of " + MAX_RETRIES + "...");
+		}
+	}
+	
 }
