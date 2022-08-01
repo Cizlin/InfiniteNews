@@ -4,6 +4,8 @@ import * as GeneralFunctions from 'public/General.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 import * as CustomizationConstants from 'public/Constants/CustomizationConstants.js';
 
+let eightDayChallenges = ["Hello World"]; // A list of Challenge names that lasted for 8 days instead of 7 (currently just the S1 Week 1 Challenge).
+
 $w.onReady(function () {
 	// Set up the name filter.
 	ItemListSetupFunctions.initialItemListSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY);
@@ -88,7 +90,8 @@ $w.onReady(function () {
 
 			if (lastAvailableDatetime) {
 				let endAvailableDatetime = new Date(lastAvailableDatetime);
-				endAvailableDatetime.setDate(lastAvailableDatetime.getDate() + 7);
+				endAvailableDatetime.setDate(lastAvailableDatetime.getDate() + 
+					((eightDayChallenges.includes(ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]) ? 8 : 7)));
 
 				let lastAvailableString = GeneralFunctions.getLongMonthDayYearFromDate(lastAvailableDatetime);
 				let endAvailableString = GeneralFunctions.getLongMonthDayYearFromDate(endAvailableDatetime);
