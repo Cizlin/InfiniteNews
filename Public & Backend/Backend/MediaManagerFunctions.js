@@ -45,7 +45,7 @@ export async function getETag(headers, waypointPath, urlBase = ApiConstants.WAYP
 		});
 
 		request.on('error', error => {
-			console.error(`Got error: ${error.message} while fetching image at ${waypointPath}. Using placeholder image.`);
+			console.error(`Got error: ${error.message} while fetching image ETag at ${waypointPath}.`);
 			reject(error); // Assume the ETag doesn't match so we can try again.
 		});
 
