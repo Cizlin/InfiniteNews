@@ -188,6 +188,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"CustomizationDefaultOfCoreReferenceField": "ArmorCores",
 		"CustomizationEffectVideoField": "effectVideo",
+		"CustomizationOriginalCoresField": "originalCores",
 		"ShopReferenceField": ShopConstants.SHOP_ARMOR_REFERENCE_FIELD,
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_ARMOR_CUSTOMIZATION,

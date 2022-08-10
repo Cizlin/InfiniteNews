@@ -1024,7 +1024,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 	let originalDefaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
 	//console.log(customizationDetails);
-	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+	if (existingItem && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 		const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 		const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 		
@@ -3623,7 +3623,6 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 		if (!returnCode) {
 			let processingGroups = [
-				//["Visors"]
 				["Coatings"],
 				["Emblems"],
 				["Helmets"],
