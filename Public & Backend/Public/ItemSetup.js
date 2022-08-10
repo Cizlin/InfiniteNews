@@ -111,6 +111,36 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 				.catch((error) => {
 					console.error("Error occurred while querying " + customizationDB + ": " + error);
 				});
+
+			if ($w("#originalCoreText").id) {
+				console.log("Original Cores Text on this page.", $w("#originalCoreText").id);
+
+				let originalCoreReferenceField = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationOriginalCoresField;
+				let originalCoreString = "";
+
+				wixData.queryReferenced(customizationDB, currentItem._id, originalCoreReferenceField)
+					.then((results) => {
+						if (results.items.length > 0) {
+							console.log("Original cores found...");
+							results.items.forEach(element => {
+								console.log(element);
+								originalCoreString += element[coreNameField] + ",";
+							});
+
+							// Remove the final comma.
+							originalCoreString = originalCoreString.substr(0, originalCoreString.length - 1);
+
+							$w("#originalCoreText").text = originalCoreString;
+						}
+						else {
+							$w("#originalCoreContainer").collapse();
+							$w("#originalCoreContainer").hide();
+						}
+					})
+					.catch((error) => {
+						console.error("Error occurred while querying " + customizationDB + ": " + error);
+					});
+			}
             //#endregion
         }
 
