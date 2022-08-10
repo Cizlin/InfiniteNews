@@ -19,7 +19,8 @@ export async function getETag(headers, waypointPath, urlBase = ApiConstants.WAYP
 
 	let httpOptions = {
 		method: "HEAD",
-		headers: headers
+		headers: headers,
+		timeout: 10000
 	};
 
 	return new Promise((resolve, reject) => {
@@ -58,8 +59,14 @@ export async function addCustomizationImageToMediaManager(requestHeaders, waypoi
 	var https = require('https');
 
 	let httpOptions = {
-		headers: requestHeaders
+		headers: requestHeaders,
+		timeout: 10000
 	};
+
+	// If no waypoint path was defined, we need to resolve the promise with the placeholder image URL.
+	if (!waypointPath || waypointPath == "") {
+		return Promise.resolve([CustomizationConstants.PLACEHOLDER_IMAGE_URL, ""]);
+	}
 
 	return new Promise((resolve, reject) => {
 		let request = https.get(urlBase + waypointPath, httpOptions, (response) => {
