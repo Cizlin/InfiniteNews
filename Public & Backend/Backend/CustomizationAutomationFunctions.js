@@ -2155,7 +2155,7 @@ async function processItem(headers,
 	 */
 
 	// This helps us avoid processing duplicate items.
-	if (itemPathsProcessed.includes(itemWaypointPath)) {
+	if (itemPathsProcessed.includes(itemWaypointPath) && !("isDefault" in options && options.isDefault)) {
 		if (itemType == CustomizationConstants.ITEM_TYPES.attachment) {
 			// Ensure necessary options are provided.
 			if (!("attachmentArray" in options)) {
@@ -2185,8 +2185,9 @@ async function processItem(headers,
 
 		return 1;
 	}
-
-	itemPathsProcessed.push(itemWaypointPath);
+	else {
+		itemPathsProcessed.push(itemWaypointPath);
+	}
 
 	// Get the item.
 	let itemWaypointJson = await ApiFunctions.getCustomizationItem(headers, itemWaypointPath);
