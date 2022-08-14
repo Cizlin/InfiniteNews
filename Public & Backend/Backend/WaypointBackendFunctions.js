@@ -187,16 +187,40 @@ export async function getPassList(passPath, headers = null) {
 }
 
 // This function either inserts a new pass into the Passes DB or updates the existing pass. The pass is found in the DB by its waypointId.
-export async function updatePassInDb(passDbJson) {
+export async function updatePassInDb(passDbJson, folderDict, headers) {
 	let results = await wixData.query(PassConstants.PASS_DB)
 		.eq(PassConstants.PASS_WAYPOINT_ID_FIELD, passDbJson.waypointId)
 		.find();
 
+	let passETagChanged = true; // Assume we are processing stuff by default.
+
 	if (results.items.length > 0) {
+		// Get the existing _id and image ETag.
 		passDbJson._id = results.items[0]._id;
+		passDbJson[PassConstants.PASS_IMAGE_ETAG_FIELD] = results.items[0][PassConstants.PASS_IMAGE_ETAG_FIELD];
+		passETagChanged = (passDbJson[PassConstants.PASS_ETAG_FIELD] != results.items[0][PassConstants.PASS_ETAG_FIELD]); // Check the equivalence of the ETags.
 	}
 
+	let imageResults = await MediaManagerFunctions.getCustomizationImageUrl(
+		folderDict,
+		headers,
+		passDbJson[PassConstants.PASS_TITLE_FIELD],
+		passDbJson[PassConstants.PASS_IMAGE_FIELD],
+		'image/png',
+		PassConstants.PASS_KEY,
+		(passDbJson[PassConstants.PASS_IS_EVENT_FIELD]) ? PassConstants.PASS_EVENT : PassConstants.PASS_BATTLE,
+		null,
+		null,
+		null,
+		passDbJson[PassConstants.PASS_IMAGE_ETAG_FIELD],
+		true); // We want to validate and return the ETag.
+
+	passDbJson[PassConstants.PASS_IMAGE_FIELD] = imageResults[0];
+	passDbJson[PassConstants.PASS_IMAGE_ETAG_FIELD] = imageResults[1];
+
 	let saveResults = await wixData.save(PassConstants.PASS_DB, passDbJson);
+
+	saveResults.passETagChanged = passETagChanged; // Add this to the saved item so we can determine whether processing is even necessary.
 
 	return saveResults;
 
@@ -908,7 +932,10 @@ export async function importAllPasses() {
 					continue;
 				}
 
-				let passWaypointJson = await ApiFunctions.getCustomizationItem(headers, battlePassPath);
+				let passWaypointJsonResults = await ApiFunctions.getCustomizationItem(headers, battlePassPath, true);
+
+				let passWaypointJson = passWaypointJsonResults[0];
+				let passWaypointETag = passWaypointJsonResults[1]; // We extract the ETag here for comparison with the one we have in the database.
 
 				// We need to get the site ID of the Season to which this item belongs. We'll query the Releases DB for items with a matching ordinal.
 				let releaseResults = await wixData.query(CustomizationConstants.RELEASE_DB)
@@ -936,14 +963,7 @@ export async function importAllPasses() {
 					[PassConstants.PASS_TITLE_FIELD]: passWaypointJson.Name,
 					[PassConstants.PASS_WAYPOINT_ID_FIELD]: passWaypointJson.TrackId,
 					[PassConstants.PASS_IS_EVENT_FIELD]: passWaypointJson.IsRitual, // This should always be false.
-					[PassConstants.PASS_IMAGE_FIELD]: await MediaManagerFunctions.getCustomizationImageUrl(
-						folderDict,
-						headers,
-						passWaypointJson.Name,
-						passWaypointJson.SummaryImagePath,
-						'image/png',
-						PassConstants.PASS_KEY,
-						PassConstants.PASS_BATTLE),
+					[PassConstants.PASS_IMAGE_FIELD]: passWaypointJson.SummaryImagePath,
 					[PassConstants.PASS_DESCRIPTION_FIELD]: description,
 					[PassConstants.PASS_DATE_RANGE_TEXT_FIELD]: passWaypointJson.DateRange,
 					[PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD]: currentlyAvailable,
@@ -952,6 +972,7 @@ export async function importAllPasses() {
 						[PassConstants.PASS_DATE_RANGE_ARRAY_START_DATE_FIELD]: startDate,
 						[PassConstants.PASS_DATE_RANGE_ARRAY_END_DATE_FIELD]: endDate
 					}],
+					[PassConstants.PASS_ETAG_FIELD]: passWaypointETag,
 					ranks: rankArray,
 					seasonNum: passWaypointJson.OperationNumber
 				};
@@ -1020,7 +1041,10 @@ export async function importAllPasses() {
 					continue;
 				}
 
-				let passWaypointJson = await ApiFunctions.getCustomizationItem(headers, eventPassPath);
+				let passWaypointJsonResults = await ApiFunctions.getCustomizationItem(headers, eventPassPath, true);
+
+				let passWaypointJson = passWaypointJsonResults[0];
+				let passWaypointETag = passWaypointJsonResults[1]; // We extract the ETag here for comparison with the one we have in the database.
 
 				// We need to get the site ID of the Season to which this item belongs. We'll query the Releases DB for items with a matching ordinal.
 				let results = await wixData.query(CustomizationConstants.RELEASE_DB)
@@ -1048,14 +1072,7 @@ export async function importAllPasses() {
 					[PassConstants.PASS_TITLE_FIELD]: passWaypointJson.Name,
 					[PassConstants.PASS_WAYPOINT_ID_FIELD]: passWaypointJson.TrackId,
 					[PassConstants.PASS_IS_EVENT_FIELD]: passWaypointJson.IsRitual, // This should always be true.
-					[PassConstants.PASS_IMAGE_FIELD]: await MediaManagerFunctions.getCustomizationImageUrl(
-						folderDict,
-						headers,
-						passWaypointJson.Name,
-						passWaypointJson.SummaryImagePath,
-						'image/png',
-						PassConstants.PASS_KEY,
-						PassConstants.PASS_EVENT),
+					[PassConstants.PASS_IMAGE_FIELD]: passWaypointJson.SummaryImagePath, // This will be replaced at DB insertion time once we ensure it's the up-to-date version.
 					[PassConstants.PASS_DESCRIPTION_FIELD]: description,
 					[PassConstants.PASS_DATE_RANGE_TEXT_FIELD]: passWaypointJson.DateRange,
 					[PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD]: currentlyAvailable,
@@ -1064,6 +1081,7 @@ export async function importAllPasses() {
 						[PassConstants.PASS_DATE_RANGE_ARRAY_START_DATE_FIELD]: startDate,
 						[PassConstants.PASS_DATE_RANGE_ARRAY_END_DATE_FIELD]: endDate
 					}],
+					[PassConstants.PASS_ETAG_FIELD]: passWaypointETag,
 					ranks: rankArray,
 					seasonNum: passWaypointJson.OperationNumber
 				};
@@ -1095,9 +1113,10 @@ export async function importAllPasses() {
 		delete passListCopyDict[battlePassPath].ranks;
 		delete passListCopyDict[battlePassPath].seasonNum;
 
-		let updatedItem = await updatePassInDb(passListCopyDict[battlePassPath]);
+		let updatedItem = await updatePassInDb(passListCopyDict[battlePassPath], folderDict, headers);
 
 		passListJsonDict[battlePassPath].passDbId = updatedItem._id;
+		passListJsonDict[battlePassPath].passETagChanged = updatedItem.passETagChanged;
 
 		// Get the URL field so we can link to the pass in our notifications.
 		newlyAvailablePasses.some((pass) => {
@@ -1112,6 +1131,11 @@ export async function importAllPasses() {
 	let typeDict = await GeneralBackendFunctions.generateTypeDict(true);
 
 	for (let battlePassPath in passListJsonDict) {
+		if (!passListJsonDict[battlePassPath].passETagChanged) { // If the ETag wasn't different, we skip processing.
+			console.log("Skipping the " + passListJsonDict[battlePassPath][PassConstants.PASS_TITLE_FIELD] + " pass since it has not changed...");
+			continue;
+		}
+
 		let rankArray = passListJsonDict[battlePassPath].ranks;
 		let seasonNum = passListJsonDict[battlePassPath].seasonNum;
 		let isEvent = passListJsonDict[battlePassPath][PassConstants.PASS_IS_EVENT_FIELD];
@@ -1133,9 +1157,6 @@ export async function importAllPasses() {
 				console.error(error + " occurred when trying to update the ranks for the " + passName + " Pass");
 			});
 	}
-
-	//console.log("NewlyAvailablePasses for generating social notifications.", newlyAvailablePasses);
-
 }
 
 // This function returns the JSON representation of the player's current Challenge decks.

@@ -256,7 +256,7 @@ export async function generateFolderDict() {
 // The categorySpecificDictsAndArrays are only used for the Customization Type array, which is only relevant for the Armor, Armor Attachment, Weapon, Vehicle, 
 //	Body And AI, and Spartan ID categories.
 export async function getCustomizationImageUrl(folderDict, headers, title, waypointPath, mimeType, customizationCategory, customizationType, customizationCore = null,
-	parentCustomizationType = null, categorySpecificDictsAndArrays = null) {
+	parentCustomizationType = null, categorySpecificDictsAndArrays = null, imageETag = null, checkAndReturnETag = false) {
 	// We want to check and see if the file already exists. It will have a filename of the form "[title] [customizationType].png", e.g. Wild Kovan Armor Coating.png.
 	// First, we start with the root folder and list all directories within it. We're looking for a folder entitled "Customization Images".
 
@@ -405,7 +405,6 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		}
 	}
 
-
 	//console.log("Item Directory Path: " + mediaPath);
 
 	let fileSystemSafeTitle = title.replace(/[\\/?:]/g, "_"); // Clean out some of the common illegal characters (\, /, ?, :).
@@ -419,9 +418,36 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		let fileKey = fileSystemSafeTitle.replace(/\./g, ",") + " " + filenameType + ",png";
 
 		if (fileKey in subFolderDict) {
-			//console.log("Existing File found for " + fileKey);
-			let fileData = await mediaManager.getFileInfo(subFolderDict[fileKey]);
-			return fileData.fileUrl;
+			// We found a matching file, but now we need to confirm that it is up-to-date by checking the ETag.
+			let fileData = await mediaManager.getFileInfo(subFolderDict[fileKey]); // We'll either use this or delete it.
+
+			if (!checkAndReturnETag) {
+				return fileData.fileUrl;
+			}
+
+			let newETag = "";
+
+			let retry = true;
+			let retryCount = 0;
+			const MAX_RETRIES = 10;
+			while (retry && retryCount < MAX_RETRIES) {
+				try {
+					newETag = await getETag(headers, waypointPath);
+					retry = false;
+				}
+				catch (error) {
+					console.error(error + " occurred while fetching ETag for " + waypointPath + "." +
+						((retry) ? ("Try " + (++retryCount) + " of " + MAX_RETRIES + "...") : ""));
+				}
+			}
+			if (imageETag == newETag) { // If the ETag provided by the caller matches the one returned in the header of the image, then we just use what we have.
+				return [fileData.fileUrl, newETag];
+			}
+			else {
+				// We need to replace the existing image. Let's move the old one to the trash first.
+				console.warn("Deleting this file due to out-of-date ETag: ", fileData);
+				mediaManager.moveFilesToTrash([fileData.fileUrl]);
+			}
 		}
 		else {
 			console.log("File not found for " + fileKey + " in " + mediaPath);
@@ -432,8 +458,22 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		console.log("Directory not found for " + mediaPath + ".");
 	}
 
-	// We now return the ETag in [1], so just return [0] (the image URL) for now.
-	return (await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png"))[0];
+	let retryCount = 0;
+	const MAX_RETRIES = 10;
+	while (retryCount < MAX_RETRIES) {
+		try {
+			if (checkAndReturnETag) {
+				return await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png");
+			}
+			else {// We now return the ETag in [1], so just return [0] (the image URL) for now.
+				return (await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png"))[0];
+			}
+		}
+		catch (error) {
+			console.error(error + " occurred while fetching image from " + waypointPath + "." +
+				"Try " + (++retryCount) + " of " + MAX_RETRIES + "...");
+		}
+	}
 }
 
 // There will be a ton of Emblem Palette images, so we need to maintain this list separately.
@@ -598,7 +638,7 @@ export async function getEmblemPaletteImageUrl(folderDict, headers, paletteConfi
 			}
 			else {
 				// We need to replace the existing image. Let's move the old one to the trash first.
-				console.log("Deleting this file due to out-of-date ETag: ", fileData);
+				console.warn("Deleting this file due to out-of-date ETag: ", fileData);
 				mediaManager.moveFilesToTrash([fileData.fileUrl]);
 			}
 		}
