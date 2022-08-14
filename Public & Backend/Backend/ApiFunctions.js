@@ -531,7 +531,7 @@ export async function makeWaypointHeaders() {
 }
 
 // Retrieves an item's JSON file from the Waypoint API.
-export async function getCustomizationItem(headers, path) {
+export async function getCustomizationItem(headers, path, returnETag = false) {
 	// Query the Waypoint API.
 	let retry = true;
 	let headerFailure = false; // If the failure was likely due to issues with headers.
@@ -539,6 +539,8 @@ export async function getCustomizationItem(headers, path) {
 
 	let retryCount = 0;
 	const maxRetries = 10;
+
+	let eTag = "";
 
 	while (retry && retryCount < maxRetries) {
 		waypointJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_BASE_PROGRESSION + path, {
@@ -548,6 +550,7 @@ export async function getCustomizationItem(headers, path) {
 			.then((httpResponse) => {
 				if (httpResponse.ok) {
 					retry = false;
+					eTag = httpResponse.headers._headers.etag[0]; // Retrieve the ETag from the headers.
 					return httpResponse.json();
 				}
 				else { // We want to retry once with updated headers if we got an error.
@@ -575,5 +578,10 @@ export async function getCustomizationItem(headers, path) {
 		}
 	}
 
-	return waypointJson;
+	if (returnETag) {
+		return [waypointJson, eTag];
+	}
+	else {
+		return waypointJson;
+	}
 }

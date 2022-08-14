@@ -14,6 +14,8 @@ export const PASS_DESCRIPTION_FIELD = "description";
 export const PASS_DATE_RANGE_TEXT_FIELD = "dateRangeText";
 export const PASS_CURRENTLY_AVAILABLE_FIELD = "currentlyAvailable";
 export const PASS_SEASON_FIELD = "season";
+export const PASS_IMAGE_ETAG_FIELD = "imageETag";
+export const PASS_ETAG_FIELD = "passETag";
 
 export const PASS_DATE_RANGE_ARRAY_FIELD = "dateRangeArray";
 export const PASS_DATE_RANGE_ARRAY_START_DATE_FIELD = "startDate";
