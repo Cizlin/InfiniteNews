@@ -10,6 +10,7 @@ export const ARMOR_CORE_CUSTOMIZATION_SECTION = "Armor Cores";
 export const ARMOR_CUSTOMIZATION_SECTION = "Armor Hall";
 export const ARMOR_CORE_DB = "ArmorCores";
 export const ARMOR_CORE_WAYPOINT_ID = "ArmorCore";
+export const ARMOR_CORE_NAME_FIELD = "name";
 export const ARMOR_SOCKET_DB = "ArmorSockets";
 export const ARMOR_CUSTOMIZATION_DB = "adi4LightHalfMiddleTitles";
 export const ARMOR_CUSTOMIZATION_ATTACHMENTS_DB = "ArmorCustomizationAttachments";
@@ -20,6 +21,10 @@ export const ARMOR_SOCKET_REFERENCE_FIELD = "customizationTypeReference"; // The
 export const ARMOR_SOCKET_CORE_REFERENCE_FIELD = "coreReference"; // The name of the Core reference field within the Socket DB.
 export const ARMOR_CUSTOMIZATION_ATTACHMENTS_PARENT_REFERENCE_FIELD = "adi4LightHalfMiddleTitles"; // The name of the parent item reference field within the Attachments DB.
 export const ARMOR_CUSTOMIZATION_ATTACHMENTS_REFERENCE_FIELD = "ArmorCustomizationAttachments"; // The name of the attachment reference field within the Customization DB.
+export const ARMOR_CUSTOMIZATION_NAME_FIELD = "itemName";
+export const ARMOR_CUSTOMIZATION_LORE_FIELD = "flavorText";
+export const ARMOR_CUSTOMIZATION_URL_FIELD = "link-armor-customizations-itemName";
+export const ARMOR_CUSTOMIZATION_IMAGE_FIELD = "image";
 
 // These constants are used by the backend for Socket/Type definitions.
 export const ARMOR_CORE_KEY = "Armor Core";
