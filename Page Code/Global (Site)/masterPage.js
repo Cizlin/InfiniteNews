@@ -1,9 +1,9 @@
 // The code in this file will load on every page of your site
 import wixWindow from 'wix-window';
-import { session } from 'wix-storage';
+import {session} from 'wix-storage';
 import wixLocation from 'wix-location';
-import { paginationKey, setPaginationIndexFromSave } from 'public/Pagination.js';
-import { STACK_KEY, STACK_LIMIT, Stack } from 'public/Stack.js';
+import {paginationKey, setPaginationIndexFromSave} from 'public/Pagination.js';
+import {STACK_KEY, STACK_LIMIT, Stack} from 'public/Stack.js';
 
 let previousPageURL;
 
@@ -17,7 +17,7 @@ $w.onReady(function () {
     // Loading stored pagestack.
     console.log("Stack loaded.");
 
-    // Set the back button to go to the previous page only if it exists.
+	// Set the back button to go to the previous page only if it exists.
     //console.log($w("#backButton").type);
     if ($w("#backButton").type == "$w.Button") {
         console.log("Setting up back button...");
@@ -29,11 +29,13 @@ $w.onReady(function () {
         previousPageURL = pageStack.peek();
         //console.log(previousPageURL);
         // Hide the back button if there's no page to go back to. Otherwise show it.
-        if (previousPageURL == null) {
+        if (previousPageURL == null)
+        {
             console.log("Hiding back button...");
             $w("#backButton").hide();
         }
-        else {
+        else
+        {
             console.log("Showing back button...");
 
             // Sometimes the button disappears when it should appear. Hiding it and showing it seems to fix this issue.
@@ -44,7 +46,7 @@ $w.onReady(function () {
             $w("#backButton").link = previousPageURL;
             $w("#backButton").target = "_self";
             console.log("Back Button link: " + $w("#backButton").link);
-            $w("#backButton").onClick((event) => {
+            $w("#backButton").onClick( (event) => {
                 // If the button is clicked, we need to pop off the current page and the previous page from the stack before going back to the previous page.
                 let pageStackStringButton = session.getItem(STACK_KEY);
                 var pageStackButton = new Stack(STACK_LIMIT);
@@ -86,14 +88,35 @@ $w.onReady(function () {
     if ($w("#pagination1").type == "$w.Pagination") {
         console.log("Pagination is on this page. Configuring to update session data and scroll on change.");
         $w("#pagination1").onChange((event) => {
-            session.setItem(paginationKey, event.target.currentPage);
-            //console.log("Pagination page " + event.target.currentPage + " saved to session data under pagination key " + paginationKey + ".");
+                session.setItem(paginationKey, event.target.currentPage);
+                //console.log("Pagination page " + event.target.currentPage + " saved to session data under pagination key " + paginationKey + ".");
 
-            // Scroll back to top of page when page is changed. Do not use an animation to speed things up.
-            wixWindow.scrollTo(0, 0, { "scrollAnimation": false });
+                // Scroll back to top of page when page is changed. Do not use an animation to speed things up.
+                wixWindow.scrollTo(0, 0, {"scrollAnimation": false});
         });
     } else {
         console.log("Default pagination is not on this page.");
     }
     //console.log("Back Button shown: " + $w("#backButton").isVisible);
+
+    //#region Creating debounce timer and implementing search bar.
+    let debounceTimer; // If the debounceTimer is set when we update the text input, it restarts the wait time.
+    // This lets us wait for a few ms before filtering upon text input change, implementing effective debounce.
+
+    if ($w("#customizationSearchBar").id) {
+        // The Customization Search Bar is on this page (should always be true once we finish developing it.)
+        $w("#customizationSearchBar").onKeyPress(event => {
+            if(event.key == "Enter") {
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = undefined;
+                }
+                debounceTimer = setTimeout(async () => {
+                    wixLocation.to("/customization-search-results?search=" + $w("#customizationSearchBar").value);
+                }, 250); // 250 milliseconds works for me, your mileage may vary
+            }
+        });
+    }
+    
+    //#endregion
 });

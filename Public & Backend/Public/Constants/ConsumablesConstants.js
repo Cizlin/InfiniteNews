@@ -7,6 +7,8 @@ export const CONSUMABLES_SECTION = "Consumables";
 export const CONSUMABLES_DB = "Consumables";
 
 export const CONSUMABLES_NAME_FIELD = "itemName";
+export const CONSUMABLES_DESCRIPTION_FIELD = "description";
+export const CONSUMABLES_IMAGE_FIELD = "image";
 export const CONSUMABLES_QUALITY_REFERENCE_FIELD = "qualityReference";
 export const CONSUMABLES_CURRENTLY_AVAILABLE_FIELD = "currentlyAvailable";
 export const CONSUMABLES_HIDDEN_FIELD = "hidden";

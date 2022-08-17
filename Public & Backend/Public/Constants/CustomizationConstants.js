@@ -158,15 +158,15 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"SocketCoreReferenceField": ArmorConstants.ARMOR_SOCKET_CORE_REFERENCE_FIELD,
 		"AnySocketId": ArmorConstants.ANY_ARMOR_SOCKET_ID,
 		"CoreDb": ArmorConstants.ARMOR_CORE_DB,
-		"CoreNameField": "name",
+		"CoreNameField": ArmorConstants.ARMOR_CORE_NAME_FIELD,
 		"CoreWaypointIdField": "waypointId",
 		"CustomizationDb": ArmorConstants.ARMOR_CUSTOMIZATION_DB,
-		"CustomizationNameField": "itemName",
+		"CustomizationNameField": ArmorConstants.ARMOR_CUSTOMIZATION_NAME_FIELD,
 		"CustomizationSocketReferenceField": ArmorConstants.ARMOR_SOCKET_REFERENCE_FIELD,
 		"CustomizationCoreReferenceField": ArmorConstants.ARMOR_CORE_REFERENCE_FIELD,
-		"CustomizationImageField": "image",
+		"CustomizationImageField": ArmorConstants.ARMOR_CUSTOMIZATION_IMAGE_FIELD,
 		"CustomizationQualityReferenceField": "qualityReference",
-		"CustomizationLoreField": "flavorText",
+		"CustomizationLoreField": ArmorConstants.ARMOR_CUSTOMIZATION_LORE_FIELD,
 		"CustomizationManufacturerReferenceField": "manufacturerReference",
 		"CustomizationReleaseReferenceField": "releaseReference",
 		"CustomizationSourceField": "source",
@@ -183,7 +183,7 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CustomizationIsKitItemOnlyField": "isKitItemOnly",
 		"CustomizationAltTextField": "altText",
 		"CustomizationImageCreditField": "imageCredit",
-		"CustomizationUrlField": "link-armor-customizations-itemName",
+		"CustomizationUrlField": ArmorConstants.ARMOR_CUSTOMIZATION_URL_FIELD,
 		"EmblemPaletteReferenceField": "emblemPalettes",
 		"CustomizationApiLastUpdatedDatetimeField": "apiLastUpdatedDatetime",
 		"CustomizationDefaultOfCoreReferenceField": "ArmorCores",
@@ -196,7 +196,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"UrlCoreParam": GeneralConstants.URL_ARMOR_CORE_PARAM,
 		"UrlSocketParam": GeneralConstants.URL_ARMOR_SOCKET_PARAM,
 		"DefaultCoreName": "All Armor Cores",
-		"DefaultSocketName": "All Armor Sockets"
+		"DefaultSocketName": "All Armor Sockets",
+		"SearchCategory": "Armor"
 	},
 
 	[ArmorConstants.ARMOR_ATTACHMENT_KEY]: {
@@ -237,7 +238,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_ARMOR_ATTACHMENT_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_ARMOR_ATTACHMENT_CUSTOMIZATION,
 		"UrlSocketParam": GeneralConstants.URL_ARMOR_ATTACHMENT_SOCKET_PARAM,
-		"DefaultSocketName": "All Armor Attachment Categories"
+		"DefaultSocketName": "All Armor Attachment Categories",
+		"SearchCategory": "Armor Attachments"
 	},
 
 	[WeaponConstants.WEAPON_KEY]: {
@@ -289,7 +291,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"UrlCoreParam": GeneralConstants.URL_WEAPON_CORE_PARAM,
 		"UrlSocketParam": GeneralConstants.URL_WEAPON_SOCKET_PARAM,
 		"DefaultCoreName": "All Weapon Cores",
-		"DefaultSocketName": "All Weapon Sockets"
+		"DefaultSocketName": "All Weapon Sockets",
+		"SearchCategory": "Weapons"
 	},
 
 	[VehicleConstants.VEHICLE_KEY]: {
@@ -338,7 +341,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"UrlCoreParam": GeneralConstants.URL_VEHICLE_CORE_PARAM,
 		"UrlSocketParam": GeneralConstants.URL_VEHICLE_SOCKET_PARAM,
 		"DefaultCoreName": "All Vehicle Cores",
-		"DefaultSocketName": "All Vehicle Sockets"
+		"DefaultSocketName": "All Vehicle Sockets",
+		"SearchCategory": "Vehicles"
 	},
 
 	[BodyAndAiConstants.BODY_AND_AI_KEY]: {
@@ -374,7 +378,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_BODY_AND_AI_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_BODY_AND_AI_CUSTOMIZATION,
 		"UrlSocketParam": GeneralConstants.URL_BODY_AND_AI_SOCKET_PARAM,
-		"DefaultSocketName": "All Body & AI Categories"
+		"DefaultSocketName": "All Body & AI Categories",
+		"SearchCategory": "Body & AI"
 	},
 
 	[SpartanIdConstants.SPARTAN_ID_KEY]: {
@@ -410,7 +415,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"CapstoneChallengeReferenceField": CapstoneChallengeConstants.CAPSTONE_CHALLENGE_SPARTAN_ID_REFERENCE_FIELD,
 		"UrlCustomization": GeneralConstants.URL_SPARTAN_ID_CUSTOMIZATION,
 		"UrlSocketParam": GeneralConstants.URL_SPARTAN_ID_SOCKET_PARAM,
-		"DefaultSocketName": "All Spartan ID Categories"
+		"DefaultSocketName": "All Spartan ID Categories",
+		"SearchCategory": "Spartan ID"
 	}
 };
 
@@ -440,7 +446,8 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreUrlField": "link-armor-cores-name",
 		"CoreDefaultItemsField": "defaultItems",
 		"CoreDefaultAttachmentsField": "defaultAttachments",
-		"AnyCoreId": ArmorConstants.ANY_ARMOR_CORE_ID
+		"AnyCoreId": ArmorConstants.ANY_ARMOR_CORE_ID,
+		"SearchCategory": "Armor Cores"
 	},
 
 	[WeaponConstants.WEAPON_KEY]: {
@@ -467,7 +474,8 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreWaypointType": "WeaponCore",
 		"CoreUrlField": "link-weapon-cores-name",
 		"CoreDefaultItemsField": "defaultItems",
-		"AnyCoreId": WeaponConstants.ANY_WEAPON_CORE_ID
+		"AnyCoreId": WeaponConstants.ANY_WEAPON_CORE_ID,
+		"SearchCategory": "Weapon Cores"
 	},
 
 	[VehicleConstants.VEHICLE_KEY]: {
@@ -494,7 +502,8 @@ export const CORE_CATEGORY_SPECIFIC_VARS = {
 		"CoreWaypointType": "VehicleCore",
 		"CoreUrlField": "link-vehicle-cores-name",
 		"CoreDefaultItemsField": "defaultItems",
-		"AnyCoreId": VehicleConstants.ANY_VEHICLE_CORE_ID
+		"AnyCoreId": VehicleConstants.ANY_VEHICLE_CORE_ID,
+		"SearchCategory": "Vehicle Cores"
 	}
 };
 
