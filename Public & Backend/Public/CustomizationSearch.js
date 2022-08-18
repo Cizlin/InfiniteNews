@@ -13,6 +13,9 @@ import * as GeneralFunctions from 'public/General.js';
 
 import * as wixData from 'wix-data';
 
+const QUERY_LIMIT = 1000;
+const QUICKSEARCH_QUERY_LIMIT = 5;
+
 class SearchResult {
     constructor(_id, name, description, url, image, hasVideo=false) {
         this._id = _id;
@@ -36,8 +39,10 @@ function databaseQueriesComplete(databaseQueryComplete) {
     return true;
 }
 
-export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatus) {
-    searchStatus[0] = true; // Initialize the search status to true. We change it to false if we encounter errors.
+// The quicksearch option allows us to return a minimal number of database records and obtain their name(s). It uses a startsWith filter to suggest valid names within all the selected databases.
+// The normal operation is to return an array of SearchResult object, but the quicksearch operation just returns an array of distinct names of minimal, controlled length.
+export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatus, quickSearch=false, quickSearchLimit=QUICKSEARCH_QUERY_LIMIT) {
+    searchStatus[0] = 0; // Initialize the search status to true. We change it to false if we encounter errors.
     let databaseQueryComplete = {}; // When one of the values becomes true, the database in the key for that value has been fully queried.
 
     let searchResultsByDatabase = {}; // The search results of each database query will be stored in an independent array, which will then be consolidated after all results are available.
@@ -45,7 +50,8 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
 
     // Query all the Customization DBs
     for (let category in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS) {
-        if (!categoriesToQuery.includes(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SearchCategory)) {
+        if (!categoriesToQuery.includes(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SearchCategory)
+            && !categoriesToQuery.includes("All")) {
             continue; // We skip categories we didn't select.
         }
 
@@ -66,38 +72,62 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
         const TYPE_IS_PARTIALLY_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[category].SocketIsPartialCrossCoreField;
 
         let query = wixData.query(CUSTOMIZATION_DB)
-            .contains(NAME_FIELD, nameSearchValue)
             .ascending(NAME_FIELD)
             .include(TYPE_FIELD);
 
         if (category in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT) {
-            // Include the cores in our query.
-            query = query.include(CORE_FIELD)
+            query = query.include(CORE_FIELD);
         }
-        
+
+        if (quickSearch) {
+            query = query.limit(5).startsWith(NAME_FIELD, nameSearchValue);
+        }
+        else {
+            query = query.contains(NAME_FIELD, nameSearchValue);
+        }
+
         query.find()
-            .then((results) => {
-                for (let item of results.items) {
+            .then(async (results) => {
+                for (; results.currentPage < results.totalPages; results = await results.next()) { // Iterate over each page of results.
+                    for (let item of results.items) {
+                        if (!quickSearch) {
+                            let searchResultTitle = "";
+                            if (category in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT
+                                && !item[TYPE_FIELD][TYPE_IS_CROSS_CORE_FIELD]
+                                && !item[TYPE_FIELD][TYPE_IS_PARTIALLY_CROSS_CORE_FIELD]) {
+                                // If the item has a parent core and is neither fully nor partially cross-core.
+                                let coreInfo = item[CORE_FIELD];
+                                searchResultTitle = item[NAME_FIELD] + " " + item[TYPE_FIELD][TYPE_NAME_FIELD] + "\n" + coreInfo[0][CORE_NAME_FIELD];
+                            }
+                            else {
+                                searchResultTitle = item[NAME_FIELD] + " " + item[TYPE_FIELD][TYPE_NAME_FIELD];
+                            }
 
-                    let searchResultTitle = "";
-                    if (category in CustomizationConstants.CATEGORY_TO_CORE_WAYPOINT_ID_DICT
-                        && !item[TYPE_FIELD][TYPE_IS_CROSS_CORE_FIELD]
-                        && !item[TYPE_FIELD][TYPE_IS_PARTIALLY_CROSS_CORE_FIELD]) {
-                        // If the item has a parent core and is neither fully nor partially cross-core.
-                        searchResultTitle = item[NAME_FIELD] + " " + item[TYPE_FIELD][TYPE_NAME_FIELD] + "\n" + item[CORE_FIELD][0][CORE_NAME_FIELD];
-                    }
-                    else {
-                        searchResultTitle = item[NAME_FIELD] + " " + item[TYPE_FIELD][TYPE_NAME_FIELD];
+                            let searchItem = new SearchResult(
+                                item._id,
+                                searchResultTitle,
+                                item[LORE_FIELD],
+                                item[URL_FIELD],
+                                (VIDEO_FIELD && item[VIDEO_FIELD]) ? item[VIDEO_FIELD] : item[IMAGE_FIELD], // If the item has a video, use the video in the preview.
+                                (VIDEO_FIELD && item[VIDEO_FIELD]));
+                            searchResultsByDatabase[CUSTOMIZATION_DB].push(searchItem);
+                        }
+                        else {
+                            // This is a quick search. We only need the name.
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[NAME_FIELD],
+                                null,
+                                null,
+                                null,
+                                null);
+                            searchResultsByDatabase[CUSTOMIZATION_DB].push(searchItem);
+                        }
                     }
 
-                    let searchItem = new SearchResult(
-                        item._id,
-                        searchResultTitle,
-                        item[LORE_FIELD],
-                        item[URL_FIELD],
-                        (VIDEO_FIELD && item[VIDEO_FIELD]) ? item[VIDEO_FIELD] : item[IMAGE_FIELD], // If the item has a video, use the video in the preview.
-                        (VIDEO_FIELD && item[VIDEO_FIELD]));
-                    searchResultsByDatabase[CUSTOMIZATION_DB].push(searchItem);
+                    if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -105,14 +135,15 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
             })
             .catch(error => {
                 console.error(error + " occurred while fetching results from the " + CUSTOMIZATION_DB + " database.");
-                searchStatus[0] = false;
+                searchStatus[0] = 1;
                 databaseQueryComplete[CUSTOMIZATION_DB] = true; // For now, we want to set this to true so that it doesn't prevent the rest of the search from happening.
             });
     }
 
     // Query all the Core DBs
     for (let category in CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS) {
-        if (!categoriesToQuery.includes(CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[category].SearchCategory)) {
+        if (!categoriesToQuery.includes(CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[category].SearchCategory)
+            && !categoriesToQuery.includes("All")) {
             continue; // We skip categories we didn't select.
         }
 
@@ -126,19 +157,47 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
         const IMAGE_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[category].CoreImageField;
         const CORE_TYPE = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[category].CoreType;
 
-        wixData.query(CORE_DB)
-            .contains(NAME_FIELD, nameSearchValue)
-            .ascending(NAME_FIELD)
-            .find()
-            .then((results) => {
-                for (let item of results.items) {
-                    let searchItem = new SearchResult(
-                        item._id,
-                        item[NAME_FIELD] + " " + CORE_TYPE,
-                        item[LORE_FIELD],
-                        item[URL_FIELD],
-                        item[IMAGE_FIELD]);
-                    searchResultsByDatabase[CORE_DB].push(searchItem);
+        let query = wixData.query(CORE_DB)
+            .limit((quickSearch) ? quickSearchLimit : QUERY_LIMIT)
+            .ne(NAME_FIELD, "Any") // Filter out the "Any" cores since they are just a convenience for the customization hierarchy browser.
+            .ascending(NAME_FIELD);
+            
+        if (!quickSearch) {
+            query = query.contains(NAME_FIELD, nameSearchValue);
+        }
+        else {
+            query = query.startsWith(NAME_FIELD, nameSearchValue);
+        }
+            
+        query.find()
+            .then(async (results) => {
+                for (; results.currentPage < results.totalPages; results = await results.next()) { // Iterate over each page of results.
+                    for (let item of results.items) {
+                        if (!quickSearch) {
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[NAME_FIELD] + " " + CORE_TYPE,
+                                item[LORE_FIELD],
+                                item[URL_FIELD],
+                                item[IMAGE_FIELD]);
+                            searchResultsByDatabase[CORE_DB].push(searchItem);
+                        }
+                        else {
+                            // This is a quick search. We only need the name.
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[NAME_FIELD],
+                                null,
+                                null,
+                                null,
+                                null);
+                            searchResultsByDatabase[CORE_DB].push(searchItem);
+                        }
+                    }                    
+
+                    if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -146,29 +205,56 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
             })
             .catch(error => {
                 console.error(error + " occurred while fetching results from the " + CORE_DB + " database.");
-                searchStatus[0] = false;
+                searchStatus[0] = 1;
                 databaseQueryComplete[CORE_DB] = true; // For now, we want to set this to true so that it doesn't prevent the rest of the search from happening.
             });
     }
 
     // Query the Consumables DB
-    if (categoriesToQuery.includes("Consumables")) {
+    if (categoriesToQuery.includes("Consumables") || categoriesToQuery.includes("All")) {
         databaseQueryComplete[ConsumablesConstants.CONSUMABLES_DB] = false;
         searchResultsByDatabase[ConsumablesConstants.CONSUMABLES_DB] = [];
 
-        wixData.query(ConsumablesConstants.CONSUMABLES_DB)
-            .contains(ConsumablesConstants.CONSUMABLES_NAME_FIELD, nameSearchValue)
-            .ascending(ConsumablesConstants.CONSUMABLES_NAME_FIELD)
-            .find()
-            .then((results) => {
-                for (let item of results.items) {
-                    let searchItem = new SearchResult(
-                        item._id,
-                        item[ConsumablesConstants.CONSUMABLES_NAME_FIELD] + " Consumable",
-                        item[ConsumablesConstants.CONSUMABLES_DESCRIPTION_FIELD],
-                        item[ConsumablesConstants.CONSUMABLES_URL_FIELD],
-                        item[ConsumablesConstants.CONSUMABLES_IMAGE_FIELD]);
-                    searchResultsByDatabase[ConsumablesConstants.CONSUMABLES_DB].push(searchItem);
+        let query = wixData.query(ConsumablesConstants.CONSUMABLES_DB)
+            .limit((quickSearch) ? quickSearchLimit : QUERY_LIMIT)
+            .ascending(ConsumablesConstants.CONSUMABLES_NAME_FIELD);
+
+        if (!quickSearch) {
+            query = query.contains(ConsumablesConstants.CONSUMABLES_NAME_FIELD, nameSearchValue);
+        }
+        else {
+            query = query.startsWith(ConsumablesConstants.CONSUMABLES_NAME_FIELD, nameSearchValue);
+        }
+            
+        query.find()
+            .then(async (results) => {
+               for (; results.currentPage < results.totalPages; results = await results.next()) { // Iterate over each page of results.
+                    for (let item of results.items) {
+                        if (!quickSearch) {
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[ConsumablesConstants.CONSUMABLES_NAME_FIELD] + " Consumable",
+                                item[ConsumablesConstants.CONSUMABLES_DESCRIPTION_FIELD],
+                                item[ConsumablesConstants.CONSUMABLES_URL_FIELD],
+                                item[ConsumablesConstants.CONSUMABLES_IMAGE_FIELD]);
+                            searchResultsByDatabase[ConsumablesConstants.CONSUMABLES_DB].push(searchItem);
+                        }
+                        else {
+                            // This is a quick search. We only need the name.
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[ConsumablesConstants.CONSUMABLES_NAME_FIELD],
+                                null,
+                                null,
+                                null,
+                                null);
+                            searchResultsByDatabase[ConsumablesConstants.CONSUMABLES_DB].push(searchItem);
+                        }
+                    }                    
+
+                    if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -176,37 +262,64 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
             })
             .catch(error => {
                 console.error(error + " occurred while fetching results from the " + ConsumablesConstants.CONSUMABLES_DB + " database.");
-                searchStatus[0] = false;
+                searchStatus[0] = 1;
                 databaseQueryComplete[ConsumablesConstants.CONSUMABLES_DB] = true; // For now, we want to set this to true so that it doesn't prevent the rest of the search from happening.
             });
     }
 
     // Query the Capstone Challenge DB
-    if (categoriesToQuery.includes("Ultimate Challenges")) {
+    if (categoriesToQuery.includes("Ultimate Challenges") || categoriesToQuery.includes("All")) {
         databaseQueryComplete[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB] = false;
         searchResultsByDatabase[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB] = [];
 
-        wixData.query(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB)
-            .contains(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD, nameSearchValue)
-            .ascending(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD)
-            .find()
+        let query = wixData.query(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB)
+            .limit((quickSearch) ? quickSearchLimit : QUERY_LIMIT)
+            .ascending(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD);
+
+        if (!quickSearch) {
+            query = query.contains(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD, nameSearchValue);
+        }
+        else {
+            query = query.startsWith(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD, nameSearchValue);
+        }
+            
+        query.find()
             .then(async (results) => {
-                for (let item of results.items) {
-                    // We'll use the image and link to the reward item, just like we do on the Capstone Challenge page.
-                    let rewardItemField = item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0]
-                    let rewardItemResults = await wixData.queryReferenced(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB, item, rewardItemField);
-                    let rewardItem = rewardItemResults.items[0];
+                for (; results.currentPage < results.totalPages; results = await results.next()) { // Iterate over each page of results.
+                    for (let item of results.items) {
+                        if (!quickSearch) {
+                            // We'll use the image and link to the reward item, just like we do on the Capstone Challenge page.
+                            let rewardItemField = item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0]
+                            let rewardItemResults = await wixData.queryReferenced(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB, item, rewardItemField);
+                            let rewardItem = rewardItemResults.items[0];
 
-                    const CATEGORY = CustomizationConstants.CAPSTONE_CHALLENGE_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT[rewardItemField];
-                    
-                    let searchItem = new SearchResult(
-                        item._id,
-                        item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD] + " Ultimate Challenge",
-                        item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD] + ": " + item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD],
-                        rewardItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CATEGORY].CustomizationUrlField],
-                        rewardItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CATEGORY].CustomizationImageField]);
+                            const CATEGORY = CustomizationConstants.CAPSTONE_CHALLENGE_ITEM_FIELD_TO_CUSTOMIZATION_CATEGORY_DICT[rewardItemField];
+                            
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD] + " Ultimate Challenge",
+                                item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD] + ": " + item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD],
+                                rewardItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CATEGORY].CustomizationUrlField],
+                                rewardItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CATEGORY].CustomizationImageField]);
 
-                    searchResultsByDatabase[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB].push(searchItem);
+                            searchResultsByDatabase[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB].push(searchItem);
+                        }
+                        else {
+                            // This is a quick search. We only need the name.
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD],
+                                null,
+                                null,
+                                null,
+                                null);
+                            searchResultsByDatabase[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB].push(searchItem);
+                        }
+                    }                    
+
+                    if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -214,29 +327,56 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
             })
             .catch(error => {
                 console.error(error + " occurred while fetching results from the " + CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB + " database.");
-                searchStatus[0] = false;
+                searchStatus[0] = 1;
                 databaseQueryComplete[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB] = true; // For now, we want to set this to true so that it doesn't prevent the rest of the search from happening.
             });
     }
 
     // Query the Pass DB
-    if (categoriesToQuery.includes("Passes")) {
+    if (categoriesToQuery.includes("Passes") || categoriesToQuery.includes("All")) {
         databaseQueryComplete[PassConstants.PASS_DB] = false;
         searchResultsByDatabase[PassConstants.PASS_DB] = [];
 
-        wixData.query(PassConstants.PASS_DB)
-            .contains(PassConstants.PASS_TITLE_FIELD, nameSearchValue)
-            .ascending(PassConstants.PASS_TITLE_FIELD)
-            .find()
-            .then((results) => {
-                for (let item of results.items) {
-                    let searchItem = new SearchResult(
-                        item._id,
-                        item[PassConstants.PASS_TITLE_FIELD] + " " + ((item[PassConstants.PASS_IS_EVENT_FIELD]) ? "Event" : "Battle") + " Pass",
-                        item[PassConstants.PASS_DESCRIPTION_FIELD],
-                        item[PassConstants.PASS_URL_FIELD],
-                        item[PassConstants.PASS_IMAGE_FIELD]);
-                    searchResultsByDatabase[PassConstants.PASS_DB].push(searchItem);
+        let query = wixData.query(PassConstants.PASS_DB)
+            .limit((quickSearch) ? quickSearchLimit : QUERY_LIMIT)
+            .ascending(PassConstants.PASS_TITLE_FIELD);
+
+        if (!quickSearch) {
+            query = query.contains(PassConstants.PASS_TITLE_FIELD, nameSearchValue);
+        }
+        else {
+            query = query.startsWith(PassConstants.PASS_TITLE_FIELD, nameSearchValue);
+        }
+            
+        query.find()
+            .then(async (results) => {
+                for (; results.currentPage < results.totalPages; results = await results.next()) { // Iterate over each page of results.
+                    for (let item of results.items) {
+                        if (!quickSearch) {
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[PassConstants.PASS_TITLE_FIELD] + " " + ((item[PassConstants.PASS_IS_EVENT_FIELD]) ? "Event" : "Battle") + " Pass",
+                                item[PassConstants.PASS_DESCRIPTION_FIELD],
+                                item[PassConstants.PASS_URL_FIELD],
+                                item[PassConstants.PASS_IMAGE_FIELD]);
+                            searchResultsByDatabase[PassConstants.PASS_DB].push(searchItem);
+                        }
+                        else {
+                            // This is a quick search. We only need the name.
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[PassConstants.PASS_TITLE_FIELD],
+                                null,
+                                null,
+                                null,
+                                null);
+                            searchResultsByDatabase[PassConstants.PASS_DB].push(searchItem);
+                        }
+                    }                
+
+                    if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -244,29 +384,56 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
             })
             .catch(error => {
                 console.error(error + " occurred while fetching results from the " + PassConstants.PASS_DB + " database.");
-                searchStatus[0] = false;
+                searchStatus[0] = 1;
                 databaseQueryComplete[PassConstants.PASS_DB] = true; // For now, we want to set this to true so that it doesn't prevent the rest of the search from happening.
             });
     }
 
     // Query the Shop DB
-    if (categoriesToQuery.includes("Shop Listings")) {
+    if (categoriesToQuery.includes("Shop Listings") || categoriesToQuery.includes("All")) {
         databaseQueryComplete[ShopConstants.SHOP_DB] = false;
         searchResultsByDatabase[ShopConstants.SHOP_DB] = [];
 
-        wixData.query(ShopConstants.SHOP_DB)
-            .contains(ShopConstants.SHOP_ITEM_NAME_FIELD, nameSearchValue)
-            .ascending(ShopConstants.SHOP_ITEM_NAME_FIELD)
-            .find()
-            .then((results) => {
-                for (let item of results.items) {
-                    let searchItem = new SearchResult(
-                        item._id,
-                        item[ShopConstants.SHOP_ITEM_NAME_FIELD] + " Shop Listing",
-                        item[ShopConstants.SHOP_DESCRIPTION_FIELD],
-                        item[ShopConstants.SHOP_URL_FIELD],
-                        item[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD]);
-                    searchResultsByDatabase[ShopConstants.SHOP_DB].push(searchItem);
+        let query = wixData.query(ShopConstants.SHOP_DB)
+            .limit((quickSearch) ? quickSearchLimit : QUERY_LIMIT)
+            .ascending(ShopConstants.SHOP_ITEM_NAME_FIELD);
+
+        if (!quickSearch) {
+            query = query.contains(ShopConstants.SHOP_ITEM_NAME_FIELD, nameSearchValue);
+        }
+        else {
+            query = query.startsWith(ShopConstants.SHOP_ITEM_NAME_FIELD, nameSearchValue);
+        }
+            
+        query.find()
+            .then(async (results) => {
+                for (; results.currentPage < results.totalPages; results = await results.next()) { // Iterate over each page of results.
+                    for (let item of results.items) {
+                        if (!quickSearch) {
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[ShopConstants.SHOP_ITEM_NAME_FIELD] + " Shop Listing",
+                                item[ShopConstants.SHOP_DESCRIPTION_FIELD],
+                                item[ShopConstants.SHOP_URL_FIELD],
+                                item[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD]);
+                            searchResultsByDatabase[ShopConstants.SHOP_DB].push(searchItem);
+                        }
+                        else {
+                            // This is a quick search. We only need the name.
+                            let searchItem = new SearchResult(
+                                item._id,
+                                item[ShopConstants.SHOP_ITEM_NAME_FIELD],
+                                null,
+                                null,
+                                null,
+                                null);
+                            searchResultsByDatabase[ShopConstants.SHOP_DB].push(searchItem);
+                        }
+                    }                
+
+                    if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -274,27 +441,49 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
             })
             .catch(error => {
                 console.error(error + " occurred while fetching results from the " + ShopConstants.SHOP_DB + " database.");
-                searchStatus[0] = false;
+                searchStatus[0] = 1;
                 databaseQueryComplete[ShopConstants.SHOP_DB] = true; // For now, we want to set this to true so that it doesn't prevent the rest of the search from happening.
             });
     }
 
     let iterationCounter = 0; // We want to abort if it takes too long. Hopefully it won't, but let's use a 30-second timer just in case.
-    while(!databaseQueriesComplete(databaseQueryComplete) && iterationCounter < 30) {
+    while(!databaseQueriesComplete(databaseQueryComplete) && iterationCounter < 60) {
         // Sleep for 1 second to avoid overwhelming the local PC.
         await GeneralFunctions.sleep(1000);
         iterationCounter++;
     }
 
-    if (iterationCounter >= 30 && !databaseQueriesComplete(databaseQueryComplete)) {
+    if (iterationCounter >= 60 && !databaseQueriesComplete(databaseQueryComplete)) {
         // Timed out.
         console.error("Timed out while trying to query the databases. Please try again.");
+        searchStatus[0] = 2;
+        return [];
     }
 
     let consolidatedSearchResults = [];
+    let quickSearchNamesProcessed = [];
 
     for (let database in searchResultsByDatabase) {
-        consolidatedSearchResults = consolidatedSearchResults.concat(searchResultsByDatabase[database]);
+        if (!quickSearch) {
+            consolidatedSearchResults = consolidatedSearchResults.concat(searchResultsByDatabase[database]);
+        }
+        else {
+            for (let searchResult of searchResultsByDatabase[database]) {
+                if (consolidatedSearchResults.length < quickSearchLimit) {
+                    if (!quickSearchNamesProcessed.includes(searchResult.name)) {
+                        quickSearchNamesProcessed.push(searchResult.name);
+                        consolidatedSearchResults.push(searchResult);
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+
+            if (consolidatedSearchResults.length >= quickSearchLimit) {
+                break;
+            }
+        }
     }
 
     // Sort the results alphabetically.
@@ -310,7 +499,7 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
         }
     });
 
-    console.log(consolidatedSearchResults);
+    //console.log(consolidatedSearchResults);
 
     return consolidatedSearchResults;
 }

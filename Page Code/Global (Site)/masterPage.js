@@ -5,9 +5,14 @@ import wixLocation from 'wix-location';
 import {paginationKey, setPaginationIndexFromSave} from 'public/Pagination.js';
 import {STACK_KEY, STACK_LIMIT, Stack} from 'public/Stack.js';
 
+import * as CustomizationSearchFunctions from 'public/CustomizationSearch.js';
+
 let previousPageURL;
 
 $w.onReady(function () {
+    // Hide the autocomplete repeater initially.
+    $w("#globalAutocompleteRepeater").data = [];
+
     // Store the page in the page stack by retrieving the stack string from the session data, converting it to a Stack object, and pushing the page onto the stack.
     // Then, save the stack.
     let pageStackString = session.getItem(STACK_KEY);
@@ -103,20 +108,71 @@ $w.onReady(function () {
     let debounceTimer; // If the debounceTimer is set when we update the text input, it restarts the wait time.
     // This lets us wait for a few ms before filtering upon text input change, implementing effective debounce.
 
-    if ($w("#customizationSearchBar").id) {
-        // The Customization Search Bar is on this page (should always be true once we finish developing it.)
-        $w("#customizationSearchBar").onKeyPress(event => {
-            if(event.key == "Enter") {
-                if (debounceTimer) {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = undefined;
-                }
-                debounceTimer = setTimeout(async () => {
-                    wixLocation.to("/customization-search-results?search=" + $w("#customizationSearchBar").value);
-                }, 250); // 250 milliseconds works for me, your mileage may vary
+    
+    // If we aren't on the customization search page, we want to use the default setup for the customizationSearchBar. Otherwise we use a custom setup.
+    $w("#customizationSearchBar").onKeyPress(event => {
+        if(event.key == "Enter") {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+                debounceTimer = undefined;
             }
-        });
-    }
+            debounceTimer = setTimeout(async () => {
+                // We're going to search, time to empty the autocomplete.
+                $w("#globalAutocompleteRepeater").data = [];
+                wixLocation.to("/customization-search-results?search=" + $w("#customizationSearchBar").value);
+            }, 250); // 250 milliseconds works for me, your mileage may vary
+        }
+        else {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer);
+                debounceTimer = undefined;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                if ($w("#customizationSearchBar").value == "") {
+                    // Hide the autocomplete if we have nothing in the search bar.
+                    $w("#globalAutocompleteRepeater").data = [];
+                    return;
+                }
+
+                let categoriesToQuery = ["All"];
+                
+                let searchStatus = [0];
+                let searchName = $w("#customizationSearchBar").value
+                let searchResults = await CustomizationSearchFunctions.nameSearch(searchName, categoriesToQuery, searchStatus, true, 4);
+
+                if (searchName != $w("#customizationSearchBar").value) {
+                    // We don't need this data anymore since the value was updated.
+                    return;
+                }
+
+                //console.log(searchResults);
+
+                // Set up the autocomplete repeater.
+                $w("#globalAutocompleteRepeater").data = searchResults;
+                $w("#globalAutocompleteRepeater").forEachItem(($item, itemData) => {
+                    // Each item should show a valid name in the DBs. Clicking the name should put it in the search box and search for it.
+                    // We also want to "close" the autocomplete repeater once we've chosen something from it.
+                    $item("#globalAutocompleteText").text = itemData.name;
+                    $item("#globalAutocompleteButton").onClick(() => {
+                        $w("#customizationSearchBar").value = itemData.name;
+                        $w("#globalAutocompleteRepeater").data = [];
+                        wixLocation.to("/customization-search-results?search=" + itemData.name);
+                    });
+                });
+            }, 250);
+        }
+    });
+
+    $w("#customizationSearchBar").onFocus(() => {
+		// Show the autocomplete repeater in case it's been hidden.
+		$w("#globalAutocompleteRepeater").show();
+	});
+
+	$w("#customizationSearchBar").onBlur(() => {
+		// We clicked away from the search input. Hide the repeater.
+		$w("#globalAutocompleteRepeater").hide();
+	});
     
     //#endregion
 });
