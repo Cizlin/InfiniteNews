@@ -242,6 +242,7 @@ $w.onReady(async function () {
 
 	$w("#customizationSearchInput").onKeyPress(event => {
 		if(event.key == "Enter") {
+			$w("#autocompleteRepeater").data = [];
 			performSearch();
 		} else {
 			if (quickDebounceTimer) {
@@ -309,6 +310,7 @@ $w.onReady(async function () {
 
 	$w("#customizationSearchBar").onKeyPress(event => {
 		if(event.key == "Enter") {
+			$w("#globalAutocompleteRepeater").data = [];
 			performSearch(true); // We want to copy the value to the primary input box before we search.
 		}
 		else {
