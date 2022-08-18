@@ -57,6 +57,8 @@ function displaySearchResults() {
 let debounceTimer; // If the debounceTimer is set when we update the text input, it restarts the wait time.
 // This lets us wait for a few ms before filtering upon text input change, implementing effective debounce.
 function performSearch(copyValueFromHeaderBox = false) {
+	$w("#autocompleteRepeater").data = [];
+
 	let categoriesToQuery = [];
 
 	$w("#categoryRepeater").forEachItem($item => {
@@ -79,24 +81,27 @@ function performSearch(copyValueFromHeaderBox = false) {
 			$w("#customizationSearchInput").value = $w("#customizationSearchBar").value;
 		}
 
-		let searchStatus = [false]; // Initialize the search status as an array with our boolean status as the 0 element.
+		let searchStatus = [0]; // Initialize the search status as an array with our integer return code status as the 0 element.
 		searchResults = await CustomizationSearchFunctions.nameSearch($w("#customizationSearchInput").value, categoriesToQuery, searchStatus);
 		wixLocation.to("/customization-search-results?search=" + $w("#customizationSearchInput").value);
 
-		if (!searchStatus[0]) {
+		if (searchStatus[0] == 1) {
 			if (searchResults.length == 0) {
 				$w("#searchStatus").text = "Search completed with errors. Please try again in a few minutes..."
 			}
 			else {
-				$w("#searchStatus").text = "Search completed with errors. " + searchResults.length + " items found, but more may exist.";
+				$w("#searchStatus").text = "Search completed with errors. " + searchResults.length + " item" + ((searchResults.length != 1) ? "s" : "") + " found, but more may exist.";
 			}
+		}
+		else if (searchStatus[0] == 2) {
+			$w("#searchStatus").text = "Search timed out. Please try again...";
 		}
 		else {
 			if (searchResults.length == 0) {
 				$w("#searchStatus").text = "No items match your search..."
 			}
 			else {
-				$w("#searchStatus").text = "Search completed! " + searchResults.length + " items found.";
+				$w("#searchStatus").text = "Search completed! " + searchResults.length + " item" + ((searchResults.length != 1) ? "s" : "") + " found.";
 			}
 		}
 
@@ -107,6 +112,12 @@ function performSearch(copyValueFromHeaderBox = false) {
 //#endregion
 
 $w.onReady(async function () {
+	// Empty the autocomplete repeater and set it up to disappear when clicking away from it.
+	$w("#autocompleteRepeater").data = [];
+
+	//$w("#autocompleteRepeater").hide();
+	//$w("#autocompleteRepeater").collapse();
+
 	// Collapse the filters by default and hide the close Filter button.
 	$w("#filterButtonClose").hide();
 	$w("#filterButton").disable(); // Disable the filter buttons so we don't accidentally trigger the container to reopen.
@@ -201,17 +212,19 @@ $w.onReady(async function () {
 			}
 		});
 
-		let searchStatus = [false]; // Initialize the search status as an array with our boolean status as the 0 element.
+		let searchStatus = [0]; // Initialize the search status as an array with our boolean status as the 0 element.
 		searchResults = await CustomizationSearchFunctions.nameSearch(initialSearchTerm, categoriesToQuery, searchStatus);
 
-		if (!searchStatus[0]) {
+		if (searchStatus[0] == 1) {
 			if (searchResults.length == 0) {
 				$w("#searchStatus").text = "Search completed with errors. Please try again in a few minutes..."
 			}
 			else {
-				$w("#searchStatus").text = "Search completed with errors. " + searchResults.length + " item" + 
-					((searchResults.length != 1) ? "s" : "") + " found, but more may exist.";
+				$w("#searchStatus").text = "Search completed with errors. " + searchResults.length + " item" + ((searchResults.length != 1) ? "s" : "") + " found, but more may exist.";
 			}
+		}
+		else if (searchStatus[0] == 2) {
+			$w("#searchStatus").text = "Search timed out. Please try again...";
 		}
 		else {
 			if (searchResults.length == 0) {
@@ -225,19 +238,124 @@ $w.onReady(async function () {
 		displaySearchResults();
 	}
 
+	let quickDebounceTimer;
+
 	$w("#customizationSearchInput").onKeyPress(event => {
 		if(event.key == "Enter") {
 			performSearch();
+		} else {
+			if (quickDebounceTimer) {
+				clearTimeout(quickDebounceTimer);
+				quickDebounceTimer = undefined;
+			}
+
+			quickDebounceTimer = setTimeout(async () => {
+				// If we have nothing in the search box, no need to keep the autocomplete open.
+				if (($w("#customizationSearchInput").value == "")) {
+					$w("#autocompleteRepeater").data = [];
+					return;
+				}
+
+				let categoriesToQuery = [];
+
+				$w("#categoryRepeater").forEachItem($item => {
+					if ($item("#categoryCheckbox").checked) {
+						categoriesToQuery.push($item("#categoryName").text);
+					}
+				});
+				
+				let searchStatus = [0];
+				console.log($w("#customizationSearchInput").value);
+				let searchName = $w("#customizationSearchInput").value;
+				searchResults = await CustomizationSearchFunctions.nameSearch(searchName, categoriesToQuery, searchStatus, true);
+
+				if (searchName != $w("#customizationSearchInput").value) {
+					// We don't need this data anymore since the value was updated.
+					return;
+				}
+
+				//console.log(searchResults);
+
+				// Set up the autocomplete repeater.
+				$w("#autocompleteRepeater").data = searchResults;
+				$w("#autocompleteRepeater").forEachItem(($item, itemData) => {
+					// Each item should show a valid name in the DBs. Clicking the name should put it in the search box and search for it.
+					$item("#autocompleteText").text = itemData.name;
+					$item("#autocompleteButton").onClick(() => {
+						$w("#customizationSearchInput").value = itemData.name;
+						performSearch();
+					});
+				});
+
+			}, 250);
 		}
+	});
+
+	$w("#customizationSearchInput").onFocus(() => {
+		// Show the autocomplete repeater in case it's been hidden.
+		$w("#autocompleteRepeater").show();
+	});
+
+	$w("#customizationSearchInput").onBlur(() => {
+		// We clicked away from the search input. Hide the repeater.
+		$w("#autocompleteRepeater").hide();
 	});
 
 	$w("#searchButton").onClick(() => {
 		performSearch();
 	});
 
+	let quickGlobalDebounceTimer;
+
 	$w("#customizationSearchBar").onKeyPress(event => {
 		if(event.key == "Enter") {
 			performSearch(true); // We want to copy the value to the primary input box before we search.
+		}
+		else {
+			if (quickGlobalDebounceTimer) {
+                clearTimeout(quickGlobalDebounceTimer);
+                quickGlobalDebounceTimer = undefined;
+            }
+
+            quickGlobalDebounceTimer = setTimeout(async () => {
+                if ($w("#customizationSearchBar").value == "") {
+                    // Hide the autocomplete if we have nothing in the search bar.
+                    $w("#globalAutocompleteRepeater").data = [];
+                    return;
+                }
+
+                let categoriesToQuery = [];
+
+				$w("#categoryRepeater").forEachItem($item => {
+					if ($item("#categoryCheckbox").checked) {
+						categoriesToQuery.push($item("#categoryName").text);
+					}
+				});
+                
+                let searchStatus = [0];
+                let searchName = $w("#customizationSearchBar").value
+                let searchResults = await CustomizationSearchFunctions.nameSearch(searchName, categoriesToQuery, searchStatus, true, 4);
+
+                if (searchName != $w("#customizationSearchBar").value) {
+					// We don't need this data anymore since the value was updated.
+					return;
+				}
+
+                //console.log(searchResults);
+
+                // Set up the autocomplete repeater.
+                $w("#globalAutocompleteRepeater").data = searchResults;
+                $w("#globalAutocompleteRepeater").forEachItem(($item, itemData) => {
+                    // Each item should show a valid name in the DBs. Clicking the name should put it in the search box and search for it.
+                    // We also want to "close" the autocomplete repeater once we've chosen something from it.
+                    $item("#globalAutocompleteText").text = itemData.name;
+                    $item("#globalAutocompleteButton").onClick(() => {
+                        $w("#customizationSearchBar").value = itemData.name;
+                        $w("#globalAutocompleteRepeater").data = [];
+						performSearch(true);
+                    });
+                });
+			}, 250);
 		}
 	});
 });
