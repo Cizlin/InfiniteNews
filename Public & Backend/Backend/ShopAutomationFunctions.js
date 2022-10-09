@@ -36,35 +36,62 @@ import * as NotificationFunctions from 'backend/NotificationFunctions.jsw';
 
 // Gets a list of all currently available shop items, including the items contained within bundles.
 export async function getCurrentlyAvailableShopListings() {
-	let currentlyAvailableShopListings = await wixData.query(ShopConstants.SHOP_DB)
-		.eq(ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD, true)
-		.find()
-		.then((results) => {
-			return results.items;
-		})
-		.catch ((error) => {
-			console.error("Error occurred while retrieving currently available shop listings from DB: " + error);
-			return [];
-		});
+	let retry = true;
+	let retryCount = 0;
+	const MAX_RETRIES = 10;
+
+	let currentlyAvailableShopListings = [];
+
+	while (retry && retryCount < MAX_RETRIES) {
+		currentlyAvailableShopListings = await wixData.query(ShopConstants.SHOP_DB)
+			.eq(ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD, true)
+			.find()
+			.then((results) => {
+				retry = false;
+				return results.items;
+			})
+			.catch ((error) => {
+				console.error("Error occurred while retrieving currently available shop listings from DB. Attempt " + (++retryCount) + " of " + MAX_RETRIES + ": " + error);
+
+				if (retryCount == MAX_RETRIES) {
+					throw "Unable to retrieve currently available shop listings after " + MAX_RETRIES + " attempts. Exiting Shop import...";
+				}
+
+				return [];
+			});
+	}
+
 	
 	// We need to get the multi-references for each shop listing; namely, the items each listing includes.
 	for (let i = 0; i < currentlyAvailableShopListings.length; ++i) {
 		// We can actually improve the performance by only querying the fields with items.
 		for (let j = 0; j < currentlyAvailableShopListings[i][ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].length; ++j) {
 			let itemField = currentlyAvailableShopListings[i][ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD][j];
-			currentlyAvailableShopListings[i][itemField] = await wixData.queryReferenced(ShopConstants.SHOP_DB, currentlyAvailableShopListings[i]._id, itemField)
-				.then((results) => {
-					let idArray = [];
-					results.items.forEach((item) => {
-						idArray.push(item._id);
-					});
 
-					return idArray;
-				})
-				.catch((error) => {
-					console.error("Error occurred while retrieving currently available shop listings from DB: " + error);
-					return [];
-				});
+			let retry = true;
+			let retryCount = 0;
+			while (retry && retryCount < MAX_RETRIES) {
+				currentlyAvailableShopListings[i][itemField] = await wixData.queryReferenced(ShopConstants.SHOP_DB, currentlyAvailableShopListings[i]._id, itemField)
+					.then((results) => {
+						let idArray = [];
+						results.items.forEach((item) => {
+							idArray.push(item._id);
+						});
+
+						return idArray;
+					})
+					.catch((error) => {
+						console.error("Error occurred while retrieving " + itemField + " data for currently available shop listing " + currentlyAvailableShopListings[i]._id + " from DB. Attempt " + 
+							(++retryCount) + " of " + MAX_RETRIES + ": " + error);
+
+						if (retryCount == MAX_RETRIES) {
+							throw "Unable to retrieve " + itemField + " data for currently available shop listing " + currentlyAvailableShopListings[i]._id + " after " + 
+								MAX_RETRIES + " attempts. Exiting Shop import...";
+						}
+
+						return [];
+					});
+			}
 		}
 	}
 
@@ -1311,6 +1338,10 @@ export async function generatePushNotifications(updateItemArray) {
 export async function refreshShop() {
 	let currentlyAvailableShopListings = await getCurrentlyAvailableShopListings();
 	let newlyAvailableShopListings = await getConvertedShopList();
+
+	if (currentlyAvailableShopListings.length <= 0) {
+		throw "Error: No currently available Shop Listings were returned. Exiting now to avoid data poisoning.";
+	}
 
 	if (newlyAvailableShopListings.length <= 0) {
 		throw "Error: No new Shop Listings were returned. Exiting now to avoid notification spam.";
