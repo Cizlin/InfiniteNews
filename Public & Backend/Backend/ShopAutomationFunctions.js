@@ -68,8 +68,8 @@ export async function getCurrentlyAvailableShopListings() {
 		for (let j = 0; j < currentlyAvailableShopListings[i][ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].length; ++j) {
 			let itemField = currentlyAvailableShopListings[i][ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD][j];
 
-			let retry = true;
-			let retryCount = 0;
+			retry = true;
+			retryCount = 0;
 			while (retry && retryCount < MAX_RETRIES) {
 				currentlyAvailableShopListings[i][itemField] = await wixData.queryReferenced(ShopConstants.SHOP_DB, currentlyAvailableShopListings[i]._id, itemField)
 					.then((results) => {
