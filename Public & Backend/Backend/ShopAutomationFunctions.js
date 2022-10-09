@@ -53,7 +53,7 @@ export async function getCurrentlyAvailableShopListings() {
 			.catch ((error) => {
 				console.error("Error occurred while retrieving currently available shop listings from DB. Attempt " + (++retryCount) + " of " + MAX_RETRIES + ": " + error);
 
-				if (retryCount == MAX_RETRIES) {
+				if (retryCount >= MAX_RETRIES) {
 					throw "Unable to retrieve currently available shop listings after " + MAX_RETRIES + " attempts. Exiting Shop import...";
 				}
 
@@ -77,14 +77,14 @@ export async function getCurrentlyAvailableShopListings() {
 						results.items.forEach((item) => {
 							idArray.push(item._id);
 						});
-
+						retry = false;
 						return idArray;
 					})
 					.catch((error) => {
 						console.error("Error occurred while retrieving " + itemField + " data for currently available shop listing " + currentlyAvailableShopListings[i]._id + " from DB. Attempt " + 
 							(++retryCount) + " of " + MAX_RETRIES + ": " + error);
 
-						if (retryCount == MAX_RETRIES) {
+						if (retryCount >= MAX_RETRIES) {
 							throw "Unable to retrieve " + itemField + " data for currently available shop listing " + currentlyAvailableShopListings[i]._id + " after " + 
 								MAX_RETRIES + " attempts. Exiting Shop import...";
 						}
