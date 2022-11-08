@@ -554,6 +554,9 @@ export async function generateEmblemPaletteFolderDict() {
 				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_EMBLEM_PALETTE_FOLDERS_KEY, "value": folderDict });
 			}
 		})
+		.catch(error => {
+			console.error(error + " occurred while saving Emblem Palette Folder Dict.");
+		})
 }
 
 // Retrieves an item's image URL based on the customizationCategory, customizationType, customizationCore (if applicable), parentCustomizationType (for attachments) path, and mimeType.
@@ -616,31 +619,41 @@ export async function getEmblemPaletteImageUrl(folderDict, headers, paletteConfi
 
 		if (fileKey in subFolderDict) {
 			// We found a matching file, but now we need to confirm that it is up-to-date by checking the ETag.
-			let fileData = await mediaManager.getFileInfo(subFolderDict[fileKey]); // We'll either use this or delete it.
+			try {
+				let fileData = {};
 
-			let newETag = "";
+				let newETag = "";
 
-			let retry = true;
-			let retryCount = 0;
-			const MAX_RETRIES = 10;
-			while (retry && retryCount < MAX_RETRIES) {
-				try {
-					newETag = await getETag(headers, waypointPath, ApiConstants.WAYPOINT_URL_BASE_WAYPOINT);
-					retry = false;
+				let retry = true;
+				let retryCount = 0;
+				const MAX_RETRIES = 10;
+				while (retry && retryCount < MAX_RETRIES) {
+					try {
+						fileData = await mediaManager.getFileInfo(subFolderDict[fileKey]); // We'll either use this or delete it.
+
+						newETag = await getETag(headers, waypointPath, ApiConstants.WAYPOINT_URL_BASE_WAYPOINT);
+						retry = false;
+					}
+					catch (error) {
+						console.error(error + " occurred while fetching file info or ETag for " + waypointPath + "." +
+							((retry) ? ("Try " + (++retryCount) + " of " + MAX_RETRIES + "...") : ""));
+					}
 				}
-				catch (error) {
-					console.error(error + " occurred while fetching ETag for " + waypointPath + "." +
-						((retry) ? ("Try " + (++retryCount) + " of " + MAX_RETRIES + "...") : ""));
+				if (eTag == newETag && "fileUrl" in fileData) { // If the ETag provided by the caller matches the one returned in the header of the image, then we just use what we have.
+					return [fileData.fileUrl, newETag]; // The existing ETag is still valid, so we send it back.
+				}
+				else {
+					// We need to replace the existing image. Let's move the old one to the trash first.
+					console.warn("Deleting this file due to out-of-date ETag: ", fileData);
+					mediaManager.moveFilesToTrash([fileData.fileUrl]);
 				}
 			}
-			if (eTag == newETag) { // If the ETag provided by the caller matches the one returned in the header of the image, then we just use what we have.
-				return [fileData.fileUrl, newETag]; // The existing ETag is still valid, so we send it back.
+			catch (error) {
+				console.error(error + " occurred while checking existing file with key " + fileKey + ". Assuming it does not exist.");
 			}
-			else {
-				// We need to replace the existing image. Let's move the old one to the trash first.
-				console.warn("Deleting this file due to out-of-date ETag: ", fileData);
-				mediaManager.moveFilesToTrash([fileData.fileUrl]);
-			}
+			
+
+			
 		}
 		else {
 			console.log("File not found for " + fileKey + " in " + mediaPath);

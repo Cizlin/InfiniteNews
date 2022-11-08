@@ -112,7 +112,12 @@ $w.onReady(function () {
 				weekNum = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_WEEK_ARRAY_FIELD][0]; // We want the most recent Week Num available.
 			}
 
-			$item("#ultimateChallengeSeasonAndWeek").text = "Season " + seasonNum + ", Week " + weekNum;
+			if (seasonNum == 2001) {
+				$item("#ultimateChallengeSeasonAndWeek").text = "Winter Update, Week " + weekNum;
+			}
+			else {
+				$item("#ultimateChallengeSeasonAndWeek").text = "Season " + seasonNum + ", Week " + weekNum;
+			}
 		}
 		else {
 			console.error("No rewards found for this capstone challenge: " + ultimateChallenge);

@@ -530,6 +530,71 @@ export async function makeWaypointHeaders() {
 	}
 }
 
+async function performApiRequest(headers, path) {
+	var https = require('https');
+
+	let httpOptions = {
+		headers: headers,
+		timeout: 10000
+	};
+
+	return new Promise((resolve, reject) => {
+		let request = https.get(ApiConstants.WAYPOINT_URL_BASE_PROGRESSION + path, httpOptions, (response) => {
+			let { statusCode, headers } = response;
+			//console.log(`statusCode: ${statusCode}`);
+			//console.log("ETag from headers:" + headers.etag);
+
+			let error;
+
+			if (statusCode !== 200) {
+				error = new Error('Request Failed.\n' +
+					`Status Code: ${statusCode}`);
+				
+				if (statusCode == 404) {
+					reject("Not found");
+				}
+				else {
+					reject("Header error");
+				}
+			}
+
+			if (error) {
+				//console.error(error.message);
+				// consume response data to free up memory
+				response.resume();
+			}
+
+			// We're expecting json to be transferred. This means we want the latin1 encoding, which replaces the legacy binary encoding.
+			response.setEncoding('latin1');
+			let responseString = "";
+
+			// Get each chunk of bytes from the response.
+			response.on('data', d => {
+				responseString += d;
+			});
+
+			response.on('end', async () => {
+				try {
+					let jsonResponse = JSON.parse(responseString);
+
+					resolve([jsonResponse, headers.etag]);
+				}
+				catch (e) {
+					console.error("Got error " + e + " while trying to parse JSON from this string: " + responseString);
+					reject(e);
+				}
+			});
+		});
+
+		request.on('error', error => {
+			console.error(`Got error: ${error.message} while fetching JSON at ${path}.`);
+			reject(error);
+		});
+
+		request.end();
+	});
+}
+
 // Retrieves an item's JSON file from the Waypoint API.
 export async function getCustomizationItem(headers, path, returnETag = false) {
 	// Query the Waypoint API.
@@ -543,29 +608,25 @@ export async function getCustomizationItem(headers, path, returnETag = false) {
 	let eTag = "";
 
 	while (retry && retryCount < maxRetries) {
-		waypointJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_BASE_PROGRESSION + path, {
-			"method": "get",
-			"headers": headers
-		})
-			.then((httpResponse) => {
-				if (httpResponse.ok) {
-					retry = false;
-					eTag = httpResponse.headers._headers.etag[0]; // Retrieve the ETag from the headers.
-					return httpResponse.json();
-				}
-				else { // We want to retry once with updated headers if we got an error.
-					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					headerFailure = true;
-					return {};
-				}
-			})
-			.then((json) => {
-				return json;
-			})
-			.catch(err => {
-				console.error(err + " occurred while fetching " + ApiConstants.WAYPOINT_URL_BASE_PROGRESSION + path + ". Try " + (++retryCount) + " of " + maxRetries);
-				return {};
-			});
+		try {
+			headerFailure = false;
+			let httpResponse = await performApiRequest(headers, path);
+			waypointJson = httpResponse[0];
+			eTag = httpResponse[1];
+			retry = false;
+		}
+		catch (err) {
+			if (err == "Not found") {
+				console.error(path + " was not found in the API.");
+				break;
+			}
+
+			console.error(err + " occurred while fetching " + ApiConstants.WAYPOINT_URL_BASE_PROGRESSION + path + ". Try " + (++retryCount) + " of " + maxRetries);
+
+			if (err == "Header error") {
+				headerFailure = true;
+			}
+		}
 
 		if (retry && headerFailure) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
 			let spartanToken = await getSpartanToken();
@@ -575,6 +636,7 @@ export async function getCustomizationItem(headers, path, returnETag = false) {
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			headerFailure = false;
+			retryCount++;
 		}
 	}
 
