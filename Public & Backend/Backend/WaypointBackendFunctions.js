@@ -1667,6 +1667,10 @@ export async function refreshCapstoneChallenge() {
 						console.log(newCapstoneChallengeToUpdate[i]);
 						item.childItemInfo = await ShopFunctions.updateBundleAndItemsCurrentlyAvailableStatus(newCapstoneChallengeToUpdate[i], true,
 							CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB);
+
+						// Make sure we're reporting the latest information.
+						item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD] = newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DESCRIPTION_FIELD];
+						item[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD] = newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_COMPLETION_THRESHOLD_FIELD];
 					}
 					else { // If we didn't find the item, we need to add it. This is a bit involved since we also have to add references for each of its multi-references.
 						newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_DATE_ARRAY_FIELD] = [];
