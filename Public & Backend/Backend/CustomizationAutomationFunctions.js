@@ -3181,7 +3181,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 	}
 	else { // This applies for theme-less customization categories (i.e. Spartan ID).
 		let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
-		//console.log("Spartan ID Paths to Process: ", customizationItemPathArray);
+		console.log("Spartan ID Paths to Process: ", customizationItemPathArray);
 		let customizationItemPathsProcessed = [];
 
 		await generateJsonsFromItemList(
@@ -3531,15 +3531,15 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 				console.log("Spawning thread with PID " + i);
 				importPaletteImages(headers, emblemPaletteFolderDict, emblemMappingJson, emblemPaletteDict, nameplatesPerProcess, i);
 				while (getNumberOfActiveThreads() >= threadLimit) {
-					console.log("Temporarily at max thread count:" + threadLimit + ". Sleeping for 10 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
-					await GeneralFunctions.sleep(10000);
+					console.log("Temporarily at max thread count:" + threadLimit + ". Sleeping for 5 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
+					await GeneralFunctions.sleep(5000);
 				} 
 			}
 
 			for (let pid in emblemPaletteThreadDict) {
 				while (!emblemPaletteThreadDict[pid]) {
-					console.log("PID " + pid + " is still active. Sleeping for 10 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
-					await GeneralFunctions.sleep(10000); // Sleep for 10 seconds.
+					console.log("PID " + pid + " is still active. Sleeping for 5 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
+					await GeneralFunctions.sleep(5000); // Sleep for 10 seconds.
 				}
 			}
 
@@ -3820,5 +3820,5 @@ export function generalCustomizationImport() {
 export async function importEmblemPaletteImages() {
 	let headers = await ApiFunctions.makeWaypointHeaders();
 	let generalDictsAndArrays = await getGeneralDictsAndArraysFromDbs(headers);
-	await importEmblemPalettes(headers, generalDictsAndArrays, true, 5, 10);
+	await importEmblemPalettes(headers, generalDictsAndArrays, true, 4, 10);
 }
