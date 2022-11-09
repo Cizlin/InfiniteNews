@@ -565,7 +565,7 @@ async function performApiRequest(headers, path) {
 			}
 
 			// We're expecting json to be transferred. This means we want the latin1 encoding, which replaces the legacy binary encoding.
-			response.setEncoding('latin1');
+			response.setEncoding('utf-8');
 			let responseString = "";
 
 			// Get each chunk of bytes from the response.
