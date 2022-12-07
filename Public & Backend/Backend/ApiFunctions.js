@@ -636,7 +636,6 @@ export async function getCustomizationItem(headers, path, returnETag = false) {
 			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
 
 			headerFailure = false;
-			retryCount++;
 		}
 	}
 
