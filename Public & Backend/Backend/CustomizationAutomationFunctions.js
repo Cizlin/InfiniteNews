@@ -26,6 +26,7 @@ import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 import * as ApiFunctions from 'backend/ApiFunctions.jsw';
 import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
+import * as InternalNotificationFunctions from 'backend/InternalNotificationFunctions.jsw';
 
 import _ from 'lodash';
 //#endregion
@@ -88,7 +89,7 @@ export async function getArmorCoreList(headers) {
 
 	let armorCorePathArray = [];
 	for (let i = 0; i < coreList.length; ++i) {
-		//console.log(coreList[i]);
+		//console.info(coreList[i]);
 		if (coreList[i].ItemType == "ArmorCore") {
 			armorCorePathArray.push(coreList[i].ItemPath);
 		}
@@ -272,7 +273,7 @@ export async function getSpartanIdPathList(headers, categorySpecificDictsAndArra
 		}
 	});
 
-	//console.log("Valid Spartan ID types for", waypointGroupsToProcess, validWaypointTypes);
+	//console.info("Valid Spartan ID types for", waypointGroupsToProcess, validWaypointTypes);
 
 	let spartanIdPathArray = [];
 	for (let i = 0; i < itemList.length; ++i) {
@@ -421,7 +422,7 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 		.find()
 		.then((results) => {
 			if (results.items.length > 0) {
-				//console.log(results.items);
+				//console.info(results.items);
 				for (let i = 0; i < results.items.length; ++i) {
 					manufacturerArray.push(results.items[i]._id);
 				}
@@ -455,7 +456,7 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 	let eTagDict = {}; // A dictionary with Waypoint IDs as keys and ETags as values. Used to see if an item needs updating.
 
 	while (retry && retryCount < maxRetries) {
-		console.log("Fetching guide/xo JSON at " + ApiConstants.WAYPOINT_URL_GUIDE);
+		console.info("Fetching guide/xo JSON at " + ApiConstants.WAYPOINT_URL_GUIDE);
 		guideJson = await wixFetch.fetch(ApiConstants.WAYPOINT_URL_GUIDE, {
 			"method": "get",
 			"headers": headers
@@ -497,10 +498,10 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 			// There will only be one match.
 			let waypointId = extractedMatchArray[0];
 			eTagDict[waypointId] = file.ETag;
-			//console.log(waypointId + " has ETag " + file.ETag);
+			//console.info(waypointId + " has ETag " + file.ETag);
 		}
 		/*else {
-			console.log("Skipping " + file.Uri.Path);
+			console.info("Skipping " + file.Uri.Path);
 		}*/
 	}
 
@@ -598,7 +599,7 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 // forceCheck: If this is true, then full comparison processing will be performed, even if the ETag matches (this is necessary for items with attachments since 
 // those relations aren't made in the item's JSON).
 export async function getCustomizationItemToSave(folderDict, headers, customizationCategory, customizationDetails, generalDictsAndArrays, categorySpecificDictsAndArrays, forceCheck = false) {
-	//console.log(customizationDetails);
+	//console.info(customizationDetails);
 	// If we don't have variables defined for the customization category, we need to get out now. Everything will break otherwise.
 	if (!(customizationCategory in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS)) {
 		console.error("Invalid customizationCategory value: " + customizationCategory);
@@ -723,13 +724,13 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 	// If this is a default item, note its parent core.
 	let defaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
-	//console.log(customizationDetails);
+	//console.info(customizationDetails);
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && customizationDetails.DefaultOfCore && customizationDetails.DefaultOfCore != "") {
 		if (customizationDetails.DefaultOfCore in coreIdDict) {
 			defaultOfCoreIdArray.push(coreIdDict[customizationDetails.DefaultOfCore]);
 		}
     }
-	//console.log(defaultOfCoreIdArray);
+	//console.info(defaultOfCoreIdArray);
 
 	// We need to convert the array of attachment names to an array of attachment IDs. This one is probably best to filter first.
 	// TODO: Consider whether this would be worth including as a dict that gets passed in (would need to be generated after all attachments are added but before items using attachments).
@@ -756,7 +757,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 						if (results.items.length > 0) {
 							for (let i = 0; i < results.items.length; i++) {
-								//console.log(results.items[i].itemName);
+								//console.info(results.items[i].itemName);
 								attachmentIdArray.push(results.items[i]._id);
 							}
 						}
@@ -799,7 +800,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 							if (results.items.length > 0) {
 								for (let i = 0; i < results.items.length; i++) {
-									//console.log(results.items[i].itemName);
+									//console.info(results.items[i].itemName);
 									kitItemIdArray.push(results.items[i]._id);
 								}
 							}
@@ -839,7 +840,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 							if (results.items.length > 0) {
 								for (let i = 0; i < results.items.length; i++) {
-									//console.log(results.items[i].itemName);
+									//console.info(results.items[i].itemName);
 									kitAttachmentIdArray.push(results.items[i]._id);
 								}
 							}
@@ -1023,7 +1024,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	}
 
 	let originalDefaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
-	//console.log(customizationDetails);
+	//console.info(customizationDetails);
 	if (existingItem && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 		const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 		const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
@@ -1068,9 +1069,9 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	let itemJsonToInsert = {};
 
 	// If we found an existing item, we need to compare some of the existing fields with the new ones to see if it should be added.
-	//console.log(existingItem);
+	//console.info(existingItem);
 	if (existingItem) {
-		//console.log ("Updating existing item.", existingItem);
+		//console.info ("Updating existing item.", existingItem);
 
 		let itemJson = structuredClone(existingItem); // We start with the original fields in the item, but we need to make a copy.
 		let changed = false; // If the item is changed this flag will be made true. Allows us to avoid adding unnecessary JSONs to our DB array.
@@ -1360,12 +1361,12 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			itemJson[API_LAST_UPDATED_DATETIME_FIELD] = new Date();
 		}
 
-		//console.log(existingItem);
-		//console.log(itemJson);
+		//console.info(existingItem);
+		//console.info(itemJson);
 		itemJsonToInsert = itemJson;
 	}
 	else { // The item wasn't found, so we need to create a new item.
-		//console.log("Adding new item");
+		//console.info("Adding new item");
 
 		let itemJson = {};
 
@@ -1649,9 +1650,9 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 
 	// If we found an existing item, we need to compare some of the existing fields with the new ones to see if it should be added.
 	// We know the itemName matches, as does the customization Type. There may be more armor cores to add, so we'll check that.
-	//console.log(existingItem);
+	//console.info(existingItem);
 	if (existingItem) {
-		//console.log ("Updating existing item.");
+		//console.info ("Updating existing item.");
 
 		let itemJson = structuredClone(existingItem); // Let's go! A real clone function! We need to copy this to avoid modifying the original Change Log.
 		let changed = false; // If this flag becomes true, we made a change. Otherwise, we return 1 since we don't need to add anything.
@@ -1766,7 +1767,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 		}
 
 		if (!changed) { // If we didn't make any changes to the item, we can just skip it by returning 1.
-			//console.log("No changes needed for ", customizationDetails.Title, " Core. Skipping...");
+			//console.info("No changes needed for ", customizationDetails.Title, " Core. Skipping...");
 			return 1;
 		}
 		else {
@@ -1778,7 +1779,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 
 	}
 	else { // The item wasn't found, so we need to create a new item.
-		//console.log("Adding new item");
+		//console.info("Adding new item");
 		let itemJson = {};
 
 		const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreWaypointIdField;
@@ -1972,7 +1973,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		else {
 			itemJson.Cores = ["Any"]; // We've cleverly specified "Any" as the Waypoint ID for the Any option.
 		}
-		//console.log("Item: " + itemJson.Title, itemJson.Cores, waypointCommonDataJson.ParentPaths, waypointThemePathToCoreDict);
+		//console.info("Item: " + itemJson.Title, itemJson.Cores, waypointCommonDataJson.ParentPaths, waypointThemePathToCoreDict);
 	}
 
 	itemJson.Quality = waypointCommonDataJson.Quality;
@@ -2376,7 +2377,7 @@ async function generateJsonsFromItemList(
 			);
 
 			if (itemDbJson == 1) {
-				//console.log("Skipping " + itemPath);
+				//console.info("Skipping " + itemPath);
 				continue;
 			}
 			else if (itemDbJson != -1) {
@@ -2488,7 +2489,7 @@ async function generateJsonsFromItemAndAttachmentList(
 				);
 
 				if (attachmentDbJson == 1) {
-					//console.log("Skipping " + attachmentPath);
+					//console.info("Skipping " + attachmentPath);
 					continue;
 				}
 				else if (attachmentDbJson != -1) {
@@ -2509,8 +2510,8 @@ async function generateJsonsFromItemAndAttachmentList(
 	}
 
 	// Time to check our work
-	//console.log("Parent Path to Attachment Array Dict Contents: ", parentPathToAttachmentArrayDict);
-	//console.log("After obtaining all Attachment JSONs: ", customizationItemAttachmentDbArray);
+	//console.info("Parent Path to Attachment Array Dict Contents: ", parentPathToAttachmentArrayDict);
+	//console.info("After obtaining all Attachment JSONs: ", customizationItemAttachmentDbArray);
 
 	saveItemsToDbFromList(ATTACHMENT_KEY, customizationItemAttachmentDbArray, [type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]]);
 
@@ -2539,7 +2540,7 @@ async function generateJsonsFromItemAndAttachmentList(
 			);
 
 			if (itemDbJson == 1) {
-				//console.log("Skipping " + itemPath);
+				//console.info("Skipping " + itemPath);
 				continue;
 			}
 			else if (itemDbJson != -1) {
@@ -2621,11 +2622,11 @@ async function generateJsonsFromThemeList(
 				for (let i = 0; i < customizationTypeArray.length; ++i) {
 					let type = customizationTypeArray[i];
 					if (type[TYPE_NAME_FIELD] == "Any") {
-						//console.log("Skipping Any");
+						//console.info("Skipping Any");
 						continue; // This isn't a real type.
 					}
 					else if (type[TYPE_IS_KIT_FIELD]) {
-						//console.log("Skipping Kit type itself");
+						//console.info("Skipping Kit type itself");
 						continue;
 					}
 
@@ -2681,12 +2682,12 @@ async function generateJsonsFromThemeList(
 					attachments: customizationAttachmentsIdArray,
 					items: customizationIdArray
 				};
-				//console.log("Kit " + themeWaypointJson.CommonData.Title + " has Dict ", kitPathToItemArrayDict);
+				//console.info("Kit " + themeWaypointJson.CommonData.Title + " has Dict ", kitPathToItemArrayDict);
 			}
 		}
 
 		// Time to check our work
-		console.log("After obtaining all Kit Item JSONs: ", kitPathToItemArrayDict);
+		console.info("After obtaining all Kit Item JSONs: ", kitPathToItemArrayDict);
 
 		// Work has been checked! Let's proceed to add the items.
 		await saveItemsToDbFromList(customizationCategory, kitItemDbArray, waypointGroupsToProcess);
@@ -2716,7 +2717,7 @@ async function generateJsonsFromThemeList(
 					);
 
 					if (itemDbJson == 1) {
-						//console.log("Skipping " + itemPath);
+						//console.info("Skipping " + itemPath);
 						continue;
 					}
 					else if (itemDbJson != -1) {
@@ -2760,7 +2761,7 @@ async function generateJsonsFromThemeList(
 				}
 
 				if (!waypointGroupsToProcess.includes(type[TYPE_WAYPOINT_FIELD_FIELD])) {
-					//console.log(type);
+					//console.info(type);
 					continue; // We'll get this in a different run.
 				}
 
@@ -2829,7 +2830,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 	const SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSourceTypeField;
 	const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 
-	console.log("Adding items for " + customizationCategory + " and groups", waypointGroupsToProcess, "Items:", customizationItemDbArray);
+	console.info("Adding items for " + customizationCategory + " and groups", waypointGroupsToProcess, "Items:", customizationItemDbArray);
 
 	for (let i = 0; i < customizationItemDbArray.length; ++i) {
 		let options = {
@@ -2849,12 +2850,12 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 			await wixData.save(CUSTOMIZATION_DB, itemCopy, options)
 				.then(async (item) => {
 					retryItem = false;
-					console.log("Item added or updated: ", customizationItemDbJson);
+					console.info("Item added or updated: ", customizationItemDbJson);
 
 					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && // If the item has a core
 						!CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory) && // If the item is not an attachment.
 						CORE_REFERENCE_FIELD in customizationItemDbJson) {
-						//console.log("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+						//console.info("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 
 						let retry = true;
 						let retryCount = 0;
@@ -2863,7 +2864,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 							await wixData.replaceReferences(CUSTOMIZATION_DB, CORE_REFERENCE_FIELD, item._id, customizationItemDbJson[CORE_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
-									//console.log("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+									//console.info("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
 									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing core references for ", item._id, " in ",
@@ -2875,7 +2876,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					if (CustomizationConstants.HAS_ATTACHMENTS_ARRAY.includes(customizationCategory) &&
 						ATTACHMENT_REFERENCE_FIELD in customizationItemDbJson &&
 						customizationItemDbJson[ATTACHMENT_REFERENCE_FIELD].length > 0) {
-						//console.log("Item " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has attachments. Adding now.");
+						//console.info("Item " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has attachments. Adding now.");
 						let retry = true;
 						let retryCount = 0;
 
@@ -2883,7 +2884,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 							await wixData.replaceReferences(CUSTOMIZATION_DB, ATTACHMENT_REFERENCE_FIELD, item._id, customizationItemDbJson[ATTACHMENT_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
-									//console.log("Attachment references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+									//console.info("Attachment references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
 									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing attachment references for ", item._id,
@@ -2895,7 +2896,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					if (CustomizationConstants.HAS_KITS_ARRAY.includes(customizationCategory) &&
 						KIT_ITEM_REFERENCE_FIELD in customizationItemDbJson &&
 						customizationItemDbJson[KIT_ITEM_REFERENCE_FIELD].length > 0) {
-						//console.log("Kit " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has child items. Adding now.");
+						//console.info("Kit " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has child items. Adding now.");
 						let retry = true;
 						let retryCount = 0;
 
@@ -2903,7 +2904,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 							await wixData.replaceReferences(CUSTOMIZATION_DB, KIT_ITEM_REFERENCE_FIELD, item._id, customizationItemDbJson[KIT_ITEM_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
-									//console.log("Kit item references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+									//console.info("Kit item references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
 									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing Kit item references for ",
@@ -2914,7 +2915,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 						if (CustomizationConstants.HAS_ATTACHMENTS_ARRAY.includes(customizationCategory) &&
 							KIT_ATTACHMENT_REFERENCE_FIELD in customizationItemDbJson &&
 							customizationItemDbJson[KIT_ATTACHMENT_REFERENCE_FIELD].length > 0) {
-							//console.log("Kit " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + 
+							//console.info("Kit " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + 
 							//	" has child attachments. Adding now.");
 							let retry = true;
 							let retryCount = 0;
@@ -2923,7 +2924,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 								await wixData.replaceReferences(CUSTOMIZATION_DB, KIT_ATTACHMENT_REFERENCE_FIELD, item._id, customizationItemDbJson[KIT_ATTACHMENT_REFERENCE_FIELD], options)
 									.then(() => {
 										retry = false;
-										//console.log("Kit attachment references added for ", 
+										//console.info("Kit attachment references added for ", 
 										//	customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 									})
 									.catch((error) => {
@@ -2937,7 +2938,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					if ((customizationItemDbJson[SOURCE_TYPE_REFERENCE_FIELD] &&
 						customizationItemDbJson[SOURCE_TYPE_REFERENCE_FIELD].length > 0)) {
 						// If the item has the source type reference field, it's a new item. We need to insert the references.
-						//console.log("New item: " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has sources ", 
+						//console.info("New item: " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has sources ", 
 						//	customizationItemDbJson.sourceTypeReference);
 						let retry = true;
 						let retryCount = 0;
@@ -2946,7 +2947,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 							await wixData.insertReference(CUSTOMIZATION_DB, SOURCE_TYPE_REFERENCE_FIELD, item._id, customizationItemDbJson[SOURCE_TYPE_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
-									//console.log("Source type references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+									//console.info("Source type references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
 									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was adding source type references for ",
@@ -2959,7 +2960,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 						customizationItemDbJson[EMBLEM_PALETTE_REFERENCE_FIELD] &&
 						customizationItemDbJson[EMBLEM_PALETTE_REFERENCE_FIELD].length > 0) {
 						// If the item has the Emblem Palette reference field, we need to insert the references.
-						//console.log("Emblem: " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has palettes ", customizationItemDbJson[emblemPaletteReferenceField]);
+						//console.info("Emblem: " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField] + " has palettes ", customizationItemDbJson[emblemPaletteReferenceField]);
 						let retry = true;
 						let retryCount = 0;
 
@@ -2967,7 +2968,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 							await wixData.replaceReferences(CUSTOMIZATION_DB, EMBLEM_PALETTE_REFERENCE_FIELD, item._id, customizationItemDbJson[EMBLEM_PALETTE_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
-									//console.log("Emblem palette references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+									//console.info("Emblem palette references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
 									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was adding Emblem palette references for ",
@@ -2979,7 +2980,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 					if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) &&
 						DEFAULT_OF_CORE_REFERENCE_FIELD in customizationItemDbJson &&
 						customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD].length > 0) {
-						//console.log("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+						//console.info("Adding core references for " + customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 
 						let retry = true;
 						let retryCount = 0;
@@ -2988,7 +2989,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 							await wixData.replaceReferences(CUSTOMIZATION_DB, DEFAULT_OF_CORE_REFERENCE_FIELD, item._id, customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
-									//console.log("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+									//console.info("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
 									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing core references for ", item._id, " in ",
@@ -3071,7 +3072,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						);
 
 						if (coreSiteJson == 1) {
-							//console.log("Skipping " + coreList[i]);
+							//console.info("Skipping " + coreList[i]);
 							continue;
 						}
 						else if (coreSiteJson != -1) {
@@ -3093,15 +3094,15 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				return -1;
 			}
 
-			console.log("After obtaining all Core JSONs: ", coreDbJsonArray);
+			console.info("After obtaining all Core JSONs: ", coreDbJsonArray);
 
 			// It's time to save the Core entries to the Core DB.
 			const CORE_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
 			await wixData.bulkSave(CORE_DB, coreDbJsonArray)
 				.then((results) => {
-					console.log("After Core DB Save: " + results.inserted + " inserted, " + results.updated + " updated, " + results.skipped + " skipped.");
-					console.log("Inserted IDs: " + results.insertedItemIds);
-					console.log("Updated IDs: " + results.updatedItemIds);
+					console.info("After Core DB Save: " + results.inserted + " inserted, " + results.updated + " updated, " + results.skipped + " skipped.");
+					console.info("Inserted IDs: " + results.insertedItemIds);
+					console.info("Updated IDs: " + results.updatedItemIds);
 					if (results.errors.length > 0) {
 						console.error("Errors: " + results.errors);
 					}
@@ -3153,7 +3154,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				);
 			}
 
-			//console.log("After obtaining all JSONs for these Waypoint Groups: ", waypointGroupsToProcess, ", we got this Array: ", customizationItemDbArray);
+			//console.info("After obtaining all JSONs for these Waypoint Groups: ", waypointGroupsToProcess, ", we got this Array: ", customizationItemDbArray);
 		}
 		catch (error) {
 			console.error(error);
@@ -3165,7 +3166,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		let themePathArray = await getThemeList(headers, customizationCategory);
 		let customizationItemPathsProcessed = []; // If we already have a path in this array, we don't need to process it again.
 
-		//console.log(themePathArray);
+		//console.info(themePathArray);
 
 		await generateJsonsFromThemeList(
 			headers,
@@ -3181,7 +3182,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 	}
 	else { // This applies for theme-less customization categories (i.e. Spartan ID).
 		let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
-		console.log("Spartan ID Paths to Process: ", customizationItemPathArray);
+		console.info("Spartan ID Paths to Process: ", customizationItemPathArray);
 		let customizationItemPathsProcessed = [];
 
 		await generateJsonsFromItemList(
@@ -3273,11 +3274,11 @@ export async function importManufacturers(headers) {
 	if (manufacturerDbArray.length > 0) {
 		await wixData.bulkSave(CustomizationConstants.MANUFACTURER_DB, manufacturerDbArray)
 			.then((results) => {
-				console.log("Manufacturers have been saved with these results: ", results);
+				console.info("Manufacturers have been saved with these results: ", results);
 			});
 	}
 	else {
-		console.log("Finished manufacturer import. No manufacturers to update");
+		console.info("Finished manufacturer import. No manufacturers to update");
 	}
 
 
@@ -3392,7 +3393,7 @@ async function importPaletteImages(headers, emblemPaletteFolderDict, emblemMappi
 				}
 			}
 
-			//console.log("Fetching emblem palette images for " + emblemConfigurationId + " and " + nameplateWaypointId + "...");
+			//console.info("Fetching emblem palette images for " + emblemConfigurationId + " and " + nameplateWaypointId + "...");
 			let nameplateImageObject = await MediaManagerFunctions.getEmblemPaletteImageUrl(
 				emblemPaletteFolderDict, 
 				headers, 
@@ -3473,8 +3474,8 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 
 		let inventoryJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
-		//console.log(inventoryJson.EmblemCoatings.length);
-		//console.log(existingEmblemPaletteResults.items.length);
+		//console.info(inventoryJson.EmblemCoatings.length);
+		//console.info(existingEmblemPaletteResults.items.length);
 
 		let emblemPalettesToPushToDb = []; // An array of DB dictionaries
 
@@ -3487,7 +3488,7 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 				existingEmblemPaletteETags[waypointId] == eTagDict[waypointId])) {	// If the ETags exist and don't match one another, we have to process the data since it's changed.
 
 				// Otherwise, it's changed and we gotta process it.
-				//console.log("Need to process " + waypointId + " with DB ID " + existingEmblemPaletteDbIds[waypointId]);
+				//console.info("Need to process " + waypointId + " with DB ID " + existingEmblemPaletteDbIds[waypointId]);
 
 				if (waypointId in existingEmblemPaletteETags) { // Item was in DB.
 					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, folderDict, emblemPalettePathObject.ItemPath, eTagDict[waypointId], existingEmblemPaletteDbObjects[waypointId]));
@@ -3515,7 +3516,7 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 				throw "Could not retrieve emblem palette folder dict. Cannot get customization image urls.";
 			}
 
-			console.log("Importing Emblem Palette Images");
+			console.info("Importing Emblem Palette Images");
 			let emblemMappingJson = await getEmblemPaletteMapping(headers);
 			let emblemPaletteDict = {}; // Keys will be Emblem Palette Configuration IDs, values will be the objects to attach to each Emblem Palette.
 
@@ -3524,21 +3525,21 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 				emblemPaletteDict[emblemPalettesToPushToDb[i][CustomizationConstants.EMBLEM_PALETTE_CONFIGURATION_ID_FIELD]] = emblemPalettesToPushToDb[i][CustomizationConstants.EMBLEM_PALETTE_IMAGE_MAPPING_FIELD];
 			}
 
-			console.log("Mapping found. Spawning child threads to parse through the mapping... Expecting " + Math.ceil(((Object.keys(emblemMappingJson).length) / nameplatesPerProcess)) + " threads");
+			console.info("Mapping found. Spawning child threads to parse through the mapping... Expecting " + Math.ceil(((Object.keys(emblemMappingJson).length) / nameplatesPerProcess)) + " threads");
 
 			for (let i = 0; i < Object.keys(emblemMappingJson).length; i += nameplatesPerProcess) {
 				emblemPaletteThreadDict[i] = false; // Starting processing on this thread.
-				console.log("Spawning thread with PID " + i);
+				console.info("Spawning thread with PID " + i);
 				importPaletteImages(headers, emblemPaletteFolderDict, emblemMappingJson, emblemPaletteDict, nameplatesPerProcess, i);
 				while (getNumberOfActiveThreads() >= threadLimit) {
-					console.log("Temporarily at max thread count:" + threadLimit + ". Sleeping for 5 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
+					console.info("Temporarily at max thread count:" + threadLimit + ". Sleeping for 5 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
 					await GeneralFunctions.sleep(5000);
 				} 
 			}
 
 			for (let pid in emblemPaletteThreadDict) {
 				while (!emblemPaletteThreadDict[pid]) {
-					console.log("PID " + pid + " is still active. Sleeping for 5 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
+					console.info("PID " + pid + " is still active. Sleeping for 5 s...; emblemPaletteThreadDict: ", emblemPaletteThreadDict);
 					await GeneralFunctions.sleep(5000); // Sleep for 10 seconds.
 				}
 			}
@@ -3563,13 +3564,13 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 		let retryCount = 0;
 		const MAX_RETRIES = 10;
 
-		console.log("Saving the following Emblem Palettes to the DB: ", emblemPalettesToPushToDb);
+		console.info("Saving the following Emblem Palettes to the DB: ", emblemPalettesToPushToDb);
 
 		while (retry && retryCount < MAX_RETRIES) {
 			await wixData.bulkSave(CustomizationConstants.EMBLEM_PALETTE_DB, emblemPalettesToPushToDb)
 				.then((results) => {
 					retry = false;
-					console.log("Inserted/Updated Emblem Palette results: ", results);
+					console.info("Inserted/Updated Emblem Palette results: ", results);
 					return results;
 				})
 				.catch((error) => {
@@ -3633,7 +3634,8 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 			processingGroups.forEach(async (processingGroup) => {
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
+					//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
+					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 			});
 		}
@@ -3688,7 +3690,8 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 
 			processingGroups.forEach(async (processingGroup) => {
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
+					//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
+					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 			});
 		}
@@ -3735,7 +3738,8 @@ export async function vehicleImport(headers = null, manufacturerImportCompleted 
 			}
 
 			updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-				.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
+				//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
+				.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 				.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 		});
 	}
@@ -3765,7 +3769,8 @@ export async function bodyAiImport(headers = null, manufacturerImportCompleted =
 
 	processingGroups.forEach((processingGroup) => {
 		updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-			.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
+			//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
+			.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 	});
 }
@@ -3795,7 +3800,8 @@ export async function spartanIdImport(headers = null, manufacturerImportComplete
 			await importEmblemPalettes(headers, generalDictsAndArrays);
 		}
 		updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-			.then(() => console.log("Finished processing ", processingGroup, " for " + customizationCategory))
+			//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
+			.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 	});
 }
