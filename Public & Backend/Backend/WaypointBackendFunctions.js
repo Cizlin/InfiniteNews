@@ -1536,23 +1536,33 @@ export async function refreshCapstoneChallenge() {
 	let currentlyAvailableCapstoneChallenge = await getPreviousAvailableCapstoneChallenge(); // This is an array.
 	let newlyAvailableCapstoneChallenge = [await getCurrentCapstoneChallengeDbJson()]; // This function does not currently return an array.
 
-	// The challenges appear to have unique names so we can just check to see if each currently available item is in the newlyAvailable list, and if not, we mark it as not currently available.
+	// The challenges appear to have unique names and reward IDs. We can just check to see if each currently available item is in the newlyAvailable list, and if not, we mark it as not currently available.
 	let newlyAvailableCapstoneChallengeNames = [];
+	let newlyAvailableCapstoneChallengeRewardIds = [];
 	let currentlyAvailableCapstoneChallengeNames = []; // We need this array so that we can check the newly available challenge and see if we already have it available.
+	let currentlyAvailableCapstoneChallengeRewardIds = [];
 
 	for (let i = 0; i < newlyAvailableCapstoneChallenge.length; ++i) {
 		newlyAvailableCapstoneChallengeNames.push(newlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]);
+
+		let fieldWithItems = newlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0]; // We'll just check the first item since these only have one reward for now.
+		newlyAvailableCapstoneChallengeRewardIds.push(newlyAvailableCapstoneChallenge[i][fieldWithItems][0]);
 	}
 
 	for (let i = 0; i < currentlyAvailableCapstoneChallenge.length; ++i) {
 		currentlyAvailableCapstoneChallengeNames.push(currentlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]);
+
+		let fieldWithItems = currentlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0]; // We'll just check the first item since these only have one reward for now.
+		currentlyAvailableCapstoneChallengeRewardIds.push(currentlyAvailableCapstoneChallenge[i][fieldWithItems][0]);
 	}
 
 	let previousChallengeSeason = -1;
 	let previousChallengeWeek = -1;
 
 	for (let i = 0; i < currentlyAvailableCapstoneChallenge.length; ++i) { // Should only be one of these, hopefully.
-		if (!newlyAvailableCapstoneChallengeNames.includes(currentlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD])) {
+		let fieldWithItems = currentlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0];
+		if (!(newlyAvailableCapstoneChallengeNames.includes(currentlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD])) // If the name doesn't match
+			|| !(newlyAvailableCapstoneChallengeRewardIds.includes(currentlyAvailableCapstoneChallenge[i][fieldWithItems][0]))) { // or the reward ID doesn't match
 			// This is a challenge that is no longer available.
 			if (currentlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_SEASON_ARRAY_FIELD].length > 0) {
 				previousChallengeSeason = currentlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_SEASON_ARRAY_FIELD][0];
@@ -1578,7 +1588,9 @@ export async function refreshCapstoneChallenge() {
 	let newCapstoneChallengeToUpdate = [];
 
 	for (let i = 0; i < newlyAvailableCapstoneChallenge.length; ++i) {
-		if (!currentlyAvailableCapstoneChallengeNames.includes(newlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD])) {
+		let fieldWithItems = newlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0];
+		if (!currentlyAvailableCapstoneChallengeNames.includes(newlyAvailableCapstoneChallenge[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD])
+		|| !(currentlyAvailableCapstoneChallengeRewardIds.includes(newlyAvailableCapstoneChallenge[i][fieldWithItems][0]))) { // or the reward ID doesn't match) {
 			// If there's a listing not in the previously available array, we need to update it or add it and report that it's new.
 			newCapstoneChallengeToUpdate.push(newlyAvailableCapstoneChallenge[i]);
 		}
@@ -1593,19 +1605,38 @@ export async function refreshCapstoneChallenge() {
 				let items = results.items;
 				console.log("Items returned: ", items);
 				let itemNames = [];
+				let itemRewardIds = [];
 
 				for (let i = 0; i < items.length; i++) {
 					itemNames.push(items[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]);
+
+					let itemFieldWithRewards = items[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0];
+
+					let referencedReward = await wixData.queryReferenced(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_DB, items[i]._id, itemFieldWithRewards);
+					itemRewardIds.push(referencedReward.items[0]._id);
 				}
 
 				let updateItemArray = [];
 
-				console.log("Arrays to process:", itemNames, newCapstoneChallengeToUpdate);
+				console.log("Arrays to process:", itemNames, itemRewardIds, newCapstoneChallengeToUpdate);
 
 				for (let i = 0; i < newCapstoneChallengeToUpdate.length; ++i) { // We're assuming everything else has been marked correctly. Big assumption, yes, but potentially more efficient.
 					let item;
-					let itemIndex = itemNames.findIndex((title) => { return newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD] == title; });
-					console.log("Item index is ", itemIndex, "for item name", newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]);
+					let itemIndex = -1;
+					
+					let newItemFieldWithReward = newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD][0];
+
+					for (let j = 0; j < itemNames.length; ++j) {
+						if (itemNames[j] == newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD]
+						&& itemRewardIds[j] == newCapstoneChallengeToUpdate[i][newItemFieldWithReward][0]) {
+							itemIndex = j;
+							break;
+						}
+					}
+
+					console.log("Item index is ", itemIndex, "for item name", newCapstoneChallengeToUpdate[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD], "and reward", 
+						newCapstoneChallengeToUpdate[i][newItemFieldWithReward][0]);
+					
 					if (itemIndex > -1) {
 						item = items[itemIndex];
 						newCapstoneChallengeToUpdate[i]._id = item._id; // The ID ties both items together, so we need to transfer it.
