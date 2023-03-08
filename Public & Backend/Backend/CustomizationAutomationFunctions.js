@@ -81,7 +81,7 @@ export async function getEmblemPaletteMapping(headers) {
 
 // Retrieves the list of Armor Cores from the Waypoint API.
 // TODO: Rework this to work for all three core types.
-export async function getArmorCoreList(headers) {
+/*export async function getArmorCoreList(headers) {
 	// Query the Waypoint API.
 	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
@@ -96,85 +96,38 @@ export async function getArmorCoreList(headers) {
 	}
 
 	return armorCorePathArray;
-}
+}*/
 
 // Retrieves a list of paths to owned Cores from the Waypoint API matching the customizationCategory. Ownership of Weapon, Vehicle, and AI Cores is guaranteed.
 async function getCoreList(headers, customizationCategory) {
-	const XUID = await getSecret(ApiConstants.SECRETS_XUID_KEY);
+// Query the Waypoint API.
+	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
-	let retry = true;
-	let inventoryJson = {};
+	let coreList = inventoryCatalogJson.Cores;
 
-	let url = ApiConstants.WAYPOINT_URL_BASE_ECONOMY + ApiConstants.WAYPOINT_URL_XUID_PREFIX + XUID + ApiConstants.WAYPOINT_URL_XUID_SUFFIX +
-		ApiConstants.WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY;
-
-	while (retry) {
-		inventoryJson = await wixFetch.fetch(url, {
-			"method": "get",
-			"headers": headers
-		})
-			.then((httpResponse) => {
-				if (httpResponse.ok) {
-					retry = false;
-					return httpResponse.json();
-				}
-				else { // We want to retry once with updated headers if we got an error.
-					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					return {};
-				}
-			})
-			.then((json) => {
-				return json;
-			})
-			.catch(err => {
-				console.error(err);
-				return {};
-			});
-
-		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await ApiFunctions.getSpartanToken();
-			let clearance = await ApiFunctions.getClearance();
-
-			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
-			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
-
-			retry = false; // For now, let's just do a single retry after fixing the headers.
-		}
-	}
-
-	// We have a list of every owned theme and a bunch of other owned items. Cores aren't really included in this, so we have to be clever. Let's get a list of matching themes first.
 	let typeToFind = "";
 	switch (customizationCategory) {
+		case ArmorConstants.ARMOR_KEY:
+			typeToFind = ArmorConstants.ARMOR_CORE_WAYPOINT_ID;
+			break;
+
 		case WeaponConstants.WEAPON_KEY:
-			typeToFind = WeaponConstants.WEAPON_THEME_WAYPOINT_TYPE;
+			typeToFind = WeaponConstants.WEAPON_CORE_WAYPOINT_ID;
 			break;
 
 		case VehicleConstants.VEHICLE_KEY:
-			typeToFind = VehicleConstants.VEHICLE_THEME_WAYPOINT_TYPE;
+			typeToFind = VehicleConstants.VEHICLE_CORE_WAYPOINT_ID;
 			break;
 
 		default:
-			throw customizationCategory + " is not an allowed customization category. Exiting.";
+			throw customizationCategory + " is not an allowed customization category? Exiting.";
 	}
 
-	// Time to fetch the themes matching our category
-	let themeArray = [];
-	inventoryJson.Items.forEach((item) => {
-		if (item.ItemType == typeToFind) {
-			themeArray.push(item.ItemPath);
-		}
-	});
-
-	// Now that we have all the themes, we want to visit each one and extract the cores within.
 	let corePathArray = [];
-	for (let i = 0; i < themeArray.length; ++i) {
-		let themeJson = await ApiFunctions.getCustomizationItem(headers, themeArray[i]);
-		let themeParentArray = themeJson.CommonData.ParentPaths;
-		for (let j = 0; j < themeParentArray.length; ++j) {
-			// If we don't already have this core path, add it now.
-			if (!corePathArray.includes(themeParentArray[j].Path)) {
-				corePathArray.push(themeParentArray[j].Path);
-			}
+	for (let i = 0; i < coreList.length; ++i) {
+		//console.info(coreList[i]);
+		if (coreList[i].ItemType == typeToFind) {
+			corePathArray.push(coreList[i].ItemPath);
 		}
 	}
 
@@ -184,7 +137,7 @@ async function getCoreList(headers, customizationCategory) {
 
 // This function returns a list of themes for customization categories with no cores (currently only Body & AI).
 async function getThemeList(headers, customizationCategory) {
-	const XUID = await getSecret(ApiConstants.SECRETS_XUID_KEY);
+	/*const XUID = await getSecret(ApiConstants.SECRETS_XUID_KEY);
 
 	let retry = true;
 	let inventoryJson = {};
@@ -224,10 +177,11 @@ async function getThemeList(headers, customizationCategory) {
 
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
-	}
+	}*/
 
+	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
-	// We have a list of every owned theme and a bunch of other owned items. Let's get a list of matching themes first.
+	// Let's get a list of matching themes first.
 	let typeToFind = "";
 	switch (customizationCategory) {
 		case BodyAndAiConstants.BODY_AND_AI_KEY:
@@ -240,7 +194,7 @@ async function getThemeList(headers, customizationCategory) {
 
 	// Time to fetch the themes matching our category. There's probably only one, but you never know.
 	let themeArray = [];
-	inventoryJson.Items.forEach((item) => {
+	inventoryCatalogJson.Items.forEach((item) => {
 		if (item.ItemType == typeToFind) {
 			themeArray.push(item.ItemPath);
 		}
@@ -2115,7 +2069,7 @@ export async function fetchEmblemPaletteDbIds(emblemPalettePathArray) {
 // categorySpecificDictsAndArrays: The dictionaries and array containing prequeried information specific to the customizationCategory.
 // itemWaypointPath: The Waypoint path for the item to add.
 // itemType: One of four strings: "core", "kit", "item", "attachment"
-// itemPathsProcessed: Array of item paths that have already been processed.
+// itemPathsProcessed: Object of item paths that have already been processed.
 // Within options:
 // coreName: The name of the parent core, if applicable. If "" (default), then no parent core is assumed. Only needed for kits.
 // waypointThemePathToCoreDict: A dictionary that takes theme Waypoint paths and converts them to core names.
@@ -2156,7 +2110,7 @@ async function processItem(headers,
 	 */
 
 	// This helps us avoid processing duplicate items.
-	if (itemPathsProcessed.includes(itemWaypointPath) && !("isDefault" in options && options.isDefault)) {
+	if (itemWaypointPath in itemPathsProcessed && !("isDefault" in options && options.isDefault)) {
 		if (itemType == CustomizationConstants.ITEM_TYPES.attachment) {
 			// Ensure necessary options are provided.
 			if (!("attachmentArray" in options)) {
@@ -2187,7 +2141,7 @@ async function processItem(headers,
 		return 1;
 	}
 	else {
-		itemPathsProcessed.push(itemWaypointPath);
+		itemPathsProcessed[itemWaypointPath] = true;
 	}
 
 	// Get the item.
@@ -2330,7 +2284,7 @@ async function processItem(headers,
 // generalDictsAndArrays: The dictionaries and arrays containing prequeried information.
 // categorySpecificDictsAndArrays: The dictionaries and array containing prequeried information specific to the customizationCategory.
 // customizationItemDbArray: The output array of site JSONs for each item.
-// customizationItemPathsProcessed: Array of item paths that have already been processed.
+// customizationItemPathsProcessed: Object of item paths that have already been processed.
 // customizationItemPathArray: The array of item paths to process.
 // Within options:
 // waypointThemePathToCoreDict: A dictionary that takes theme Waypoint paths and converts them to core names.
@@ -2356,6 +2310,16 @@ async function generateJsonsFromItemList(
 	 */
 
 	for (let k = 0; k < customizationItemPathArray.length; ++k) {
+		// Use the below controls to limit the amount of items imported at a time. Make sure to also limit the number of themes considered if applicable.
+		// LIMITER
+		/*if (k < 200) {
+			continue;
+		}*/
+
+		/*if (k >= 200) {
+			break;
+		}*/
+
 		try {
 			let itemPath = customizationItemPathArray[k];
 			let itemDbJson = await processItem(
@@ -2401,7 +2365,7 @@ async function generateJsonsFromItemList(
 // generalDictsAndArrays: The dictionaries and arrays containing prequeried information.
 // categorySpecificDictsAndArrays: The dictionaries and array containing prequeried information specific to the customizationCategory.
 // customizationItemDbArray: The output array of site JSONs for each item.
-// customizationItemPathsProcessed: Array of item paths that have already been processed.
+// customizationItemPathsProcessed: Object of item paths that have already been processed.
 // itemAndAttachmentsArray: The array of items and their attachments pulled from a Waypoint JSON.
 // The type object for the parent item.
 // Within options:
@@ -2564,7 +2528,7 @@ async function generateJsonsFromItemAndAttachmentList(
 // generalDictsAndArrays: The dictionaries and arrays containing prequeried information.
 // categorySpecificDictsAndArrays: The dictionaries and array containing prequeried information specific to the customizationCategory.
 // customizationItemDbArray: The output array of site JSONs for each item.
-// customizationItemPathsProcessed: Array of item paths that have already been processed.
+// customizationItemPathsProcessed: Object of item paths that have already been processed.
 // customizationItemPathArray: The array of item paths to process.
 // coreName: The name of the parent core.
 // waypointThemePathToCoreDict: A dictionary that takes theme Waypoint paths and converts them to core names.
@@ -2582,7 +2546,7 @@ async function generateJsonsFromThemeList(
 	waypointThemePathToCoreDict = {}) {
 
 	if (waypointGroupsToProcess.includes(CustomizationConstants.KIT_PROCESSING_KEY)) { // Skip the Kits if we aren't working on them.
-		let kitPathsProcessed = []; // An array of Kit paths that have already been processed.
+		let kitPathsProcessed = {}; // An object of Kit paths that have already been processed.
 
 		// The key of this dict will be the path to the parent kit, and its value will be another dict with "attachments" and "items" for keys, each having an array of item Waypoint IDs as the value:
 		//{
@@ -2592,15 +2556,15 @@ async function generateJsonsFromThemeList(
 		//	} 
 		//}
 		let kitPathToItemArrayDict = {};
-		let kitItemPathsProcessed = []; // As long as we can tie the attachment path to a name, we don't have to process a path twice.
+		let kitItemPathsProcessed = {}; // As long as we can tie the attachment path to a name, we don't have to process a path twice.
 		let kitItemDbArray = []; // These need to be added separately.
 
 		for (let l = 0; l < themePathArray.length; ++l) {
 			let kitPath = themePathArray[l];
-			if (kitPathsProcessed.includes(kitPath)) {
+			if (kitPath in kitPathsProcessed) {
 				continue;
 			}
-			kitPathsProcessed.push(kitPath);
+			kitPathsProcessed[kitPath] = true;
 
 			let themeWaypointJson = await ApiFunctions.getCustomizationItem(headers, themePathArray[l]);
 
@@ -2736,10 +2700,10 @@ async function generateJsonsFromThemeList(
 	}
 
 	for (let j = 0; j < themePathArray.length; j++) { // For each theme.
-		if (customizationItemPathsProcessed.includes(themePathArray[j])) { // If we already have the path in the array, we've processed this already. No need to do it twice.
+		if (themePathArray[j] in customizationItemPathsProcessed) { // If we already have the path in the array, we've processed this already. No need to do it twice.
 			continue;
 		}
-		customizationItemPathsProcessed.push(themePathArray[j]); // Add this path to the array so we don't process it again.
+		customizationItemPathsProcessed[themePathArray[j]] = true; // Add this path to the array so we don't process it again.
 
 		let themeWaypointJson = await ApiFunctions.getCustomizationItem(headers, themePathArray[j]);
 
@@ -2986,13 +2950,13 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 						let retryCount = 0;
 
 						while (retry && retryCount < maxRetries) {
-							await wixData.replaceReferences(CUSTOMIZATION_DB, DEFAULT_OF_CORE_REFERENCE_FIELD, item._id, customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD], options)
+							await wixData.insertReference(CUSTOMIZATION_DB, DEFAULT_OF_CORE_REFERENCE_FIELD, item._id, customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
 									//console.info("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
-									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing core references for ", item._id, " in ",
+									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was adding default core references for ", item._id, " in ",
 										CUSTOMIZATION_DB, " with ", customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD]);
 								});
 						}
@@ -3032,18 +2996,10 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			throw "Unable to process customization category " + customizationCategory + " at this time.";
 	}
 
-	let coreList = [];
-	if (customizationCategory == ArmorConstants.ARMOR_KEY) {
-		// With armor cores, the JSON returned is in a slightly different format that we need to standardize.
-		coreList = await getArmorCoreList(headers);
-	}
-	else if (customizationCategory == WeaponConstants.WEAPON_KEY || customizationCategory == VehicleConstants.VEHICLE_KEY) {
-		coreList = await getCoreList(headers, customizationCategory);
-	}
-
 	let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
 
 	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+		let coreList = !(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) ? await getCoreList(headers, customizationCategory) : [];
 		let coreWaypointJsonArray = [];
 		let coreDbJsonArray = [];
 		let waypointThemePathToCoreDict = {};
@@ -3051,7 +3007,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			// We want to do two things with this iteration: get each JSON for insertion/update into the core DB, and create the waypointThemePathToCoreDict.
 			// The keys will be the Waypoint Paths to each child theme, and the values will be the corresponding core name.
 			try {
-				let corePathsProcessed = [];
+				let corePathsProcessed = {};
 
 				for (let i = 0; i < coreList.length; i++) {
 					try {
@@ -3132,12 +3088,18 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		// Okay, so now we've gotten all the Cores added. Next, we need to grab each theme, listed in the Themes.OptionPaths array for each core, and check if it's a Kit. 
 		// If it is, we have to do some special stuff. Otherwise, we pull its constituent parts out and treat each of those as an item. 
 		// There's an easy way to check this with the IsKit field.
-		let customizationItemPathsProcessed = []; // If we already have a path in this array, we don't need to process it again.
+		let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
 
 		try {
 			for (let i = 0; i < coreWaypointJsonArray.length; i++) {
 				let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
 				let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
+
+				// Use this trick to avoid checking multiple cores for cross-core items.
+				// LIMITER
+				/*if (i < coreWaypointJsonArray.length - 1) {
+					continue;
+				}*/
 
 				await generateJsonsFromThemeList(
 					headers,
@@ -3164,7 +3126,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 	}
 	else if (customizationCategory != SpartanIdConstants.SPARTAN_ID_KEY) { // For right now, this case only applies to Body & AI, but it could also apply to other customization categories in the future.
 		let themePathArray = await getThemeList(headers, customizationCategory);
-		let customizationItemPathsProcessed = []; // If we already have a path in this array, we don't need to process it again.
+		let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
 
 		//console.info(themePathArray);
 
@@ -3183,7 +3145,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 	else { // This applies for theme-less customization categories (i.e. Spartan ID).
 		let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
 		console.info("Spartan ID Paths to Process: ", customizationItemPathArray);
-		let customizationItemPathsProcessed = [];
+		let customizationItemPathsProcessed = {};
 
 		await generateJsonsFromItemList(
 			headers,
@@ -3380,6 +3342,12 @@ async function importPaletteImages(headers, emblemPaletteFolderDict, emblemMappi
 
 			let existingNameplateETag = null;
 			let existingEmblemETag = null;
+
+			if (!(emblemConfigurationId in emblemPaletteDict)) {
+				console.error("Could not find an emblem palette matching config ID " + emblemConfigurationId + ". Continuing...");
+				continue;
+			}
+
 			// Retrieve the existing Nameplate ETag if we have one.
 			if (nameplateWaypointId in emblemPaletteDict[emblemConfigurationId]) {
 				if ("Nameplate" in emblemPaletteDict[emblemConfigurationId][nameplateWaypointId]
@@ -3634,7 +3602,6 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 			processingGroups.forEach(async (processingGroup) => {
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
 					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 			});
@@ -3690,7 +3657,6 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 
 			processingGroups.forEach(async (processingGroup) => {
 				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
 					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 			});
@@ -3738,7 +3704,6 @@ export async function vehicleImport(headers = null, manufacturerImportCompleted 
 			}
 
 			updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-				//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
 				.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 				.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 		});
@@ -3769,7 +3734,6 @@ export async function bodyAiImport(headers = null, manufacturerImportCompleted =
 
 	processingGroups.forEach((processingGroup) => {
 		updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-			//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
 			.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 	});
