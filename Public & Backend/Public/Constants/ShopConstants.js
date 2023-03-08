@@ -38,6 +38,7 @@ export const SHOP_CONSUMABLE_REFERENCE_FIELD = "consumables";
 
 export const SHOP_DAILY = "Daily";
 export const SHOP_WEEKLY = "Weekly";
+export const SHOP_SEMI_WEEKLY = "Semi-Weekly";
 export const SHOP_INDEFINITE = "Indefinite";
 export const SHOP_HCS = "HCS";
 
@@ -47,14 +48,16 @@ export const SHOP_FOLDER = "Shop";
 export const SHOP_TYPE_FOLDER_DICT = {
 	[SHOP_DAILY]: "Daily",
 	[SHOP_WEEKLY]: "Weekly",
+	[SHOP_SEMI_WEEKLY]: "Semi-Weekly",
 	[SHOP_INDEFINITE]: "Indefinite",
 	[SHOP_HCS]: "HCS"
 }
 
-// This dictionary converts Waypoint Shop types to ones recognized by the site.
+// This dictionary converts Waypoint Shop types to ones recognized by the site. This is likely no longer in use.
 export const SHOP_WAYPOINT_TO_SITE_TYPE_DICT = {
-	"Daily": SHOP_DAILY,
-	"Weekly": SHOP_WEEKLY,
+	"DAILY": SHOP_DAILY,
+	"WEEKLY": SHOP_WEEKLY,
+	"EVENT": SHOP_SEMI_WEEKLY,
 	"": SHOP_INDEFINITE,
 	"HCS": SHOP_HCS // This needs to be supplied manually when querying this JSON structure. Does not come directly from Waypoint like the others.
 }
