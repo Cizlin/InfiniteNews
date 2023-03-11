@@ -298,10 +298,13 @@ export async function getConvertedShopList() {
 						case "new":
 						case "returning":
 						case "sale":
-							mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
-							break;
 						case "event":
-							mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+							if (h == 0 && i == 2) { // In the main shop, it seems like the i == 2 listing is Semi-Weekly. Hopefully this remains true.
+								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+							}
+							else {
+								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
+							}
 							break;
 						case "daily":
 							mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_DAILY];
