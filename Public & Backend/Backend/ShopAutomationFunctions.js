@@ -739,9 +739,13 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 							}
 
 							// We need to update the source
+							let sourceText = "Purchase <em>" + bundleName.trim() + "</em> from the " + ((isHcs) ? "HCS " : "") + "Shop for " + bundleCost + " Credits";
 							if (item[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
-								let sourceText = "Purchase <i>" + bundleName + "</i> from the " + ((isHcs) ? "HCS " : "") + "Shop for " + bundleCost + " Credits";
 								item[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
+								itemChanged = true;
+							}
+							else if (!item[CUSTOMIZATION_SOURCE_FIELD].includes(sourceText)) {
+								item[CUSTOMIZATION_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
 								itemChanged = true;
 							}
 
@@ -1456,3 +1460,18 @@ export async function refreshShop() {
 			});
 	}
 }
+
+/*export function testFunc() {
+	wixData.query(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationDb)
+		.contains(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationNameField, "GRD Bear")
+		.find()
+		.then((results) => {
+			console.log(results.items);
+			let sourceText = "Purchase <em>" + "GRD Bear" + "</em> from the " + "" + "Shop for " + "200" + " Credits";
+			if (!results.items[0][CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationSourceField].includes(sourceText)) {
+				console.log(results.items[0][CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationSourceField] + "\n" + sourceText);
+				results.items[0][CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationSourceField] += "\n" + sourceText;
+				wixData.update(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationDb, results.items[0]);
+			}
+		});
+}*/
