@@ -399,11 +399,15 @@ export async function processRank(
 
 										// If the source text needs to be updated, let's do it.
 										const CORE_SOURCE_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CoreSourceField;
-										let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
-											passName + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
+										let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <em>" +
+											passName.trim() + "</em>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
 
 										if (matchingCore[CORE_SOURCE_FIELD].includes("Pending")) {
 											matchingCore[CORE_SOURCE_FIELD] = sourceText;
+											itemChanged = true;
+										}
+										else if (!matchingCore[CORE_SOURCE_FIELD].includes(sourceText)) {
+											matchingCore[CORE_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
 											itemChanged = true;
 										}
 
@@ -422,6 +426,10 @@ export async function processRank(
 
 											if (item[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
 												item[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
+												itemChanged = true;
+											}
+											else if (!item[CUSTOMIZATION_SOURCE_FIELD].includes(sourceText)) {
+												item[CUSTOMIZATION_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
 												itemChanged = true;
 											}
 
@@ -497,6 +505,10 @@ export async function processRank(
 
 												if (item[ATTACHMENT_SOURCE_FIELD].includes("Pending")) {
 													item[ATTACHMENT_SOURCE_FIELD] = sourceText;
+													itemChanged = true;
+												}
+												else if (!item[ATTACHMENT_SOURCE_FIELD].includes(sourceText)) {
+													item[ATTACHMENT_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
 													itemChanged = true;
 												}
 
@@ -613,11 +625,16 @@ export async function processRank(
 
 										const CUSTOMIZATION_SOURCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSourceField
 
+										let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
+											passName.trim() + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
+
 										// If the source text needs to be updated, let's do it.
 										if (matchingItem[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
-											let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
-												passName + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
 											matchingItem[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
+											itemChanged = true;
+										}
+										else if (!matchingItem[CUSTOMIZATION_SOURCE_FIELD].includes(sourceText)) {
+											matchingItem[CUSTOMIZATION_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
 											itemChanged = true;
 										}
 
@@ -1366,9 +1383,14 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 
 					// We need to update the source
 					const SOURCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSourceField;
+					let sourceText = "Complete all Weekly Challenges and then complete the <i>" + challengeName.trim() + "</i> Capstone Challenge during any week it is available.";
+
 					if (item[SOURCE_FIELD].includes("Pending")) {
-						let sourceText = "Complete all Weekly Challenges and then complete the <i>" + challengeName + "</i> Capstone Challenge during any week it is available.";
 						item[SOURCE_FIELD] = sourceText;
+						itemChanged = true;
+					}
+					else if (!item[SOURCE_FIELD].includes(sourceText)) {
+						item[SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
 						itemChanged = true;
 					}
 
