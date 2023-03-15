@@ -2277,7 +2277,9 @@ async function processItem(headers,
 	return itemSiteJson;
 }
 
-// This function accepts an array of paths and other performance variables and places the site JSONs in the customizationItemDbArray.
+// This function accepts an array of paths and other performance variables and places the site JSONs in the customizationItemDbArray. Returns true if there are still items to process.
+// limit: The upper limit on the index to use for this item list.
+// offset: The index to start from.
 // headers: The headers used to access Waypoint endpoints.
 // customizationCategory: One of the predefined category keys (e.g. KeyConstants.ARMOR_KEY)
 // folderDict: The dictionary representing our media folder path, pregenerated.
@@ -2291,6 +2293,8 @@ async function processItem(headers,
 // isKitItem: Only true if the item belongs to a Kit.
 // customizationWaypointIdArray: Array of Waypoint IDs, only really needed for Kit items.
 async function generateJsonsFromItemList(
+	limit,
+	offset,
 	headers,
 	customizationCategory,
 	folderDict,
@@ -2309,7 +2313,10 @@ async function generateJsonsFromItemList(
 	 * defaultPath = ""						// Required for items with cores.
 	 */
 
-	for (let k = 0; k < customizationItemPathArray.length; ++k) {
+	for (let k = offset; k < customizationItemPathArray.length; ++k) {
+		if (limit != -1 && k >= limit) {
+			return true;
+		}
 		// Use the below controls to limit the amount of items imported at a time. Make sure to also limit the number of themes considered if applicable.
 		// LIMITER
 		/*if (k < 200) {
@@ -2356,6 +2363,8 @@ async function generateJsonsFromItemList(
 			continue;
 		}
 	}
+
+	return false;
 }
 
 // This function accepts an array of items with their attachments and other performance variables and places the site JSONs in the customizationItemDbArray.
@@ -2521,7 +2530,9 @@ async function generateJsonsFromItemAndAttachmentList(
 	}
 }
 
-// This function accepts an array of theme paths and other performance variables and places the site JSONs in the customizationItemDbArray.
+// This function accepts an array of theme paths and other performance variables and places the site JSONs in the customizationItemDbArray. Returns true if there are still items to process. False otherwise.
+// limit: The upper limit for any item-level index
+// offset: The starting index for any item-level loop
 // headers: The headers used to access Waypoint endpoints.
 // customizationCategory: One of the predefined category keys (e.g. KeyConstants.ARMOR_KEY)
 // folderDict: The dictionary representing our media folder path, pregenerated.
@@ -2533,6 +2544,8 @@ async function generateJsonsFromItemAndAttachmentList(
 // coreName: The name of the parent core.
 // waypointThemePathToCoreDict: A dictionary that takes theme Waypoint paths and converts them to core names.
 async function generateJsonsFromThemeList(
+	limit,
+	offset,
 	headers,
 	customizationCategory,
 	folderDict,
@@ -2544,6 +2557,8 @@ async function generateJsonsFromThemeList(
 	waypointGroupsToProcess,
 	coreWaypointId = "",
 	waypointThemePathToCoreDict = {}) {
+
+	let itemsLeftToProcess = false;
 
 	if (waypointGroupsToProcess.includes(CustomizationConstants.KIT_PROCESSING_KEY)) { // Skip the Kits if we aren't working on them.
 		let kitPathsProcessed = {}; // An object of Kit paths that have already been processed.
@@ -2559,6 +2574,7 @@ async function generateJsonsFromThemeList(
 		let kitItemPathsProcessed = {}; // As long as we can tie the attachment path to a name, we don't have to process a path twice.
 		let kitItemDbArray = []; // These need to be added separately.
 
+		// Kits must be processed in full before any individual items are added.
 		for (let l = 0; l < themePathArray.length; ++l) {
 			let kitPath = themePathArray[l];
 			if (kitPath in kitPathsProcessed) {
@@ -2602,6 +2618,8 @@ async function generateJsonsFromThemeList(
 						let customizationItemPathArray = themeWaypointJson[waypointTypeGroup].OptionPaths;
 
 						await generateJsonsFromItemList(
+							-1, // limit (we want to add everything in a kit)
+							0,	// offset (we want to add everything in a kit)
 							headers,
 							customizationCategory,
 							folderDict,
@@ -2738,7 +2756,9 @@ async function generateJsonsFromThemeList(
 					// Basically, if we aren't working with an attachment-supporting group.
 					// We grab the array of waypoint paths, then process each one (so many nested for loops...)
 					let customizationItemPathArray = themeWaypointJson[waypointTypeGroup].OptionPaths;
-					await generateJsonsFromItemList(
+					if(await generateJsonsFromItemList(
+						limit,
+						offset,
 						headers,
 						customizationCategory,
 						folderDict,
@@ -2752,13 +2772,16 @@ async function generateJsonsFromThemeList(
 							"parentThemePath": themePathArray[j],
 							"defaultPath": defaultPath
 						}
-					);
+					)) {
+						itemsLeftToProcess = true;
+					}
 				}
 				else {
 					// We're working with an item type that has attachments. This means it's laid out a little differently. 
 					// Before we can fetch the item details, we have to add the attachments to the DB.
 					// We'll generate a dictionary where the path of each item points to an array of attachment IDs.
 					// Once we have that dictionary completed and all the attachment items added to their DB, we can proceed to work on the parent items.
+					// Limiting items with attachments is unfeasible at this time since all attachments must be added before any parent item can be.
 					let itemAndAttachmentsArray = themeWaypointJson[waypointTypeGroup]["Options"];
 					await generateJsonsFromItemAndAttachmentList(
 						headers,
@@ -2781,6 +2804,8 @@ async function generateJsonsFromThemeList(
 			}
 		}
 	}
+
+	return itemsLeftToProcess;
 }
 
 // Saves the items in the customizationItemDbArray to their respective databases.
@@ -2996,171 +3021,193 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			throw "Unable to process customization category " + customizationCategory + " at this time.";
 	}
 
-	let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
+	// These variables allow us to process and update a chunk of items at a time.
+	let itemsRemainingToProcess = true;
+	const itemCountLimit = 50;
+	let itemCountOffset = 0;
 
-	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
-		let coreList = !(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) ? await getCoreList(headers, customizationCategory) : [];
-		let coreWaypointJsonArray = [];
-		let coreDbJsonArray = [];
-		let waypointThemePathToCoreDict = {};
-		if (waypointGroupsToProcess.includes(CustomizationConstants.CORE_PROCESSING_KEY)) {
-			// We want to do two things with this iteration: get each JSON for insertion/update into the core DB, and create the waypointThemePathToCoreDict.
-			// The keys will be the Waypoint Paths to each child theme, and the values will be the corresponding core name.
-			try {
-				let corePathsProcessed = {};
+	while (itemsRemainingToProcess) {
+		itemsRemainingToProcess = false; // This may later become true, in which case we need to continue processing.
+		let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
 
-				for (let i = 0; i < coreList.length; i++) {
-					try {
+		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+			let coreList = !(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) ? await getCoreList(headers, customizationCategory) : [];
+			let coreWaypointJsonArray = [];
+			let coreDbJsonArray = [];
+			let waypointThemePathToCoreDict = {};
+			if (waypointGroupsToProcess.includes(CustomizationConstants.CORE_PROCESSING_KEY)) {
+				// We want to do two things with this iteration: get each JSON for insertion/update into the core DB, and create the waypointThemePathToCoreDict.
+				// The keys will be the Waypoint Paths to each child theme, and the values will be the corresponding core name.
+				try {
+					let corePathsProcessed = {};
 
-						let coreSiteJson = await processItem(
-							headers,
-							customizationCategory,
-							folderDict,
-							generalDictsAndArrays,
-							categorySpecificDictsAndArrays,
-							coreList[i],
-							CustomizationConstants.ITEM_TYPES.core,
-							corePathsProcessed,
-							{
-								"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
-								"coreWaypointJsonArray": coreWaypointJsonArray
+					for (let i = 0; i < coreList.length; i++) {
+						try {
+
+							let coreSiteJson = await processItem(
+								headers,
+								customizationCategory,
+								folderDict,
+								generalDictsAndArrays,
+								categorySpecificDictsAndArrays,
+								coreList[i],
+								CustomizationConstants.ITEM_TYPES.core,
+								corePathsProcessed,
+								{
+									"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
+									"coreWaypointJsonArray": coreWaypointJsonArray
+								}
+							);
+
+							if (coreSiteJson == 1) {
+								//console.info("Skipping " + coreList[i]);
+								continue;
 							}
-						);
-
-						if (coreSiteJson == 1) {
-							//console.info("Skipping " + coreList[i]);
+							else if (coreSiteJson != -1) {
+								coreDbJsonArray.push(coreSiteJson);
+							}
+							else {
+								throw "Error occurred while getting the DB-ready core item JSON.";
+							}
+						}
+						catch (error) {
+							console.error("Error ", error, " encountered when trying to add ", coreList[i], "; continuing...");
 							continue;
 						}
-						else if (coreSiteJson != -1) {
-							coreDbJsonArray.push(coreSiteJson);
-						}
-						else {
-							throw "Error occurred while getting the DB-ready core item JSON.";
-						}
-					}
-					catch (error) {
-						console.error("Error ", error, " encountered when trying to add ", coreList[i], "; continuing...");
-						continue;
 					}
 				}
+				catch (error) {
+					console.error(error);
+					// Because we're dealing with modifications to the DB, if we get a major error of any kind, we need to GTFO.
+					return -1;
+				}
+
+				console.info("After obtaining all Core JSONs: ", coreDbJsonArray);
+
+				// It's time to save the Core entries to the Core DB.
+				const CORE_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
+				await wixData.bulkSave(CORE_DB, coreDbJsonArray)
+					.then((results) => {
+						console.info("After Core DB Save: " + results.inserted + " inserted, " + results.updated + " updated, " + results.skipped + " skipped.");
+						console.info("Inserted IDs: " + results.insertedItemIds);
+						console.info("Updated IDs: " + results.updatedItemIds);
+						if (results.errors.length > 0) {
+							console.error("Errors: " + results.errors);
+						}
+					})
+					.catch((error) => {
+						console.error(error);
+					});
+
+				return 0; // We only want to process Cores, so we get out when we're done.
+			}
+			else { // If we don't want to add the cores, we just need to get the array of core JSONs.
+				for (let i = 0; i < coreList.length; i++) {
+					try {
+						let coreWaypointJson = await ApiFunctions.getCustomizationItem(headers, coreList[i]);
+						coreWaypointJsonArray.push(coreWaypointJson);
+						coreWaypointJson.Themes.OptionPaths.forEach((waypointThemePath) => {
+							waypointThemePathToCoreDict[waypointThemePath] = coreWaypointJson.CommonData.Id;
+						});
+					}
+					catch (error) {
+						console.error("Error occurred while retrieving core list: " + error);
+						return -1;
+					}
+				}
+			}
+
+			// Okay, so now we've gotten all the Cores added. Next, we need to grab each theme, listed in the Themes.OptionPaths array for each core, and check if it's a Kit. 
+			// If it is, we have to do some special stuff. Otherwise, we pull its constituent parts out and treat each of those as an item. 
+			// There's an easy way to check this with the IsKit field.
+			let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
+
+			try {
+				for (let i = 0; i < coreWaypointJsonArray.length; i++) {
+					let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
+					let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
+
+					// Use this trick to avoid checking multiple cores for cross-core items.
+					// LIMITER
+					/*if (i < coreWaypointJsonArray.length - 1) {
+						continue;
+					}*/
+
+					if (await generateJsonsFromThemeList(
+						itemCountLimit,
+						itemCountOffset,
+						headers,
+						customizationCategory,
+						folderDict,
+						generalDictsAndArrays,
+						categorySpecificDictsAndArrays,
+						customizationItemDbArray,
+						customizationItemPathsProcessed,
+						themePathArray,
+						waypointGroupsToProcess,
+						coreWaypointId,
+						waypointThemePathToCoreDict
+					)) {
+						itemsRemainingToProcess = true;
+					}
+				}
+
+				//console.info("After obtaining all JSONs for these Waypoint Groups: ", waypointGroupsToProcess, ", we got this Array: ", customizationItemDbArray);
 			}
 			catch (error) {
 				console.error(error);
-				// Because we're dealing with modifications to the DB, if we get a major error of any kind, we need to GTFO.
+				// Because we're dealing with modifications to the DB, if we get an error of any kind, we need to GTFO.
 				return -1;
 			}
-
-			console.info("After obtaining all Core JSONs: ", coreDbJsonArray);
-
-			// It's time to save the Core entries to the Core DB.
-			const CORE_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
-			await wixData.bulkSave(CORE_DB, coreDbJsonArray)
-				.then((results) => {
-					console.info("After Core DB Save: " + results.inserted + " inserted, " + results.updated + " updated, " + results.skipped + " skipped.");
-					console.info("Inserted IDs: " + results.insertedItemIds);
-					console.info("Updated IDs: " + results.updatedItemIds);
-					if (results.errors.length > 0) {
-						console.error("Errors: " + results.errors);
-					}
-				})
-				.catch((error) => {
-					console.error(error);
-				});
-
-			return 0; // We only want to process Cores, so we get out when we're done.
 		}
-		else { // If we don't want to add the cores, we just need to get the array of core JSONs.
-			for (let i = 0; i < coreList.length; i++) {
-				try {
-					let coreWaypointJson = await ApiFunctions.getCustomizationItem(headers, coreList[i]);
-					coreWaypointJsonArray.push(coreWaypointJson);
-					coreWaypointJson.Themes.OptionPaths.forEach((waypointThemePath) => {
-						waypointThemePathToCoreDict[waypointThemePath] = coreWaypointJson.CommonData.Id;
-					});
-				}
-				catch (error) {
-					console.error("Error occurred while retrieving core list: " + error);
-					return -1;
-				}
+		else if (customizationCategory != SpartanIdConstants.SPARTAN_ID_KEY) { // For right now, this case only applies to Body & AI, but it could also apply to other customization categories in the future.
+			let themePathArray = await getThemeList(headers, customizationCategory);
+			let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
+
+			//console.info(themePathArray);
+
+			if (await generateJsonsFromThemeList(
+				itemCountLimit,
+				itemCountOffset,
+				headers,
+				customizationCategory,
+				folderDict,
+				generalDictsAndArrays,
+				categorySpecificDictsAndArrays,
+				customizationItemDbArray,
+				customizationItemPathsProcessed,
+				themePathArray,
+				waypointGroupsToProcess
+			)) {
+				itemsRemainingToProcess = true;
 			}
 		}
+		else { // This applies for theme-less customization categories (i.e. Spartan ID).
+			let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
+			console.info("Spartan ID Paths to Process: ", customizationItemPathArray);
+			let customizationItemPathsProcessed = {};
 
-		// Okay, so now we've gotten all the Cores added. Next, we need to grab each theme, listed in the Themes.OptionPaths array for each core, and check if it's a Kit. 
-		// If it is, we have to do some special stuff. Otherwise, we pull its constituent parts out and treat each of those as an item. 
-		// There's an easy way to check this with the IsKit field.
-		let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
-
-		try {
-			for (let i = 0; i < coreWaypointJsonArray.length; i++) {
-				let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
-				let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
-
-				// Use this trick to avoid checking multiple cores for cross-core items.
-				// LIMITER
-				/*if (i < coreWaypointJsonArray.length - 1) {
-					continue;
-				}*/
-
-				await generateJsonsFromThemeList(
-					headers,
-					customizationCategory,
-					folderDict,
-					generalDictsAndArrays,
-					categorySpecificDictsAndArrays,
-					customizationItemDbArray,
-					customizationItemPathsProcessed,
-					themePathArray,
-					waypointGroupsToProcess,
-					coreWaypointId,
-					waypointThemePathToCoreDict
-				);
-			}
-
-			//console.info("After obtaining all JSONs for these Waypoint Groups: ", waypointGroupsToProcess, ", we got this Array: ", customizationItemDbArray);
+			itemsRemainingToProcess = await generateJsonsFromItemList(
+				itemCountLimit,
+				itemCountOffset,
+				headers,
+				customizationCategory,
+				folderDict,
+				generalDictsAndArrays,
+				categorySpecificDictsAndArrays,
+				customizationItemDbArray,
+				customizationItemPathsProcessed,
+				customizationItemPathArray
+			);
 		}
-		catch (error) {
-			console.error(error);
-			// Because we're dealing with modifications to the DB, if we get an error of any kind, we need to GTFO.
-			return -1;
-		}
-	}
-	else if (customizationCategory != SpartanIdConstants.SPARTAN_ID_KEY) { // For right now, this case only applies to Body & AI, but it could also apply to other customization categories in the future.
-		let themePathArray = await getThemeList(headers, customizationCategory);
-		let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
 
-		//console.info(themePathArray);
+		// It's time to save the entries to the Customization DB.
+		await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 
-		await generateJsonsFromThemeList(
-			headers,
-			customizationCategory,
-			folderDict,
-			generalDictsAndArrays,
-			categorySpecificDictsAndArrays,
-			customizationItemDbArray,
-			customizationItemPathsProcessed,
-			themePathArray,
-			waypointGroupsToProcess
-		);
-	}
-	else { // This applies for theme-less customization categories (i.e. Spartan ID).
-		let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
-		console.info("Spartan ID Paths to Process: ", customizationItemPathArray);
-		let customizationItemPathsProcessed = {};
-
-		await generateJsonsFromItemList(
-			headers,
-			customizationCategory,
-			folderDict,
-			generalDictsAndArrays,
-			categorySpecificDictsAndArrays,
-			customizationItemDbArray,
-			customizationItemPathsProcessed,
-			customizationItemPathArray
-		);
+		itemCountOffset += itemCountLimit;
 	}
 
-	// It's time to save the entries to the Customization DB.
-	await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+	return 0;
 }
 
 export async function importManufacturers(headers) {
@@ -3558,64 +3605,7 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 	}
 }
 
-export async function armorImport1(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
-	if (!headers) {
-		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
-	}
-
-	if (!manufacturerImportCompleted) {
-		await importManufacturers(headers); // We're going to import the manufacturers before anything else. This isn't a super lengthy process, but will take a few seconds.
-	}
-
-	let generalDictsAndArrays = await getGeneralDictsAndArraysFromDbs(headers);
-
-	// Add the cores first.
-	let customizationCategory = ArmorConstants.ARMOR_KEY;
-	let returnCode = await updateDbsFromApi(headers, customizationCategory, [CustomizationConstants.CORE_PROCESSING_KEY], generalDictsAndArrays, null)
-		.catch((error) => {
-			console.error("Error occurred while processing Cores for " + customizationCategory, error);
-			return -1;
-		});
-
-	if (!returnCode) { // Return code 0 means success.
-		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
-
-		// Add the Kits next.
-		if (!emblemPaletteImportCompleted) { // Need to process emblems before adding Kits.
-			await importEmblemPalettes(headers, generalDictsAndArrays);
-		}
-
-		returnCode = await updateDbsFromApi(headers, customizationCategory, [CustomizationConstants.KIT_PROCESSING_KEY], generalDictsAndArrays, categorySpecificDictsAndArrays)
-			.catch((error) => {
-				console.error("Error occurred while processing Kits for " + customizationCategory, error);
-				return -1;
-			});
-
-		if (!returnCode) {
-			let processingGroups = [
-				//["Coatings"],
-				//["Emblems"],
-				["Helmets"],
-				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
-			];
-
-			processingGroups.forEach(async (processingGroup) => {
-				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
-			});
-		}
-		else {
-			console.error("Unable to process items for " + customizationCategory + " due to failure to add Kits.");
-		}
-	}
-	else { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
-		console.error("Unable to process items for " + customizationCategory + " due to failure to add Cores.");
-	}
-}
-
-export async function armorImport2(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function armorImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3651,10 +3641,10 @@ export async function armorImport2(headers = null, manufacturerImportCompleted =
 		if (!returnCode) {
 			let processingGroups = [
 				["Coatings"],
-				["Emblems"]
-				//["Helmets"],
-				//["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				//["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+				["Emblems"],
+				["Helmets"],
+				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
+				["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
@@ -3821,7 +3811,6 @@ export async function spartanIdImport(headers = null, manufacturerImportComplete
 			await importEmblemPalettes(headers, generalDictsAndArrays);
 		}
 		updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-			//.then(() => InternalNotificationFunctions.notifyOwner("Processing Completed", "Finished processing " + processingGroup[0] + " and more for " + customizationCategory))
 			.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
 			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
 	});
