@@ -2950,13 +2950,13 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 						let retryCount = 0;
 
 						while (retry && retryCount < maxRetries) {
-							await wixData.replaceReferences(CUSTOMIZATION_DB, DEFAULT_OF_CORE_REFERENCE_FIELD, item._id, customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD], options)
+							await wixData.insertReference(CUSTOMIZATION_DB, DEFAULT_OF_CORE_REFERENCE_FIELD, item._id, customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD], options)
 								.then(() => {
 									retry = false;
 									//console.info("Core references added for ", customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
 								})
 								.catch((error) => {
-									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing core references for ", item._id, " in ",
+									console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was adding default core references for ", item._id, " in ",
 										CUSTOMIZATION_DB, " with ", customizationItemDbJson[DEFAULT_OF_CORE_REFERENCE_FIELD]);
 								});
 						}
@@ -3558,7 +3558,64 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 	}
 }
 
-export async function armorImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function armorImport1(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+	if (!headers) {
+		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
+	}
+
+	if (!manufacturerImportCompleted) {
+		await importManufacturers(headers); // We're going to import the manufacturers before anything else. This isn't a super lengthy process, but will take a few seconds.
+	}
+
+	let generalDictsAndArrays = await getGeneralDictsAndArraysFromDbs(headers);
+
+	// Add the cores first.
+	let customizationCategory = ArmorConstants.ARMOR_KEY;
+	let returnCode = await updateDbsFromApi(headers, customizationCategory, [CustomizationConstants.CORE_PROCESSING_KEY], generalDictsAndArrays, null)
+		.catch((error) => {
+			console.error("Error occurred while processing Cores for " + customizationCategory, error);
+			return -1;
+		});
+
+	if (!returnCode) { // Return code 0 means success.
+		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
+
+		// Add the Kits next.
+		if (!emblemPaletteImportCompleted) { // Need to process emblems before adding Kits.
+			await importEmblemPalettes(headers, generalDictsAndArrays);
+		}
+
+		returnCode = await updateDbsFromApi(headers, customizationCategory, [CustomizationConstants.KIT_PROCESSING_KEY], generalDictsAndArrays, categorySpecificDictsAndArrays)
+			.catch((error) => {
+				console.error("Error occurred while processing Kits for " + customizationCategory, error);
+				return -1;
+			});
+
+		if (!returnCode) {
+			let processingGroups = [
+				//["Coatings"],
+				//["Emblems"],
+				["Helmets"],
+				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
+				["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+			];
+
+			processingGroups.forEach(async (processingGroup) => {
+				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
+					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
+					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+			});
+		}
+		else {
+			console.error("Unable to process items for " + customizationCategory + " due to failure to add Kits.");
+		}
+	}
+	else { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
+		console.error("Unable to process items for " + customizationCategory + " due to failure to add Cores.");
+	}
+}
+
+export async function armorImport2(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3594,10 +3651,10 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 		if (!returnCode) {
 			let processingGroups = [
 				["Coatings"],
-				["Emblems"],
-				["Helmets"],
-				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+				["Emblems"]
+				//["Helmets"],
+				//["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
+				//["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
