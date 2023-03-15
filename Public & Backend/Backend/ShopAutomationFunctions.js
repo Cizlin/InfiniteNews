@@ -291,12 +291,22 @@ export async function getConvertedShopList() {
 					let shopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i].OfferingDisplayPath);
 
 					// Weekly bundles have excluded the Flair Text since Season 2. Let's parse empty Flair Text values as "Weekly".
-					switch (shopWaypointJson.FlairText) {
-						case "Weekly":
+					switch (shopWaypointJson.FlairText.toLowerCase()) {
+						case "weekly":
 						case "":
-							mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
+						case "best value":
+						case "new":
+						case "returning":
+						case "sale":
+						case "event":
+							if (h == 0 && i == 2) { // In the main shop, it seems like the i == 2 listing is Semi-Weekly. Hopefully this remains true.
+								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+							}
+							else {
+								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
+							}
 							break;
-						case "Daily":
+						case "daily":
 							mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_DAILY];
 							break;
 						default:
@@ -729,9 +739,13 @@ export async function addItemIdArrayToShopItem(bundleId, fieldName, itemIdArray,
 							}
 
 							// We need to update the source
+							let sourceText = "Purchase <em>" + bundleName.trim() + "</em> from the " + ((isHcs) ? "HCS " : "") + "Shop for " + bundleCost + " Credits";
 							if (item[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
-								let sourceText = "Purchase <i>" + bundleName + "</i> from the " + ((isHcs) ? "HCS " : "") + "Shop for " + bundleCost + " Credits";
 								item[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
+								itemChanged = true;
+							}
+							else if (!item[CUSTOMIZATION_SOURCE_FIELD].includes(sourceText)) {
+								item[CUSTOMIZATION_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
 								itemChanged = true;
 							}
 
@@ -911,6 +925,8 @@ export async function generateSocialNotifications(updateItemArray) {
 	// First, we count how many of each type of bundle has newly appeared.
 	let numReturningWeeklyBundles = 0;
 	let numNewWeeklyBundles = 0;
+	let numReturningSemiWeeklyBundles = 0;
+	let numNewSemiWeeklyBundles = 0;
 	let numReturningDailyBundles = 0;
 	let numNewDailyBundles = 0;
 	let numReturningHcsBundles = 0;
@@ -920,7 +936,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 	for (let i = 0; i < updateItemArray.length; ++i) {
 
-		console.log("Checking to see if this item is new/returning and daily/weekly.", updateItemArray[i]);
+		console.log("Checking to see if this item is new/returning and daily/semi-weekly or weekly.", updateItemArray[i]);
 		let lastAvailableDatetime = new Date(updateItemArray[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
 		if (new Date(lastAvailableDatetime.toDateString()) < new Date(new Date().toDateString())) { // If the lastAvailableDatetime is before today, the item is returning.
 			if (updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD].includes(ShopConstants.SHOP_DAILY)) {
@@ -930,6 +946,10 @@ export async function generateSocialNotifications(updateItemArray) {
 			else if (updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD].includes(ShopConstants.SHOP_WEEKLY)) {
 				updateItemArray[i].returning = true;
 				numReturningWeeklyBundles++;
+			}
+			else if (updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD].includes(ShopConstants.SHOP_SEMI_WEEKLY)) {
+				updateItemArray[i].returning = true;
+				numReturningSemiWeeklyBundles++;
 			}
 			else if (updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD].includes(ShopConstants.SHOP_INDEFINITE) &&
 				updateItemArray[i][ShopConstants.SHOP_IS_HCS_FIELD]) {
@@ -950,6 +970,10 @@ export async function generateSocialNotifications(updateItemArray) {
 			else if (updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD].includes(ShopConstants.SHOP_WEEKLY)) {
 				updateItemArray[i].returning = false;
 				numNewWeeklyBundles++;
+			}
+			else if (updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD].includes(ShopConstants.SHOP_SEMI_WEEKLY)) {
+				updateItemArray[i].returning = false;
+				numNewSemiWeeklyBundles++;
 			}
 			else if (updateItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD].includes(ShopConstants.SHOP_INDEFINITE) &&
 				updateItemArray[i][ShopConstants.SHOP_IS_HCS_FIELD]) {
@@ -974,6 +998,14 @@ export async function generateSocialNotifications(updateItemArray) {
 		}
 		else {
 			bundleSummaryArray.push(numReturningWeeklyBundles + " returning Weekly Listings");
+		}
+	}
+	if (numReturningSemiWeeklyBundles > 0) {
+		if (numReturningSemiWeeklyBundles == 1) {
+			bundleSummaryArray.push(numReturningSemiWeeklyBundles + " returning Semi-Weekly Listing");
+		}
+		else {
+			bundleSummaryArray.push(numReturningSemiWeeklyBundles + " returning Semi-Weekly Listings");
 		}
 	}
 	if (numReturningDailyBundles > 0) {
@@ -1006,6 +1038,14 @@ export async function generateSocialNotifications(updateItemArray) {
 		}
 		else {
 			bundleSummaryArray.push(numNewWeeklyBundles + " new Weekly Listings");
+		}
+	}
+	if (numNewSemiWeeklyBundles > 0) {
+		if (numNewSemiWeeklyBundles == 1) {
+			bundleSummaryArray.push(numNewSemiWeeklyBundles + " new Semi-Weekly Listing");
+		}
+		else {
+			bundleSummaryArray.push(numNewSemiWeeklyBundles + " new Semi-Weekly Listings");
 		}
 	}
 	if (numNewDailyBundles > 0) {
@@ -1204,13 +1244,6 @@ export async function generateSocialNotifications(updateItemArray) {
 			});
 
 			await sendDiscordMessage("shop", discordMessageSubText); // Include notification in the message.
-
-			//let subTweetText = "Full details for the " + mainItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " " + mainItemArray[i][ShopConstants.SHOP_TIME_TYPE_FIELD][0] +
-			//	" Listing (" + mainItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] + " Credits) are available here.\n\n";
-
-			//subTweetText += "\n" + GeneralConstants.INFINITE_NEWS_URL_BASE + mainItemArray[i][ShopConstants.SHOP_URL_FIELD];
-			//parentId = await sendTweet(subTweetText, parentId);
-			//await sendDiscordMessage("shop", subTweetText);
 		}
 	}
 
@@ -1292,18 +1325,6 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			await sendDiscordMessage("shop", discordMessageSubText); // Include notification in the message.
 		}
-
-		/*for (let i = 0; i < hcsItemArray.length; ++i) {
-			let subTweetText = "Full details for the " + hcsItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " HCS Listing (" +
-				hcsItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] + " Credits) are available here.\n\n";
-
-			subTweetText += GeneralConstants.INFINITE_NEWS_URL_BASE + hcsItemArray[i][ShopConstants.SHOP_URL_FIELD];
-			console.log(subTweetText);
-			//parentId = await sendTweet(subTweetText, parentId);
-			//await sendDiscordMessage("shop", subTweetText);
-		}*/
-
-
 	}
 }
 
@@ -1439,3 +1460,18 @@ export async function refreshShop() {
 			});
 	}
 }
+
+/*export function testFunc() {
+	wixData.query(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationDb)
+		.contains(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationNameField, "GRD Bear")
+		.find()
+		.then((results) => {
+			console.log(results.items);
+			let sourceText = "Purchase <em>" + "GRD Bear" + "</em> from the " + "" + "Shop for " + "200" + " Credits";
+			if (!results.items[0][CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationSourceField].includes(sourceText)) {
+				console.log(results.items[0][CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationSourceField] + "\n" + sourceText);
+				results.items[0][CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationSourceField] += "\n" + sourceText;
+				wixData.update(CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS["Weapon"].CustomizationDb, results.items[0]);
+			}
+		});
+}*/

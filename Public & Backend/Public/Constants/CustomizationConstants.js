@@ -579,6 +579,7 @@ export const CUSTOMIZATION_TYPE_FOLDER_DICT = {
 	[ShopConstants.SHOP_KEY]: {
 		[ShopConstants.SHOP_DAILY]: "Daily",
 		[ShopConstants.SHOP_WEEKLY]: "Weekly",
+		[ShopConstants.SHOP_SEMI_WEEKLY]: "Semi-Weekly",
 		[ShopConstants.SHOP_INDEFINITE]: "Indefinite",
 		[ShopConstants.SHOP_HCS]: "HCS"
 	},
