@@ -109,6 +109,8 @@ export async function generateNewTwitchDropJsons() {
         minimalJson.campaignEnd = new Date(Date.parse(dropJson.data.user.dropCampaign.endAt));
         minimalJson.campaignName = dropJson.data.user.dropCampaign.name;
 
+        minimalJson.status = dropJson.data.user.dropCampaign.status;
+
         minimalJson.rewardGroups = [];
 
         for (let j = 0; j < dropJson.data.user.dropCampaign.timeBasedDrops.length; ++j) {
@@ -149,6 +151,7 @@ export async function addAndUpdateTwitchDrops() {
     let databaseTwitchDrops = await getExistingTwitchDrops();
 
     let sendAlert = false; // This will allow us to send an alert if a new Twitch Drop is added or if an existing one is updated.
+    let dropIsLive = false;
 
     for (let i = 0; i < apiTwitchDrops.length; ++i) {
         let matchingIndex = databaseTwitchDrops.findIndex(item => item.dropId == apiTwitchDrops[i].dropId);
@@ -195,9 +198,14 @@ export async function addAndUpdateTwitchDrops() {
                 sendAlert = true;
                 databaseTwitchDrops[matchingIndex].updatedFields.push("rewardGroups");
             }
+
+            if (apiTwitchDrops[i].status != databaseTwitchDrops[matchingIndex].status) {
+                databaseTwitchDrops[matchingIndex].status = apiTwitchDrops[i].status;
+                dropIsLive = (apiTwitchDrops[i].status.toUpperCase() == "ACTIVE");
+            }
         }
         else {
-            // This is a new Twitch Drop. We can just port over the database Twitch Drop and add some bonus fields.
+            // This is a new Twitch Drop. We can just port over the API Twitch Drop and add some bonus fields.
             apiTwitchDrops[i].needsReview = true;
             apiTwitchDrops[i].updatedFields = ["new"];
             databaseTwitchDrops.push(apiTwitchDrops[i]);
@@ -217,6 +225,11 @@ export async function addAndUpdateTwitchDrops() {
     if (sendAlert) {
         console.log("Sending Twitch Drop alert to owner");
         notifs.notifyOwner("New/Updated Twitch Drops", "Check the Twitch Drops database to note the latest changes.");
+    }
+
+    if (dropIsLive) {
+        console.log("Sending ACTIVE Twitch Drop alert to owner...");
+        notifs.notifyOwner("Twitch Drop Now ACTIVE", "Send notifications for the active Twitch Drop.")
     }
 }
 
