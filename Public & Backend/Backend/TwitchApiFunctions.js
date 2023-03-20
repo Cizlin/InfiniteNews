@@ -134,8 +134,9 @@ export async function generateNewTwitchDropJsons() {
     return dropInfoArray;
 }
 
-export async function getExistingTwitchDrops() {
+export async function getExistingTwitchDrops(dropIds) {
     return await wixData.query("TwitchDrops")
+        .hasSome("dropId", dropIds)
         .find()
         .then(results => {
             return results.items;
@@ -148,7 +149,12 @@ export async function getExistingTwitchDrops() {
 
 export async function addAndUpdateTwitchDrops() {
     let apiTwitchDrops = await generateNewTwitchDropJsons();
-    let databaseTwitchDrops = await getExistingTwitchDrops();
+    let apiDropIdArray = [];
+    for (let i = 0; i < apiTwitchDrops.length; ++i) {
+        apiDropIdArray.push(apiTwitchDrops[i].dropId);
+    }
+
+    let databaseTwitchDrops = await getExistingTwitchDrops(apiDropIdArray);
 
     let sendAlert = false; // This will allow us to send an alert if a new Twitch Drop is added or if an existing one is updated.
     let dropIsLive = false;
@@ -209,6 +215,7 @@ export async function addAndUpdateTwitchDrops() {
             apiTwitchDrops[i].needsReview = true;
             apiTwitchDrops[i].updatedFields = ["new"];
             databaseTwitchDrops.push(apiTwitchDrops[i]);
+            dropIsLive = (apiTwitchDrops[i].status.toUpperCase() == "ACTIVE");
 
             sendAlert = true;
         }
