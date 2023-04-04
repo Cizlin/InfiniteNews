@@ -2,7 +2,7 @@ const Twitter = require('twitter');
 import {getSecret} from 'wix-secrets-backend';
 import wixMediaBackend from 'wix-media-backend';
 
-export async function sendTweet(tweetBody, parentId = null) {
+export async function sendTweet(tweetBody, parentId = null, mediaIds = null) {
 	// Generate and send post
 	const CLIENT = new Twitter({
 		consumer_key: await getSecret("TwitterApiKey"),
@@ -11,7 +11,7 @@ export async function sendTweet(tweetBody, parentId = null) {
 		access_token_secret: await getSecret("TwitterAccessTokenSecret")
 	});
 
-	return await CLIENT.post("statuses/update", { status: tweetBody, in_reply_to_status_id: parentId, auto_populate_reply_metadata: true })
+	return await CLIENT.post("statuses/update", { status: tweetBody, in_reply_to_status_id: parentId, auto_populate_reply_metadata: true, media_ids: mediaIds })
 		.then((tweet, error, response) => {
 			if (error) {
 				console.error(error);
