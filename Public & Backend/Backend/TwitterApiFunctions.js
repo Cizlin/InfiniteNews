@@ -2,6 +2,7 @@ const Twitter = require('twitter');
 import {getSecret} from 'wix-secrets-backend';
 import wixMediaBackend from 'wix-media-backend';
 
+// mediaIds should be comma-separated list of media IDs to include in the Tweet.
 export async function sendTweet(tweetBody, parentId = null, mediaIds = null) {
 	// Generate and send post
 	const CLIENT = new Twitter({
@@ -10,6 +11,8 @@ export async function sendTweet(tweetBody, parentId = null, mediaIds = null) {
 		access_token_key: await getSecret("TwitterAccessToken"),
 		access_token_secret: await getSecret("TwitterAccessTokenSecret")
 	});
+
+	console.log("Sending Tweet with Images...");
 
 	return await CLIENT.post("statuses/update", { status: tweetBody, in_reply_to_status_id: parentId, auto_populate_reply_metadata: true, media_ids: mediaIds })
 		.then((tweet, error, response) => {
@@ -31,7 +34,7 @@ export async function uploadTwitterImage(wixImageUrl) {
 
 	let url = await wixMediaBackend.mediaManager.getDownloadUrl(wixImageUrl);
 
-	return new Promise((resolve, reject) => {
+	let media = await new Promise((resolve, reject) => {
 		let request = https.get(url, (response) => {
 			let { statusCode } = response;
 			console.log(`statusCode: ${statusCode}`);
@@ -61,37 +64,7 @@ export async function uploadTwitterImage(wixImageUrl) {
 			response.on('end', async () => {
 				try {
 					let imageBuffer = Buffer.from(imageString, 'latin1');
-
-					console.log(imageBuffer.byteLength);
-
-					const CLIENT = new Twitter({
-						consumer_key: await getSecret("TwitterApiKey"),
-						consumer_secret: await getSecret("TwitterApiKeySecret"),
-						access_token_key: await getSecret("TwitterAccessToken"),
-						access_token_secret: await getSecret("TwitterAccessTokenSecret")
-					});
-
-					let media_id_string = await CLIENT.post("media/upload", { media: imageBuffer })
-						.then((tweet, error, response) => {
-							if (error) {
-								console.error(error);
-								return "erroneous";
-							} else {
-								console.log(tweet);
-								return tweet["media_id_string"];
-							}
-						})
-						.catch(error => {
-							console.error(error);
-							return "erroneous";
-						});
-
-						if (media_id_string != "erroneous") {
-							resolve(media_id_string);
-						}
-						else {
-							reject("Could not upload image to Twitter from Wix URL " + wixImageUrl);
-						}
+					resolve(imageBuffer);
 				}
 				catch (e) {
 					console.error("Got error " + e + " while trying to fetch image from Wix Url " + wixImageUrl);
@@ -107,6 +80,40 @@ export async function uploadTwitterImage(wixImageUrl) {
 
 		request.end();
 	});
+
+	console.log("Creating Twitter client.");
+
+	const CLIENT = new Twitter({
+		consumer_key: await getSecret("TwitterApiKey"),
+		consumer_secret: await getSecret("TwitterApiKeySecret"),
+		access_token_key: await getSecret("TwitterAccessToken"),
+		access_token_secret: await getSecret("TwitterAccessTokenSecret")
+	});
+
+	console.log("Performing post to Twitter");
+
+	let media_id_string = await CLIENT.post("media/upload", { media: media })
+		.then((media, error, response) => {
+			if (error) {
+				console.error(error);
+				return "erroneous";
+			} else {
+				console.log(media);
+				return media["media_id_string"];
+			}
+		})
+		.catch(error => {
+			console.error(error);
+			return "erroneous";
+		});
+
+	if (media_id_string != "erroneous") {
+		console.log(media_id_string);
+		return media_id_string;
+	}
+	else {
+		throw "Could not upload image to Twitter from Wix URL " + wixImageUrl;
+	}
 }
 
 async function testTweet() {
