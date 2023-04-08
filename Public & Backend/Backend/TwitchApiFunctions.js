@@ -667,12 +667,12 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         //#region Drop Start and End Dates
         // Now, we add the start and end dates if it's an upcoming drop.
         if (isUpcoming) {
-            bodyText += " - $(startTime) - $(endTime). ";
+            bodyText += " - $(startTime) - $(endTime)";
         }
         //#endregion
 
         //#region Watch Length and (if active) Channel.
-        bodyText += "Watch for ";
+        bodyText += "\nWatch for ";
         if (dropRewards[i].requiredMinutesWatched % 60 === 0) {
             // If the number of minutes required to watch is exactly divisible by 60, convert to hours. Otherwise, leave as minutes.
             bodyText += (dropRewards[i].requiredMinutesWatched / 60).toString() + " hour";
