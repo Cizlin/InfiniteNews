@@ -319,7 +319,7 @@ Watch for 1 hour
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = false) {
     let dropRewards = drop.rewardGroups;
-    let dropRewardNotificationArray;
+    let dropRewardNotificationArray = [];
 
     let useApiNames = false; // We want to avoid this in most cases, but we can use it as a fallback for Active drops (Upcoming can wait until we fix the issue).
     if (!drop.notificationRewardName || drop.notificationRewardName == "") {
@@ -388,6 +388,7 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             nameArray = dropRewards[i].rewards;
         }
         else {
+            console.log(dropRewardNotificationArray);
             nameArray = dropRewardNotificationArray[i].split(":"); // For multiple rewards pertaining to a single drop reward group, the items are colon-separated.
         }
 
@@ -539,32 +540,36 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
 
         //#region Image Tweet Additions
         // Determine how many images we need to upload. Note that we can only send 4 in one Tweet, so we may need multiple Tweets.
-        let startIndex = drop.rewardImageMapping[i]; // This will always be the start. The end index is either the next index in the mapping - 1 or the final index in the rewardImages array.
-        let endIndex;
-        if (i == dropRewards.length - 1) { // This is the last reward in the list.
-            // The end index is the length of the rewardImages array minus 1.
-            endIndex = drop.rewardImages.length - 1;            
-        }
-        else {
-            // The end index is the next start index minus 1.
-            endIndex = drop.rewardImageMapping[i + 1] - 1;
-        }
-        
-        // This is the number of images to upload.
-        let numberOfImagesToUpload = endIndex - startIndex + 1;
-        let numberOfTweetsNeeded = Math.ceil(numberOfImagesToUpload / 4); // Divide the number of images by 4 and round up.
-
-        let additionalTweetIndex = 1;
-        while (tweetArray.length < numberOfTweetsNeeded) {
-            // We can add additional tweets to this array as needed.
-            tweetArray[tweetArray.length] = "Additional reward images, Part " + additionalTweetIndex.toString();
-            additionalTweetIndex++;
-        }
 
         let mediaIdArray = [];
-        for (let j = startIndex; j <= endIndex; ++j) {
-            let mediaId = await twitter.uploadTwitterImage(drop.rewardImages[j]);
-            mediaIdArray.push(mediaId);
+        
+        // We can't add images if we don't have any.
+        if (!useApiNames) {
+            let startIndex = drop.rewardImageMapping[i]; // This will always be the start. The end index is either the next index in the mapping - 1 or the final index in the rewardImages array.
+            let endIndex;
+            if (i == dropRewards.length - 1) { // This is the last reward in the list.
+                // The end index is the length of the rewardImages array minus 1.
+                endIndex = drop.rewardImages.length - 1;            
+            }
+            else {
+                // The end index is the next start index minus 1.
+                endIndex = drop.rewardImageMapping[i + 1] - 1;
+            }
+            
+            // This is the number of images to upload.
+            let numberOfImagesToUpload = endIndex - startIndex + 1;
+            let numberOfTweetsNeeded = Math.ceil(numberOfImagesToUpload / 4); // Divide the number of images by 4 and round up.
+
+            let additionalTweetIndex = 1;
+            while (tweetArray.length < numberOfTweetsNeeded) {
+                // We can add additional tweets to this array as needed.
+                tweetArray[tweetArray.length] = "Additional reward images, Part " + additionalTweetIndex.toString();
+                additionalTweetIndex++;
+            }
+            for (let j = startIndex; j <= endIndex; ++j) {
+                let mediaId = await twitter.uploadTwitterImage(drop.rewardImages[j]);
+                mediaIdArray.push(mediaId);
+            }
         }
         //#endregion
 
