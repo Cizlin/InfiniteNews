@@ -319,6 +319,7 @@ Watch for 1 hour
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = false) {
     let dropRewards = drop.rewardGroups;
+    let dropRewardNotificationArray;
 
     let useApiNames = false; // We want to avoid this in most cases, but we can use it as a fallback for Active drops (Upcoming can wait until we fix the issue).
     if (!drop.notificationRewardName || drop.notificationRewardName == "") {
@@ -333,18 +334,19 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             throw "No notification reward names defined for drop " + drop.campaignName;
         }
     }
-
-    let dropRewardNotificationArray = drop.notificationRewardName.split(';'); // The notification reward names are semicolon-separated. This should result in an array with the same length as the dropRewards array.
-    if (dropRewardNotificationArray.length != dropRewards.length) {
-         // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
-        if (!isUpcoming) {
-            // This drop is active. No choice but to send out API names.
-            useApiNames = true;
-        }
-        else {
-            // This drop is upcoming. Notify owner since we have time to fix it.
-            notifs.notifyOwner("Improper Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
-            throw "Improper notification reward names defined for drop " + drop.campaignName;
+    else {
+        dropRewardNotificationArray = drop.notificationRewardName.split(';'); // The notification reward names are semicolon-separated. This should result in an array with the same length as the dropRewards array.
+        if (dropRewardNotificationArray.length != dropRewards.length) {
+            // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
+            if (!isUpcoming) {
+                // This drop is active. No choice but to send out API names.
+                useApiNames = true;
+            }
+            else {
+                // This drop is upcoming. Notify owner since we have time to fix it.
+                notifs.notifyOwner("Improper Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
+                throw "Improper notification reward names defined for drop " + drop.campaignName;
+            }
         }
     }
 
@@ -595,6 +597,7 @@ https://www.haloinfinitenews.com/post/twitch-drops
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrection = false) {
     let dropRewards = drop.rewardGroups;
+    let dropRewardNotificationArray;
 
     let useApiNames = false; // We want to avoid this in most cases, but we can use it as a fallback for Active drops (Upcoming can wait until we fix the issue).
     if (!drop.notificationRewardName || drop.notificationRewardName == "") {
@@ -604,21 +607,24 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             useApiNames = true;
         }
         else {
-            // This drop is upcoming. Owner was notified earlier.
+            // This drop is upcoming. Notify owner since we have time to fix it.
+            notifs.notifyOwner("No Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
             throw "No notification reward names defined for drop " + drop.campaignName;
         }
     }
-
-    let dropRewardNotificationArray = drop.notificationRewardName.split(';'); // The notification reward names are semicolon-separated. This should result in an array with the same length as the dropRewards array.
-    if (dropRewardNotificationArray.length != dropRewards.length) {
-         // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
-        if (!isUpcoming) {
-            // This drop is active. No choice but to send out API names.
-            useApiNames = true;
-        }
-        else {
-            // This drop is upcoming. Owner was notified earlier.
-            throw "Improper notification reward names defined for drop " + drop.campaignName;
+    else {
+        dropRewardNotificationArray = drop.notificationRewardName.split(';'); // The notification reward names are semicolon-separated. This should result in an array with the same length as the dropRewards array.
+        if (dropRewardNotificationArray.length != dropRewards.length) {
+            // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
+            if (!isUpcoming) {
+                // This drop is active. No choice but to send out API names.
+                useApiNames = true;
+            }
+            else {
+                // This drop is upcoming. Notify owner since we have time to fix it.
+                notifs.notifyOwner("Improper Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
+                throw "Improper notification reward names defined for drop " + drop.campaignName;
+            }
         }
     }
 
