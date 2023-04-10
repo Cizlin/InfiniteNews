@@ -80,14 +80,18 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
         }
 
         if (quickSearch) {
-            query = query.limit(5).startsWith(NAME_FIELD, nameSearchValue);
+            query = query.limit(QUICKSEARCH_QUERY_LIMIT).startsWith(NAME_FIELD, nameSearchValue);
         }
         else {
-            query = query.contains(NAME_FIELD, nameSearchValue);
+            query = query.limit(50).contains(NAME_FIELD, nameSearchValue); // Use a limit of 50 explicitly because the implicit one stopped working I guess.
         }
+        
+        //console.log("Long search for " + nameSearchValue);
+        //console.log("Query: ", query);
 
         query.find()
             .then(async (results) => {
+                //console.log("Found results", results);
                 for (; results.currentPage < results.totalPages; results = await results.next()) { // Iterate over each page of results.
                     for (let item of results.items) {
                         if (!quickSearch) {
@@ -503,4 +507,3 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
 
     return consolidatedSearchResults;
 }
-

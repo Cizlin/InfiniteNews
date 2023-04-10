@@ -21,7 +21,7 @@ import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 
 //#region Initializing Atomic locks.
-let filterLock = 0; // SharedArrayBuffer can't be used safely unless some specific security measures are taken, so we're doing a bad poor man's method instead.
+let globalCustomizationCategory; // SharedArrayBuffer can't be used safely unless some specific security measures are taken, so we're doing a bad poor man's method instead.
 
 //#region Initializing all filter objects.
 let filter = wixData.filter(); // The filter for the dataset content displayed. The value will be established based on URL parameters. DO NOT CHANGE AFTER THIS!!!
@@ -278,6 +278,15 @@ async function setOptionalFiltersShop(setPaginationFromSave = false) {
 			optionalFilter = optionalFilter.contains(ShopConstants.SHOP_TIME_TYPE_FIELD, timeframeDropdownSelection);
 	}
 
+	// Next, add the Cost filter.
+	let costDropdownSelection = $w("#costDropdown").value; // The item selected from the dropdown.
+	session.setItem(KeyConstants.COST_KEY, costDropdownSelection);
+
+	// We only want to add the filter if it's valid.
+	if(Number.isInteger(parseInt(costDropdownSelection))) {
+		optionalFilter = optionalFilter.eq(ShopConstants.SHOP_COST_CREDITS_FIELD, parseInt(costDropdownSelection));
+	}
+
 	// Finally, we add the Shop Type filter.
 	let shopTypeDropdownSelection = $w("#shopTypeDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.SHOP_TYPE_KEY, shopTypeDropdownSelection);
@@ -315,6 +324,8 @@ async function setOptionalFiltersShop(setPaginationFromSave = false) {
 				setPaginationIndexFromSave();
 				console.log("Pagination Index Set after initial optional filter.");
 			}
+
+			//updateSort();
 		})
 		.catch((error) => { console.error("Could not add filter " + error) });
 }
@@ -427,6 +438,10 @@ function filterBySearch (setPaginationFromSave = false) {
 					setPaginationIndexFromSave();
 					console.log("Pagination Index Set after initial name filter.");
 				}
+
+				/*if (globalCustomizationCategory == ShopConstants.SHOP_KEY) {
+					updateSort();
+				}*/
 			})
 			.catch( (err) => {
 				console.error(err);
@@ -436,14 +451,74 @@ function filterBySearch (setPaginationFromSave = false) {
 }
 //#endregion
 
+//#region Shop Sort code
+// Update the user-selected sort.
+function updateSort() {
+	let dropdownValue = $w("#sortDropdown").value;
+	let sortOrder = $w("#sortOrderDropdown").value;
+	let sort = wixData.sort();
+
+	if (dropdownValue == "Name") {
+		// Show the order selector.
+		$w("#sortOrderDropdown").show();
+		$w("#SortOrderTitle").show();
+
+		// Implement a name sort.
+		if (sortOrder == "Ascending") {
+			sort = sort.ascending(ShopConstants.SHOP_ITEM_NAME_FIELD);
+		}
+		else if (sortOrder == "Descending") {
+			sort = sort.descending(ShopConstants.SHOP_ITEM_NAME_FIELD);
+		}
+	}
+	else if (dropdownValue == "Cost") {
+		// Show the order selector.
+		$w("#sortOrderDropdown").show();
+		$w("#SortOrderTitle").show();
+
+		// Sort by cost, then by name.
+		if (sortOrder == "Ascending") {
+			sort = sort.ascending(ShopConstants.SHOP_COST_CREDITS_FIELD);
+			sort = sort.ascending(ShopConstants.SHOP_ITEM_NAME_FIELD);
+		}
+		else if (sortOrder == "Descending") {
+			sort = sort.descending(ShopConstants.SHOP_COST_CREDITS_FIELD);
+			sort = sort.descending(ShopConstants.SHOP_ITEM_NAME_FIELD);
+		}
+	}
+	else {
+		// This order is super custom, so it doesn't make sense to keep the order selector visible.
+		$w("#sortOrderDropdown").hide();
+		$w("#SortOrderTitle").hide();
+
+		// Sort in the following order:
+		// Currently Available: Descending
+		// IsHcs: Ascending
+		// Cost: Descending
+		// Name: Ascending
+		sort = sort
+			.descending(ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD)
+			.ascending(ShopConstants.SHOP_IS_HCS_FIELD)
+			.descending(ShopConstants.SHOP_COST_CREDITS_FIELD)
+			.ascending(ShopConstants.SHOP_ITEM_NAME_FIELD);
+	}
+
+	console.log("Sorting as follows:", sort);
+	$w("#dynamicDataset").setSort(sort);
+}
+//#endregion
+
 export async function initialItemListSetup(customizationCategory) {
+	globalCustomizationCategory = customizationCategory; // Save the customization category for later use.
+
 	// We want to update the name search text ASAP.
 	let savedQuickSearchText = session.getItem(KeyConstants.QUICK_SEARCH_KEY);
 	if (savedQuickSearchText)
 	{
 		$w("#nameSearch").value = savedQuickSearchText;
-		$w("#nameSearch").readOnly = false;
 	}
+	
+	$w("#nameSearch").readOnly = false;
 
     //#region Setting up Filter menu buttons and collapsing the menu.
 	// Set up the Filter menu by setting the closeButton to collapse the Filter menu and collapsing the menu.
@@ -454,6 +529,12 @@ export async function initialItemListSetup(customizationCategory) {
 		collapseFilterMenu();
 	}
     //#endregion
+
+	if (customizationCategory == ShopConstants.SHOP_KEY) {
+		// Hide the sort order dropdown and title by default. They will be revealed if the user changes their sort settings.
+		$w("#sortOrderDropdown").hide();
+		$w("#SortOrderTitle").hide();
+	}
 
 	switch (customizationCategory) {
 		case ArmorConstants.ARMOR_KEY:
@@ -730,6 +811,7 @@ export async function initialItemListSetup(customizationCategory) {
 			let savedTimeframeValue = session.getItem(KeyConstants.TIMEFRAME_KEY);
 			let savedAvailableValue = session.getItem(KeyConstants.AVAILABLE_KEY);
 			let savedShopTypeValue = session.getItem(KeyConstants.SHOP_TYPE_KEY);
+			let savedCostValue = session.getItem(KeyConstants.COST_KEY);
 
 			$w("#qualityDataset").onReady(async function () {
 				if (savedQualityValue)
@@ -752,6 +834,11 @@ export async function initialItemListSetup(customizationCategory) {
 					console.log("Found saved Shop Type value: " + savedShopTypeValue);
 					$w("#shopTypeDropdown").value = savedShopTypeValue;
 				}
+				if (savedCostValue) 
+				{
+					console.log("Found saved Cost value: " + savedCostValue);
+					$w("#costDropdown").value = savedCostValue;
+				}
 
 				await setOptionalFiltersShop(true);
 
@@ -768,6 +855,13 @@ export async function initialItemListSetup(customizationCategory) {
 
 				// If the Shop Type filter is set.
 				$w("#shopTypeDropdown").onChange(setOptionalFiltersShop);
+
+				// If the Cost filter is set.
+				$w("#costDropdown").onChange(setOptionalFiltersShop);
+
+				// Add event handlers for the sorters.
+				$w("#sortDropdown").onChange(updateSort);
+				$w("#sortOrderDropdown").onChange(updateSort);
 			});
 		}
 		else if (customizationCategory == PassConstants.PASS_KEY) {
