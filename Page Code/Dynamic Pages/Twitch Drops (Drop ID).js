@@ -5,6 +5,18 @@ $w.onReady(function () {
 		// We need to manually update the Reward Group Repeater.
 		let datasetItem = $w("#dynamicDataset").getCurrentItem();
 
+		let channelRepeaterArray = datasetItem.allowedChannels;
+		for (let i = 0; i < channelRepeaterArray.length; ++i) {
+			// Assign each channel its own id to allow the repeater to function.
+			channelRepeaterArray[i]._id = i.toString();
+		}
+
+		$w("#channelRepeater").data = channelRepeaterArray;
+		$w("#channelRepeater").forEachItem(($item, itemData) => {
+			$item("#channelText").text = itemData.name;
+			$item("#channelText").html = "<a href=\"" + itemData.url + "\">" + $item("#channelText").html + "</a>";
+		});
+
 		let repeaterArray = [];
 
 		let rewardGroupArray = datasetItem.rewardGroups; // This is the raw reward group array. We need to import some references if they are available.
