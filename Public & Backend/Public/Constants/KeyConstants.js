@@ -27,6 +27,7 @@ export const REWARD_KEY = "rewardKey";
 export const TIME_FROM_KEY = "timeFromKey";
 export const TIME_TO_KEY = "timeToKey";
 export const TIME_FILTER_BY_KEY = "timeFilterByKey";
+export const STATUS_KEY = "statusKey";
 
 // These constants are deprecated and will be removed once the refactoring is completed.
 export const qualityKey = "qualityKey";
