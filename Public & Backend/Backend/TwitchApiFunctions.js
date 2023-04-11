@@ -238,6 +238,9 @@ export async function addAndUpdateTwitchDrops() {
             // If the reward references are not defined or are an empty array, we need to fetch the reward references if possible.
             // We also need to update this if the rewardGroups got updated, just in case the order changed.
 
+            // Reset the array of rewards for this drop.
+            databaseTwitchDrops[i].rewardReferences = [];
+
             for (let j = 0; j < databaseTwitchDrops[i].rewardGroups.length; ++j) {
                 for (let k = 0; k < databaseTwitchDrops[i].rewardGroups[j].rewards.length; ++k) {
                     let name = databaseTwitchDrops[i].rewardGroups[j].rewards[k].name;
@@ -419,8 +422,17 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
     }
     else {
         dropRewardNotificationArray = drop.rewardReferences;
-        if (dropRewardNotificationArray.length != dropRewards.length) {
-            // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
+
+        // Count the number of expected rewards
+        let numExpectedRewards = 0;
+        for (let i =0; i < dropRewards.length; ++i) {
+            numExpectedRewards += dropRewards[i].rewards.length;
+        }
+
+        if (dropRewardNotificationArray.length != numExpectedRewards) {
+            console.log("Got " + dropRewardNotificationArray.length + " rewards. Expected " + numExpectedRewards + " rewards.");
+            console.log(dropRewardNotificationArray);
+            // If we haven't added the notification reward names yet, we can use the API names instead for Active drops. For upcoming drops, we can just notify the owner and abort.
             if (!isUpcoming) {
                 // This drop is active. No choice but to send out API names.
                 useApiNames = true;
@@ -725,8 +737,17 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
     }
     else {
         dropRewardNotificationArray = drop.rewardReferences;
-        if (dropRewardNotificationArray.length != dropRewards.length) {
-            // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
+
+        // Count the number of expected rewards
+        let numExpectedRewards = 0;
+        for (let i =0; i < dropRewards.length; ++i) {
+            numExpectedRewards += dropRewards[i].rewards.length;
+        }
+
+        if (dropRewardNotificationArray.length != numExpectedRewards) {
+            console.log("Got " + dropRewardNotificationArray.length + " rewards. Expected " + numExpectedRewards + " rewards.");
+            console.log(dropRewardNotificationArray);
+            // If we haven't added the notification reward names yet, we can use the API names instead for Active drops. For upcoming drops, we can just notify the owner and abort.
             if (!isUpcoming) {
                 // This drop is active. No choice but to send out API names.
                 useApiNames = true;
