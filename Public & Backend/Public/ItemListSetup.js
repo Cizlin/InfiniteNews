@@ -426,6 +426,19 @@ async function setOptionalFiltersTwitchDrops(setPaginationFromSave = false) {
 				.catch ((error) => {
 					console.error("Error occurred while trying to filter by Twitch Drop Reward: " + rewardDropdownSelection, error);
 				});
+			break;
+	}
+
+	// Next, we add the Status filter.
+	let statusDropdownSelection = $w("#statusDropdown").value; // The item selected from the dropdown.
+	session.setItem(KeyConstants.STATUS_KEY, statusDropdownSelection);
+
+	switch(statusDropdownSelection) {
+		case "RESET_ALL":
+			break;
+		default:
+			optionalFilter = optionalFilter.eq("status", statusDropdownSelection);
+			break;
 	}
 
 	// Finally, we add the Time filter.
@@ -442,12 +455,19 @@ async function setOptionalFiltersTwitchDrops(setPaginationFromSave = false) {
 
 	switch(filterByDropdownSelection) {
 		case "StartDate":
+			$w("#startDatePicker").enable();
+			$w("#endDatePicker").enable();
 			optionalFilter = optionalFilter.ge("campaignStart", fromTimeSelection).le("campaignStart", toTimeSelection);
 			break;
 		case "EndDate":
+			$w("#startDatePicker").enable();
+			$w("#endDatePicker").enable();
 			optionalFilter = optionalFilter.ge("campaignEnd", fromTimeSelection).le("campaignEnd", toTimeSelection);
 			break;
 		default:
+			// Disable the date pickers while we aren't using them to filter.
+			$w("#endDatePicker").disable();
+			$w("#startDatePicker").disable();
 			break;
 	}
 
@@ -965,12 +985,18 @@ export async function initialItemListSetup(customizationCategory) {
 			let savedFromValue = session.getItem(KeyConstants.TIME_FROM_KEY);
 			let savedToValue = session.getItem(KeyConstants.TIME_TO_KEY);
 			let savedFilterByValue = session.getItem(KeyConstants.TIME_FILTER_BY_KEY);
+			let savedStatusValue = session.getItem(KeyConstants.STATUS_KEY);
 
 			$w("#dropRewardDataset").onReady(async function () {
 				if (savedRewardValue)
 				{
 					console.log("Found saved Reward value: " + savedRewardValue);
 					$w("#rewardDropdown").value = savedRewardValue;
+				}
+				else 
+				{
+					console.log("Using default Reward value: RESET_ALL");
+					$w("#rewardDropdown").value = "RESET_ALL";
 				}
 				if (savedFromValue)
 				{
@@ -988,6 +1014,16 @@ export async function initialItemListSetup(customizationCategory) {
 					console.log("Found saved Filter By value: " + savedFilterByValue);
 					$w("#timeFilterByDropdown").value = savedFilterByValue;
 				}
+				if (savedStatusValue) 
+				{
+					console.log("Found saved Status value: " + savedStatusValue);
+					$w("#statusDropdown").value = savedStatusValue;
+				}
+				else
+				{
+					console.log("Using default Status value: RESET_ALL");
+					$w("#statusDropdown").value = "RESET_ALL";
+				}
 
 				await setOptionalFiltersTwitchDrops(true);
 
@@ -1004,6 +1040,9 @@ export async function initialItemListSetup(customizationCategory) {
 
 				// If the Filter By filter is set.
 				$w("#timeFilterByDropdown").onChange(setOptionalFiltersTwitchDrops);
+
+				// If the Status filter is set.
+				$w("#statusDropdown").onChange(setOptionalFiltersTwitchDrops);
 			});
 		}
 		//#endregion
