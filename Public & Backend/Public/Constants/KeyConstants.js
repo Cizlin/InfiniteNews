@@ -22,6 +22,12 @@ export const COST_KEY = "costKey";
 
 export const PASS_TYPE_KEY = "passTypeKey";
 
+export const TWITCH_DROPS_KEY = "twitchDrops";
+export const REWARD_KEY = "rewardKey";
+export const TIME_FROM_KEY = "timeFromKey";
+export const TIME_TO_KEY = "timeToKey";
+export const TIME_FILTER_BY_KEY = "timeFilterByKey";
+
 // These constants are deprecated and will be removed once the refactoring is completed.
 export const qualityKey = "qualityKey";
 export const promotionalKey = "promotionalKey";
