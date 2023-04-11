@@ -96,6 +96,7 @@ export async function generateNewTwitchDropJsons() {
     let dropInfoArray = [];
     for (let i = 0; i < dropIds.length; ++i) {
         let dropJson = await getDropInfo(dropIds[i]);
+        console.log(dropJson);
         let minimalJson = {};
         minimalJson.dropId = dropIds[i];
         minimalJson.allowedChannels = [];
@@ -124,7 +125,10 @@ export async function generateNewTwitchDropJsons() {
             };
 
             for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
-                rewardGroup.rewards.push(dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name);
+                rewardGroup.rewards.push({
+                    name: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name,
+                    code: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id
+                });
             }
 
             minimalJson.rewardGroups.push(rewardGroup);
@@ -139,6 +143,7 @@ export async function generateNewTwitchDropJsons() {
 export async function getExistingTwitchDrops(dropIds) {
     return await wixData.query("TwitchDrops")
         .hasSome("dropId", dropIds)
+        .include("rewardReferences")
         .find()
         .then(results => {
             return results.items;
@@ -226,6 +231,67 @@ export async function addAndUpdateTwitchDrops() {
         }
     }
 
+    // Now, let's tie the drops to their rewards.
+    for (let i = 0; i < databaseTwitchDrops.length; ++i) {
+        if (!databaseTwitchDrops[i].rewardReferences || databaseTwitchDrops[i].rewardReferences.length === 0 || databaseTwitchDrops[i].updatedFields.includes("rewardGroups")) {
+            console.log("Automatically linking rewards for " + databaseTwitchDrops[i].campaignName + ", " + databaseTwitchDrops[i].dropId);
+            // If the reward references are not defined or are an empty array, we need to fetch the reward references if possible.
+            // We also need to update this if the rewardGroups got updated, just in case the order changed.
+
+            for (let j = 0; j < databaseTwitchDrops[i].rewardGroups.length; ++j) {
+                for (let k = 0; k < databaseTwitchDrops[i].rewardGroups[j].rewards.length; ++k) {
+                    let name = databaseTwitchDrops[i].rewardGroups[j].rewards[k].name;
+                    let code = databaseTwitchDrops[i].rewardGroups[j].rewards[k].code;
+                    console.log("Name and code: " + name + ", " + code);
+
+                    let matchingRewards = await wixData.query("TwitchDropRewards")
+                        .eq("waypointId", code)
+                        .contains("title", name) // Just in case something goofy happens with spacing. This also renders us immune to casing issues.
+                        .find()
+                        .then((results) => {
+                            return results.items;
+                        })
+                        .catch((error) => {
+                            console.error("Error occurred when retrieving Twitch drop rewards based on name and code: " + name + ", " + code + ": " + error);
+                            return [];
+                        });
+                    
+                    if (matchingRewards.length === 0) {
+                        // The fetch didn't find anything matching both the name and code. We should just search based on the name, just in case the code is now being used for a different drop (unknown if this is an issue).
+                        console.log("Found no results based on both name and code. Searching only for name now.");
+                        matchingRewards = await wixData.query("TwitchDropRewards")
+                            .contains("title", name)
+                            .find()
+                            .then((results) => {
+                                return results.items;
+                            })
+                            .catch((error) => {
+                                console.error("Error occurred when retrieving Twitch drop rewards based on name only: " + name + ": " + error);
+                                return [];
+                            });
+                    }
+
+                    if (matchingRewards.length === 0) {
+                        // If we still didn't find anything, fire a notification to the owner.
+                        notifs.notifyOwner("Twitch Drop Reward Not Defined", "Add a definition to Twitch Drop Rewards for name: " + name + " and code: " + code);
+                    }
+                    else if (matchingRewards.length === 1) {
+                        // There was exactly one return, which is desired.
+                        if (!databaseTwitchDrops[i].rewardReferences) {
+                            databaseTwitchDrops[i].rewardReferences = []; // Define the field if it isn't already defined.
+                        }
+
+                        databaseTwitchDrops[i].rewardReferences.push(matchingRewards[0]);
+                    }
+                    else {
+                        notifs.notifyOwner("Multiple Twitch Drop Rewards for Code/Name Combo", "Validate the name: " + name + " and code: " + code + " in the Twitch Drop Rewards collection.");
+                        // We need to resolve this manually, so let's leave it for now.
+                    }
+                }
+            }
+        }
+    }
+
     for (let i = 0; i < databaseTwitchDrops.length; ++i) {
         // Loop through the Twitch drops to be sent to the DB to see if we need to send any notifications for them.
         if (!databaseTwitchDrops[i].notifsSent && databaseTwitchDrops[i].status.toUpperCase() === "ACTIVE") {
@@ -248,7 +314,9 @@ export async function addAndUpdateTwitchDrops() {
 
             databaseTwitchDrops[i].notifsSent = true;
         }
-        else if (databaseTwitchDrops[i].sendCorrection && databaseTwitchDrops[i].upcomingNotificationsSent) {
+        else if (databaseTwitchDrops[i].sendCorrection && databaseTwitchDrops[i].upcomingNotificationsSent
+            && databaseTwitchDrops[i].status.toUpperCase() === "UPCOMING") {
+
             // We've previously sent notifications for this drop, and we need to amend its start/end date or rewards.
             try {
                 await sendTwitterNotification(databaseTwitchDrops[i], true, true);
@@ -270,16 +338,31 @@ export async function addAndUpdateTwitchDrops() {
         }
     }
 
-    wixData.bulkSave("TwitchDrops", databaseTwitchDrops)
+    let deepCopy = _.cloneDeep(databaseTwitchDrops);
+
+
+    wixData.bulkSave("TwitchDrops", deepCopy)
         .then((results) => {
             console.log("Successfully updated Twitch Drops. Results:", results);
+            // Now that the drops themselves saved properly, we need to add the rewardReferences.
+            for (let i = 0; i < databaseTwitchDrops.length; ++i) {
+                wixData.replaceReferences("TwitchDrops", "rewardReferences", databaseTwitchDrops[i]._id, databaseTwitchDrops[i].rewardReferences)
+                    .then(() => {
+                        console.log("Successfully added reward references to Twitch Drops.");
+                    })
+                    .catch((error) => {
+                        console.error("Failed to add reward references to Twitch Drops due to " + error);
+                    });
+            }
         })
         .catch((error) => {
             console.error("Failed to update Twitch Drops due to " + error);
         });
 
+    
+
     if (sendAlert) {
-        console.log("Sending Twitch Drop alert to owner");
+        console.log("Sending Twitch Drop alert to owner...");
         notifs.notifyOwner("New/Updated Twitch Drops", "Check the Twitch Drops database to note the latest changes.");
     }
 
@@ -322,7 +405,7 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
     let dropRewardNotificationArray = [];
 
     let useApiNames = false; // We want to avoid this in most cases, but we can use it as a fallback for Active drops (Upcoming can wait until we fix the issue).
-    if (!drop.notificationRewardName || drop.notificationRewardName == "") {
+    if (!drop.rewardReferences || drop.rewardReferences.length === 0) {
         // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
         if (!isUpcoming) {
             // This drop is active.
@@ -330,12 +413,12 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         }
         else {
             // This drop is upcoming. Notify owner since we have time to fix it.
-            notifs.notifyOwner("No Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
-            throw "No notification reward names defined for drop " + drop.campaignName;
+            notifs.notifyOwner("No Notification Reward Setup for Upcoming Drop", "Check the Twitch Drops and Twitch Drops Rewards collections and validate this drop: " + drop.campaignName);
+            throw "No notification reward setup defined for drop " + drop.campaignName;
         }
     }
     else {
-        dropRewardNotificationArray = drop.notificationRewardName.split(';'); // The notification reward names are semicolon-separated. This should result in an array with the same length as the dropRewards array.
+        dropRewardNotificationArray = drop.rewardReferences;
         if (dropRewardNotificationArray.length != dropRewards.length) {
             // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
             if (!isUpcoming) {
@@ -344,8 +427,8 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             }
             else {
                 // This drop is upcoming. Notify owner since we have time to fix it.
-                notifs.notifyOwner("Improper Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
-                throw "Improper notification reward names defined for drop " + drop.campaignName;
+                notifs.notifyOwner("Improper Notification Reward Setup for Upcoming Drop", "Check the Twitch Drops and Twitch Drops Rewards collections and validate this drop: " + drop.campaignName);
+                throw "Improper notification reward setup defined for drop " + drop.campaignName;
             }
         }
     }
@@ -353,7 +436,42 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
     let tweetArray = [];
     let currentTweetIndex = 0;
 
+    let dropRewardArrayStart = 0; // The array of rewardReferences, if defined, does not take into account the separate reward groups, so this is the start of the current reward group.
+    let dropRewardArrayEnd = 0; // This is the end of the current reward group + 1.
+
     for (let i = 0; i < dropRewards.length; ++i) {
+
+        //#region Obtain information from reward references
+        dropRewardArrayStart = dropRewardArrayEnd; // Update the start of the rewardArray to the end of the previous one.
+
+        let nameArray = [];
+        let imageArray = [];
+
+        let containsNew = false; // This becomes true if one or more rewards is NEW
+        let containsReturning = false; // This becomes true if one or more rewards is RETURNING
+        if (useApiNames) {
+            for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
+                nameArray.push(dropRewards[i].rewards[j].name); // Push the name of the reward into the array.
+            }
+        }
+        else {
+            dropRewardArrayEnd = dropRewardArrayStart + dropRewards[i].rewards.length; // Add the number of rewards in this group to our start in order to get the end index + 1.
+            console.log(dropRewardNotificationArray, dropRewardArrayStart, dropRewardArrayEnd);
+            let rewardArray = dropRewardNotificationArray.slice(dropRewardArrayStart, dropRewardArrayEnd); // Extract the specific rewards for this group.
+            for (let j = 0; j < rewardArray.length; ++j) {
+                nameArray.push(rewardArray[j].notificationText);
+                imageArray = imageArray.concat(rewardArray[j].imageSet);
+
+                if (rewardArray[j].rewardIsNew) {
+                    containsNew = true;
+                }
+                else {
+                    containsReturning = true;
+                }
+            }
+        }
+        //#endregion
+
         // Begin forming the Tweet.
         //#region Tweet Header
         let tweetText = "";
@@ -363,11 +481,18 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             tweetText += "CORRECTION: ";
         }
 
-        if (drop.rewardIsNew) {
+        if (containsNew && !containsReturning) {
             tweetText += "NEW";
         }
-        else {
+        else if (!containsNew && containsReturning) {
             tweetText += "RETURNING";
+        }
+        else if (containsNew && containsReturning) {
+            tweetText += "NEW AND RETURNING";
+        }
+        else {
+            // In this situation, we really don't know if it's new or returning. It's probably new, but we might just have not set up the definition yet. Best to just play both sides for now.
+            tweetText += "NEW OR RETURNING";
         }
 
         if (isUpcoming) {
@@ -383,15 +508,6 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         //#endregion
 
         //#region Reward Name List
-        let nameArray;
-        if (useApiNames) {
-            nameArray = dropRewards[i].rewards;
-        }
-        else {
-            console.log(dropRewardNotificationArray);
-            nameArray = dropRewardNotificationArray[i].split(":"); // For multiple rewards pertaining to a single drop reward group, the items are colon-separated.
-        }
-
         for (let j = 0; j < nameArray.length; ++j) {
             let dropText = nameArray[j] + "\n";
             if (charsLeftInTweet - dropText.length < 0) {
@@ -542,22 +658,12 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         // Determine how many images we need to upload. Note that we can only send 4 in one Tweet, so we may need multiple Tweets.
 
         let mediaIdArray = [];
-        
+
         // We can't add images if we don't have any.
         if (!useApiNames) {
-            let startIndex = drop.rewardImageMapping[i]; // This will always be the start. The end index is either the next index in the mapping - 1 or the final index in the rewardImages array.
-            let endIndex;
-            if (i == dropRewards.length - 1) { // This is the last reward in the list.
-                // The end index is the length of the rewardImages array minus 1.
-                endIndex = drop.rewardImages.length - 1;            
-            }
-            else {
-                // The end index is the next start index minus 1.
-                endIndex = drop.rewardImageMapping[i + 1] - 1;
-            }
             
             // This is the number of images to upload.
-            let numberOfImagesToUpload = endIndex - startIndex + 1;
+            let numberOfImagesToUpload = imageArray.length;
             let numberOfTweetsNeeded = Math.ceil(numberOfImagesToUpload / 4); // Divide the number of images by 4 and round up.
 
             let additionalTweetIndex = 1;
@@ -566,8 +672,8 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
                 tweetArray[tweetArray.length] = "Additional reward images, Part " + additionalTweetIndex.toString();
                 additionalTweetIndex++;
             }
-            for (let j = startIndex; j <= endIndex; ++j) {
-                let mediaId = await twitter.uploadTwitterImage(drop.rewardImages[j]);
+            for (let j = 0; j < imageArray.length; ++j) {
+                let mediaId = await twitter.uploadTwitterImage(imageArray[j]);
                 mediaIdArray.push(mediaId);
             }
         }
@@ -585,7 +691,7 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
                 }
             }
 
-            //console.log(tweetArray[j], mediaIds);
+            console.log(tweetArray[j], mediaIds);
 
             parentId = await twitter.sendTweet(tweetArray[j], parentId, mediaIds);
         }
@@ -602,10 +708,10 @@ https://www.haloinfinitenews.com/post/twitch-drops
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrection = false) {
     let dropRewards = drop.rewardGroups;
-    let dropRewardNotificationArray;
+    let dropRewardNotificationArray = [];
 
     let useApiNames = false; // We want to avoid this in most cases, but we can use it as a fallback for Active drops (Upcoming can wait until we fix the issue).
-    if (!drop.notificationRewardName || drop.notificationRewardName == "") {
+    if (!drop.rewardReferences || drop.rewardReferences.length === 0) {
         // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
         if (!isUpcoming) {
             // This drop is active.
@@ -613,12 +719,12 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         }
         else {
             // This drop is upcoming. Notify owner since we have time to fix it.
-            notifs.notifyOwner("No Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
-            throw "No notification reward names defined for drop " + drop.campaignName;
+            notifs.notifyOwner("No Notification Reward Setup for Upcoming Drop", "Check the Twitch Drops and Twitch Drops Rewards collections and validate this drop: " + drop.campaignName);
+            throw "No notification reward setup defined for drop " + drop.campaignName;
         }
     }
     else {
-        dropRewardNotificationArray = drop.notificationRewardName.split(';'); // The notification reward names are semicolon-separated. This should result in an array with the same length as the dropRewards array.
+        dropRewardNotificationArray = drop.rewardReferences;
         if (dropRewardNotificationArray.length != dropRewards.length) {
             // If we haven't added the notification reward names yet, we can use the API names instead for Active drpos. For upcoming drops, we can just notify the owner and abort.
             if (!isUpcoming) {
@@ -627,13 +733,45 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             }
             else {
                 // This drop is upcoming. Notify owner since we have time to fix it.
-                notifs.notifyOwner("Improper Notification Reward Names for Upcoming Drop", "Check the Twitch Drops collection and validate this drop: " + drop.campaignName);
-                throw "Improper notification reward names defined for drop " + drop.campaignName;
+                notifs.notifyOwner("Improper Notification Reward Setup for Upcoming Drop", "Check the Twitch Drops and Twitch Drops Rewards collections and validate this drop: " + drop.campaignName);
+                throw "Improper notification reward setup defined for drop " + drop.campaignName;
             }
         }
     }
 
+    let dropRewardArrayStart = 0; // The array of rewardReferences, if defined, does not take into account the separate reward groups, so this is the start of the current reward group.
+    let dropRewardArrayEnd = 0; // This is the end of the current reward group + 1.
+
     for (let i = 0; i < dropRewards.length; ++i) {
+        //#region Obtain information from reward references
+        dropRewardArrayStart = dropRewardArrayEnd; // Update the start of the rewardArray to the end of the previous one.
+
+        let nameArray = [];
+
+        let containsNew = false; // This becomes true if one or more rewards is NEW
+        let containsReturning = false; // This becomes true if one or more rewards is RETURNING
+        if (useApiNames) {
+            for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
+                nameArray.push(dropRewards[i].rewards[j].name); // Push the name of the reward into the array.
+            }
+        }
+        else {
+            dropRewardArrayEnd = dropRewardArrayStart + dropRewards[i].rewards.length; // Add the number of rewards in this group to our start in order to get the end index + 1.
+            console.log(dropRewardNotificationArray, dropRewardArrayStart, dropRewardArrayEnd);
+            let rewardArray = dropRewardNotificationArray.slice(dropRewardArrayStart, dropRewardArrayEnd); // Extract the specific rewards for this group.
+            for (let j = 0; j < rewardArray.length; ++j) {
+                nameArray.push(rewardArray[j].notificationText);
+
+                if (rewardArray[j].rewardIsNew) {
+                    containsNew = true;
+                }
+                else {
+                    containsReturning = true;
+                }
+            }
+        }
+        //#endregion
+
         // Begin forming the notification.
         //#region Header
         let headerText = "";
@@ -642,11 +780,18 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             headerText += "CORRECTION: ";
         }
 
-        if (drop.rewardIsNew) {
+        if (containsNew && !containsReturning) {
             headerText += "NEW";
         }
-        else {
+        else if (!containsNew && containsReturning) {
             headerText += "RETURNING";
+        }
+        else if (containsNew && containsReturning) {
+            headerText += "NEW AND RETURNING";
+        }
+        else {
+            // In this situation, we really don't know if it's new or returning. It's probably new, but we might just have not set up the definition yet. Best to just play both sides for now.
+            headerText += "NEW OR RETURNING";
         }
 
         if (isUpcoming) {
@@ -659,14 +804,6 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
 
         //#region Reward Name List
         let bodyText = drop.campaignName + ", Rewards: "
-
-        let nameArray;
-        if (useApiNames) {
-            nameArray = dropRewards[i].rewards;
-        }
-        else {
-            nameArray = dropRewardNotificationArray[i].split(":"); // For multiple rewards pertaining to a single drop reward group, the items are colon-separated.
-        }
 
         for (let j = 0; j < nameArray.length - 1; ++j) {
             bodyText += nameArray[j] + ((nameArray.length > 2) ? ", " : " ");
@@ -712,7 +849,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         if (isUpcoming) {
             let startDate = Math.floor(dropRewards[i].start.getTime() / 1000); // We want the seconds since epoch. Make sure it's an integer.
             let endDate = Math.floor(dropRewards[i].end.getTime() / 1000);
-            //console.log(headerText, bodyText, startDate, endDate);
+            console.log(headerText, bodyText, startDate, endDate);
             discord.sendPromotionNotificationWithStartEndTime(
                 headerText,
                 bodyText,
@@ -722,6 +859,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             );
         }
         else {
+            console.log(headerText, bodyText);
             discord.sendPromotionNotification(
                 headerText,
                 bodyText,
@@ -736,7 +874,8 @@ export async function sendUpcomingNotifications() {
     let upcomingDropsToNotify = await wixData.query("TwitchDrops")
         .eq("status", "UPCOMING")                   // Only consider upcoming drops
         .ne("upcomingNotificationsSent", true)      // Only consider drops that have not had notifications sent.
-        .ne("notificationRewardName", "")           // Only consider drops that have been manually updated with text to send notifications with.
+        .isNotEmpty("rewardReferences")             // Only consider drops that have been associated with rewards.
+        .include("rewardReferences")                // Include the reward references so we can pull info on the specific rewards of interest.
         .find()
         .then((results) => {
             console.log(results.items);
