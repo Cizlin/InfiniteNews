@@ -50,9 +50,28 @@ $w.onReady(function () {
 						console.error("Error occurred while fetching Twitch Drop Reward matching this name and code: ", name, code, error);
 						return null;
 					});
+
+				if (!rewardDefinition) {
+					// Try accessing the rewards without the code if possible.
+					rewardDefinition = await wixData.query("TwitchDropRewards")
+						.eq("title", name)
+						.find()
+						.then((results) => {
+							if (results.items.length > 1) {
+								throw "Too many items returned. Expected 1 and got " + results.items.length;
+							}
+
+							return results.items[0];
+						})
+						.catch((error) => {
+							console.error("Error occurred while fetching Twitch Drop Reward matching this name: ", name, error);
+							return null;
+						});
+				}
 				
 				if (rewardDefinition) {
-					name = rewardDefinition.title;
+					name = rewardDefinition.notificationText;
+					console.log(name);
 					repeaterArrayObject.imageArray = repeaterArrayObject.imageArray.concat(rewardDefinition.imageSet);
 				}
 				
@@ -87,6 +106,9 @@ $w.onReady(function () {
 
 			// Hide the extra images that we don't need.
 			for (let i = itemData.imageArray.length + 1; i <= 8; ++i) {
+				if (i == 1) {
+					$item("#rewardImagesHeader").hide(); // We have no images to show right now.
+				}
 				$item("#image" + i).hide();
 				$item("#image" + i).collapse();
 			}
