@@ -295,6 +295,35 @@ export async function addAndUpdateTwitchDrops() {
         }
     }
 
+    // In order for the notifications to work, we need the URL fields, which are only generated upon inserting the items to the DB.
+    let deepCopy = _.cloneDeep(databaseTwitchDrops);
+
+    await wixData.bulkSave("TwitchDrops", deepCopy)
+        .then((results) => {
+            console.log("Successfully updated Twitch Drops. Results:", results);
+            // Now that the drops themselves saved properly, we need to add the rewardReferences.
+            for (let i = 0; i < databaseTwitchDrops.length; ++i) {
+                wixData.replaceReferences("TwitchDrops", "rewardReferences", databaseTwitchDrops[i]._id, databaseTwitchDrops[i].rewardReferences)
+                    .then(() => {
+                        console.log("Successfully added reward references to Twitch Drops.");
+                    })
+                    .catch((error) => {
+                        console.error("Failed to add reward references to Twitch Drops due to " + error);
+                    });
+            }
+        })
+        .catch((error) => {
+            console.error("Failed to update Twitch Drops due to " + error);
+        });
+
+    // Associate the URL fields as necessary.
+    for (let i = 0; i < deepCopy.length; ++i) {
+        databaseTwitchDrops[i]["link-twitch-drops-1-campaignName"] = deepCopy[i]["link-twitch-drops-1-campaignName"];
+        if (!databaseTwitchDrops[i]._id) {
+            databaseTwitchDrops[i]._id = deepCopy[i]._id; // Ensure the IDs are ported if they don't already exist so we don't make duplicate records later.
+        }
+    }
+
     for (let i = 0; i < databaseTwitchDrops.length; ++i) {
         // Loop through the Twitch drops to be sent to the DB to see if we need to send any notifications for them.
         if (!databaseTwitchDrops[i].notifsSent && databaseTwitchDrops[i].status.toUpperCase() === "ACTIVE") {
@@ -341,28 +370,14 @@ export async function addAndUpdateTwitchDrops() {
         }
     }
 
-    let deepCopy = _.cloneDeep(databaseTwitchDrops);
-
-
-    wixData.bulkSave("TwitchDrops", deepCopy)
+    // Save the notification fields so we don't send multiple notifs.
+    await wixData.bulkSave("TwitchDrops", databaseTwitchDrops)
         .then((results) => {
-            console.log("Successfully updated Twitch Drops. Results:", results);
-            // Now that the drops themselves saved properly, we need to add the rewardReferences.
-            for (let i = 0; i < databaseTwitchDrops.length; ++i) {
-                wixData.replaceReferences("TwitchDrops", "rewardReferences", databaseTwitchDrops[i]._id, databaseTwitchDrops[i].rewardReferences)
-                    .then(() => {
-                        console.log("Successfully added reward references to Twitch Drops.");
-                    })
-                    .catch((error) => {
-                        console.error("Failed to add reward references to Twitch Drops due to " + error);
-                    });
-            }
+            console.log("Successfully updated Twitch Drop notification fields. Results:", results);
         })
         .catch((error) => {
             console.error("Failed to update Twitch Drops due to " + error);
         });
-
-    
 
     if (sendAlert) {
         console.log("Sending Twitch Drop alert to owner...");
@@ -514,9 +529,11 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             tweetText += " TWITCH DROP NOW AVAILABLE\n";
         }
 
-        tweetText += drop.campaignName + "\n\n";
-
+        tweetText += drop.campaignName + "\n";
         charsLeftInTweet -= tweetText.length; // Subtract away the characters for this header.
+
+        tweetText += "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"] + "\n\n";
+        charsLeftInTweet -= 25; // The link is always 23 characters after reduction, and we have two newlines at the end.
         //#endregion
 
         //#region Reward Name List
@@ -859,10 +876,10 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         }
 
         if (isUpcoming) {
-            bodyText += ". Participating channels for this upcoming Twitch Drop will be posted in the Twitch Drops article.";
+            bodyText += ". Click here for more details on this drop!";
         }
         else {
-            bodyText += ". Click here to find a participating streamer!";
+            bodyText += ". Click here for a full list of participating streamers!";
         }
         //#endregion
 
@@ -874,7 +891,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             discord.sendPromotionNotificationWithStartEndTime(
                 headerText,
                 bodyText,
-                "https://www.haloinfinitenews.com/post/twitch-drops",
+                "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
                 startDate,
                 endDate
             );
@@ -884,7 +901,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             discord.sendPromotionNotification(
                 headerText,
                 bodyText,
-                "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId
+                "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"]
             );
         }
     }
