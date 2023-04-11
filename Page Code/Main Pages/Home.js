@@ -8,6 +8,7 @@ import wixData from 'wix-data';
 import * as SocketSetupFunctions from 'public/SocketSetup.js';
 
 $w.onReady(async function () {
+	$w("#button9").hide();
 	// The choice here is non-specific to the challenges. We could also use Shop Key or anything else that doesn't have cores.
 	// The goal is to refresh the saved session data for our filters and search.
 	SocketSetupFunctions.initialSocketSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY); 
@@ -79,7 +80,7 @@ $w.onReady(async function () {
 	});
 
 	// Update the Featured Pass listing.
-	$w("#passDataset").onReady(async () => {
+	$w("#passDataset").onReady(() => {
 		let pass = $w("#passDataset").getCurrentItem();
 		$w("#passType").text = (pass[PassConstants.PASS_IS_EVENT_FIELD]) ? PassConstants.PASS_EVENT : PassConstants.PASS_BATTLE;
 	});
@@ -91,8 +92,55 @@ $w.onReady(async function () {
 		$w("#shopCreditCost").text = "Credits: " + shopBundle[ShopConstants.SHOP_COST_CREDITS_FIELD];
 	});
 
+	// Update the Feature Twitch Drop listing.
+	$w("#twitchDropDataset").onReady(async () => {
+		let twitchDrop = $w("#twitchDropDataset").getCurrentItem();
+		// We need to manually associate these images based on the references.
+		let referencedRewards = await wixData.queryReferenced("TwitchDrops", twitchDrop._id, "rewardReferences")
+			.then((results) => {
+				return results.items;
+			})
+			.catch((error) => {
+				console.error("Error occurred while retrieving referenced rewards for a drop, ", error, twitchDrop);
+				return [];
+			});
+
+		if (referencedRewards.length > 0 && referencedRewards[0].imageSet && referencedRewards[0].imageSet.length > 0) {
+			$w("#twitchDropRewardImage").src = referencedRewards[0].imageSet[0]; // Associate the drop with its first reward if one is defined.
+		}
+
+		let rewardListText = "";
+
+		if (referencedRewards.length === 0) {
+			// There were no referenced rewards added to this drop. Use the rewardGroups field instead.
+			for (let i = 0; i < twitchDrop.rewardGroups.length; ++i) {
+				for (let j = 0; j < twitchDrop.rewardGroups[i].rewards.length; ++j) {
+					rewardListText += twitchDrop.rewardGroups[i].rewards[j].name;
+
+					if (i < referencedRewards.length - 1) {
+						// Add a comma-space separator in all but the last case.
+						rewardListText += ", ";
+					}
+				}
+			}
+		}
+		else {
+			for (let i = 0; i < referencedRewards.length; ++i) {
+				rewardListText += referencedRewards[i].notificationText;
+
+				if (i < referencedRewards.length - 1) {
+					// Add a comma-space separator in all but the last case.
+					rewardListText += ", ";
+				}
+			}
+		}
+
+		$w("#twitchDropRewards").text = rewardListText;
+		$w("#twitchDropRewardImage").fitMode = "fit";
+	});
+
 	// Update the Featured Shop Bundle Listing
-	$w("#shopDatasetDaily").onReady(() => {
+	/*$w("#shopDatasetDaily").onReady(() => {
 		let shopBundle = $w("#shopDatasetDaily").getCurrentItem();
 		if (shopBundle) {
 			$w("#shopImageDaily").fitMode = "fit";
@@ -108,5 +156,7 @@ $w.onReady(async function () {
 			$w("#shopButtonDaily").hide();
 			$w("#shopButtonDaily").collapse();
 		}
-	});
+	});*/
+
+
 });
