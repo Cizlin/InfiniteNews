@@ -589,6 +589,11 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	// It's time to select the item!
 	let existingItem = {};
 
+	// Use this to check if a specific waypoint ID is getting hit.
+	/*if (customizationDetails.WaypointId === "201-201-b45d9dcc") {
+		console.log(customizationDetails);
+	}*/
+
 	const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 	const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationWaypointIdField;
 	let matchingItemQuery = wixData.query(CUSTOMIZATION_DB)
@@ -2314,7 +2319,7 @@ async function generateJsonsFromItemList(
 	 */
 
 	for (let k = offset; k < customizationItemPathArray.length; ++k) {
-		if (limit != -1 && k >= limit) {
+		if (limit != -1 && k >= limit + offset) {
 			return true;
 		}
 		// Use the below controls to limit the amount of items imported at a time. Make sure to also limit the number of themes considered if applicable.
@@ -2997,7 +3002,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 // This function is going to basically run the getCustomizationItemToSave function repeatedly on each item JSON returned and then save those JSONs to the DB.
 // It uses the customizationCategory to get the list of items pertaining to that category.
 // The waypointGroupsToProcess limits what we process in this execution.
-async function updateDbsFromApi(headers, customizationCategory, waypointGroupsToProcess, generalDictsAndArrays, categorySpecificDictsAndArrays) {
+async function updateDbsFromApi(headers, customizationCategory, waypointGroupsToProcess, generalDictsAndArrays, categorySpecificDictsAndArrays, groupsAreCrossCore = false) {
 	let folderDict; // This will be passed to our image grabbing function.
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
 		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
@@ -3133,6 +3138,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						continue;
 					}*/
 
+					console.log("Waypoint Groups", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
+
 					if (await generateJsonsFromThemeList(
 						itemCountLimit,
 						itemCountOffset,
@@ -3149,6 +3156,10 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						waypointThemePathToCoreDict
 					)) {
 						itemsRemainingToProcess = true;
+					}
+
+					if (groupsAreCrossCore) {
+						break; // We don't need to process cross-core items for every single core.
 					}
 				}
 
@@ -3640,17 +3651,17 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 		if (!returnCode) {
 			let processingGroups = [
-				["Coatings"],
-				["Emblems"],
-				["Helmets"],
-				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+				{ groups: ["Coatings"], crossCore: false },
+				{ groups: ["Emblems"], crossCore: true },
+				{ groups: ["Helmets"], crossCore: false },
+				{ groups: ["LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads", "ChestAttachments", "WristAttachments", "HipAttachments"], crossCore: false },
+				{ groups: ["Visors", "ArmorFx", "MythicFx"], crossCore: true },
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
-				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+				updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, processingGroup.crossCore)
+					.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+					.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 			});
 		}
 		else {
@@ -3697,15 +3708,15 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 
 		if (!returnCode) {
 			let processingGroups = [
-				["Coatings"],
-				["Emblems"],
-				["WeaponCharms", "DeathFx", "AlternateGeometryRegions"]
+				{ groups: ["Coatings"], crossCore: false },
+				{ groups: ["Emblems"], crossCore: true },
+				{ groups: ["WeaponCharms", "DeathFx", "AlternateGeometryRegions"], crossCore: true },
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
-				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+				updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, processingGroup.crossCore)
+					.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+					.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 			});
 		}
 		else {
@@ -3740,19 +3751,15 @@ export async function vehicleImport(headers = null, manufacturerImportCompleted 
 		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
 		let processingGroups = [
-			["Coatings"],
-			["AlternateGeometryRegions"],
-			["Emblems"]
+			{ groups: ["Coatings"], crossCore: false },
+			{ groups: ["Emblems"], crossCore: true },
+			{ groups: ["AlternateGeometryRegions"], crossCore: true },
 		];
 
 		processingGroups.forEach(async (processingGroup) => {
-			if (processingGroup.includes("Emblems") && !emblemPaletteImportCompleted) {
-				await importEmblemPalettes(headers, generalDictsAndArrays);
-			}
-
-			updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-				.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-				.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+			updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, processingGroup.crossCore)
+				.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+				.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 		});
 	}
 	else { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
