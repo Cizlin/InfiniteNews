@@ -112,13 +112,15 @@ $w.onReady(async function () {
 
 		if (referencedRewards.length === 0) {
 			// There were no referenced rewards added to this drop. Use the rewardGroups field instead.
-			for (let i = 0; i < twitchDrop.rewardGroups.length; ++i) {
-				for (let j = 0; j < twitchDrop.rewardGroups[i].rewards.length; ++j) {
-					rewardListText += twitchDrop.rewardGroups[i].rewards[j].name;
+			if (twitchDrop.rewardGroups) {
+				for (let i = 0; i < twitchDrop.rewardGroups.length; ++i) {
+					for (let j = 0; j < twitchDrop.rewardGroups[i].rewards.length; ++j) {
+						rewardListText += twitchDrop.rewardGroups[i].rewards[j].name;
 
-					if (i < referencedRewards.length - 1) {
-						// Add a comma-space separator in all but the last case.
-						rewardListText += ", ";
+						if (i < referencedRewards.length - 1) {
+							// Add a comma-space separator in all but the last case.
+							rewardListText += ", ";
+						}
 					}
 				}
 			}
