@@ -10,9 +10,29 @@ import * as discord from 'backend/NotificationFunctions.jsw';
 export async function makeTwitchHeaders() {
     return {
         "authorization": await wixSecretsBackend.getSecret("TwitchOAuth"),
-        "client-id": await wixSecretsBackend.getSecret("TwitchClientId")
+        "client-id": await wixSecretsBackend.getSecret("TwitchClientId"),
+        "x-device-id": "NonSiteAccess"
     };
 }
+
+export async function getClientIntegrity() {
+    let headers = await makeTwitchHeaders();
+    return await wixFetch.fetch("https://gql.twitch.tv/integrity", {
+        "method": "post",
+        "headers": headers,
+        "body": "{}"
+    })
+    .then(response => {
+        return response.json();
+    })
+    .then(jsonResponse => {
+        return jsonResponse;
+    })
+    .catch(error => {
+        console.error(error + " occurred while retrieving integrity for client.");
+        throw error; // Right now, a single bad drop will be fatal. TODO: Need to reevaluate later.
+    });
+}  
 
 // Retrieves a list of drops from the Twitch API.
 export async function getDropList() {
@@ -44,7 +64,7 @@ export async function getDropList() {
             let drop = jsonResponse.data.currentUser.dropCampaigns[i];
             if (drop.game.id == "506416") { // Halo Infinite ID.
                 console.log(drop.id);
-                dropsList.push(drop.id); // Add the ID to the list.
+                dropsList.push(drop); // Add the ID to the list.
             }
         }
 
@@ -59,6 +79,8 @@ export async function getDropList() {
 // Retrieves specific drop information based on a provided drop ID.
 export async function getDropInfo(dropId) {
     let headers = await makeTwitchHeaders();
+    let clientIntegrityObject = await getClientIntegrity();
+    headers["client-integrity"] = clientIntegrityObject.token;
     let channelLogin = await wixSecretsBackend.getSecret("TwitchChannelLogin");
 
     return await wixFetch.fetch("https://gql.twitch.tv/gql", {
@@ -72,8 +94,8 @@ export async function getDropInfo(dropId) {
             },
             "extensions": {
                 "persistedQuery": {
-                "version": 1,
-                "sha256Hash": "f6396f5ffdde867a8f6f6da18286e4baf02e5b98d14689a69b5af320a4c7b7b8"
+                    "version": 1,
+                    "sha256Hash": "f6396f5ffdde867a8f6f6da18286e4baf02e5b98d14689a69b5af320a4c7b7b8"
                 }
             }
         })
@@ -91,58 +113,111 @@ export async function getDropInfo(dropId) {
 }
 
 // Generates the Twitch Drop JSONs that are used to populate the Twitch Drops collection.
-export async function generateNewTwitchDropJsons() {
-    let dropIds = await getDropList();
-    let dropInfoArray = [];
-    for (let i = 0; i < dropIds.length; ++i) {
-        let dropJson = await getDropInfo(dropIds[i]);
-        console.log(dropJson);
-        let minimalJson = {};
-        minimalJson.dropId = dropIds[i];
-        minimalJson.allowedChannels = [];
+export async function generateNewTwitchDropJsons(useAutomation = true, providedDropJsonArray = []) {
+    if (useAutomation) {
+        let drops = await getDropList();
+        let dropInfoArray = [];
+        for (let i = 0; i < drops.length; ++i) {
+            let dropId = drops[i].id;
+            let dropJson = drops[i];
+            //let dropJson = await getDropInfo(dropIds[i]);
+            //console.log(dropJson);
+            let minimalJson = {};
+            minimalJson.dropId = dropId;
+            //minimalJson.allowedChannels = [];
 
-        for (let j = 0; j < dropJson.data.user.dropCampaign.allow.channels.length; ++j) {
-            minimalJson.allowedChannels.push({
-                url: "https://www.twitch.tv/" + dropJson.data.user.dropCampaign.allow.channels[j].name,
-                name: dropJson.data.user.dropCampaign.allow.channels[j].displayName
-            });
-        }    
+            /*for (let j = 0; j < dropJson.data.user.dropCampaign.allow.channels.length; ++j) {
+                minimalJson.allowedChannels.push({
+                    url: "https://www.twitch.tv/" + dropJson.data.user.dropCampaign.allow.channels[j].name,
+                    name: dropJson.data.user.dropCampaign.allow.channels[j].displayName
+                });
+            }   */ 
 
-        minimalJson.campaignStart = new Date(Date.parse(dropJson.data.user.dropCampaign.startAt));
-        minimalJson.campaignEnd = new Date(Date.parse(dropJson.data.user.dropCampaign.endAt));
-        minimalJson.campaignName = dropJson.data.user.dropCampaign.name;
+            minimalJson.campaignStart = new Date(Date.parse(dropJson.startAt)); //new Date(Date.parse(dropJson.data.user.dropCampaign.startAt));
+            minimalJson.campaignEnd = new Date(Date.parse(dropJson.endAt)); //new Date(Date.parse(dropJson.data.user.dropCampaign.endAt));
+            minimalJson.campaignName = dropJson.name; //dropJson.data.user.dropCampaign.name;
 
-        minimalJson.status = dropJson.data.user.dropCampaign.status;
+            minimalJson.status = dropJson.status; //dropJson.data.user.dropCampaign.status;
 
-        minimalJson.rewardGroups = [];
+            /*minimalJson.rewardGroups = [];
 
-        for (let j = 0; j < dropJson.data.user.dropCampaign.timeBasedDrops.length; ++j) {
-            let rewardGroup = {
-                start: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].startAt)),
-                end: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].endAt)),
-                requiredMinutesWatched: dropJson.data.user.dropCampaign.timeBasedDrops[j].requiredMinutesWatched,
-                rewards: []
-            };
+            for (let j = 0; j < dropJson.data.user.dropCampaign.timeBasedDrops.length; ++j) {
+                let rewardGroup = {
+                    start: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].startAt)),
+                    end: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].endAt)),
+                    requiredMinutesWatched: dropJson.data.user.dropCampaign.timeBasedDrops[j].requiredMinutesWatched,
+                    rewards: []
+                };
 
-            for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
-                rewardGroup.rewards.push({
-                    name: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name,
-                    code: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id
+                for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
+                    rewardGroup.rewards.push({
+                        name: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name,
+                        code: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id
+                    });
+                }
+
+                minimalJson.rewardGroups.push(rewardGroup);
+            }*/
+
+            dropInfoArray.push(minimalJson);
+        }
+
+        return dropInfoArray;
+    }
+    else {
+        let dropInfoArray = [];
+        for (let i = 0; i < providedDropJsonArray.length; ++i) {
+            let dropJson = providedDropJsonArray[i];
+            console.log(dropJson);
+            let dropId = dropJson.data.user.dropCampaign.id;
+            let minimalJson = {};
+            minimalJson.dropId = dropId;
+            minimalJson.allowedChannels = [];
+
+            for (let j = 0; j < dropJson.data.user.dropCampaign.allow.channels.length; ++j) {
+                minimalJson.allowedChannels.push({
+                    url: "https://www.twitch.tv/" + dropJson.data.user.dropCampaign.allow.channels[j].name,
+                    name: dropJson.data.user.dropCampaign.allow.channels[j].displayName
                 });
             }
 
-            minimalJson.rewardGroups.push(rewardGroup);
+            minimalJson.campaignStart = new Date(Date.parse(dropJson.data.user.dropCampaign.startAt));
+            minimalJson.campaignEnd = new Date(Date.parse(dropJson.data.user.dropCampaign.endAt));
+            minimalJson.campaignName = dropJson.data.user.dropCampaign.name;
+
+            minimalJson.status = dropJson.data.user.dropCampaign.status;
+
+            minimalJson.rewardGroups = [];
+
+            for (let j = 0; j < dropJson.data.user.dropCampaign.timeBasedDrops.length; ++j) {
+                let rewardGroup = {
+                    start: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].startAt)),
+                    end: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].endAt)),
+                    requiredMinutesWatched: dropJson.data.user.dropCampaign.timeBasedDrops[j].requiredMinutesWatched,
+                    rewards: []
+                };
+
+                for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
+                    rewardGroup.rewards.push({
+                        name: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name,
+                        code: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id
+                    });
+                }
+
+                minimalJson.rewardGroups.push(rewardGroup);
+            }
+            
+            dropInfoArray.push(minimalJson);
         }
 
-        dropInfoArray.push(minimalJson);
+        return dropInfoArray;
     }
-
-    return dropInfoArray;
 }
 
 export async function getExistingTwitchDrops(dropIds) {
     return await wixData.query("TwitchDrops")
         .hasSome("dropId", dropIds)
+        //.eq("status", "ACTIVE")
         .include("rewardReferences")
         .find()
         .then(results => {
@@ -154,8 +229,8 @@ export async function getExistingTwitchDrops(dropIds) {
         });
 }
 
-export async function addAndUpdateTwitchDrops() {
-    let apiTwitchDrops = await generateNewTwitchDropJsons();
+export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArray = []) {
+    let apiTwitchDrops = await generateNewTwitchDropJsons(useAutomation, dropJsonArray);
     let apiDropIdArray = [];
     for (let i = 0; i < apiTwitchDrops.length; ++i) {
         apiDropIdArray.push(apiTwitchDrops[i].dropId);
@@ -198,21 +273,23 @@ export async function addAndUpdateTwitchDrops() {
                 databaseTwitchDrops[matchingIndex].updatedFields.push("campaignName");
             }
 
-            if (!arraysAreEqual(apiTwitchDrops[i].allowedChannels, databaseTwitchDrops[matchingIndex].allowedChannels)) {
-                // The lists of allowed channels are not equivalent.
-                databaseTwitchDrops[matchingIndex].allowedChannels = apiTwitchDrops[i].allowedChannels;
-                databaseTwitchDrops[matchingIndex].needsReview = true;
-                sendAlert = true;
-                databaseTwitchDrops[matchingIndex].updatedFields.push("allowedChannels");
-            }
+            if (!useAutomation) {
+                if (!arraysAreEqual(apiTwitchDrops[i].allowedChannels, databaseTwitchDrops[matchingIndex].allowedChannels)) {
+                    // The lists of allowed channels are not equivalent.
+                    databaseTwitchDrops[matchingIndex].allowedChannels = apiTwitchDrops[i].allowedChannels;
+                    databaseTwitchDrops[matchingIndex].needsReview = true;
+                    sendAlert = true;
+                    databaseTwitchDrops[matchingIndex].updatedFields.push("allowedChannels");
+                }
 
-            if (!arraysAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
-                // The lists of rewards are not equivalent. Check for matching rewards.
-                databaseTwitchDrops[matchingIndex].rewardGroups = apiTwitchDrops[i].rewardGroups;
-                databaseTwitchDrops[matchingIndex].needsReview = true;
-                sendAlert = true;
-                databaseTwitchDrops[matchingIndex].updatedFields.push("rewardGroups");
-                databaseTwitchDrops[matchingIndex].sendCorrection = true;
+                if (!arraysAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
+                    // The lists of rewards are not equivalent. Check for matching rewards.
+                    databaseTwitchDrops[matchingIndex].rewardGroups = apiTwitchDrops[i].rewardGroups;
+                    databaseTwitchDrops[matchingIndex].needsReview = true;
+                    sendAlert = true;
+                    databaseTwitchDrops[matchingIndex].updatedFields.push("rewardGroups");
+                    databaseTwitchDrops[matchingIndex].sendCorrection = true;
+                }
             }
 
             if (apiTwitchDrops[i].status != databaseTwitchDrops[matchingIndex].status) {
@@ -233,6 +310,10 @@ export async function addAndUpdateTwitchDrops() {
 
     // Now, let's tie the drops to their rewards.
     for (let i = 0; i < databaseTwitchDrops.length; ++i) {
+        if (!databaseTwitchDrops[i].rewardGroups) {
+            continue; // We can't assign rewards for this drop automatically anymore. :(
+        }
+
         if (!databaseTwitchDrops[i].rewardReferences || databaseTwitchDrops[i].rewardReferences.length === 0 || databaseTwitchDrops[i].updatedFields.includes("rewardGroups")) {
             console.log("Automatically linking rewards for " + databaseTwitchDrops[i].campaignName + ", " + databaseTwitchDrops[i].dropId);
             // If the reward references are not defined or are an empty array, we need to fetch the reward references if possible.
@@ -465,6 +546,16 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
 
     let dropRewardArrayStart = 0; // The array of rewardReferences, if defined, does not take into account the separate reward groups, so this is the start of the current reward group.
     let dropRewardArrayEnd = 0; // This is the end of the current reward group + 1.
+
+    if (!dropRewards && drop.status === "ACTIVE") {
+        // There are no rewards defined, which means we also can't provide any channels or a watch length. Do a streamlined notification only if this is ACTIVE.
+        let tweetText = "TWITCH DROP NOW AVAILABLE\n" + drop.campaignName + "\nClick here for more details.\n\n";
+
+        tweetText += "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId;
+        console.log(tweetText);
+
+        await twitter.sendTweet(tweetText, null);
+    }
 
     for (let i = 0; i < dropRewards.length; ++i) {
 
@@ -779,6 +870,15 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
 
     let dropRewardArrayStart = 0; // The array of rewardReferences, if defined, does not take into account the separate reward groups, so this is the start of the current reward group.
     let dropRewardArrayEnd = 0; // This is the end of the current reward group + 1.
+
+    if (!dropRewards && drop.status === "ACTIVE") {
+        console.log("Sending ACTIVE notification to Twitch with limited info.");
+        discord.sendPromotionNotification(
+            "TWITCH DROP NOW AVAILABLE: " + drop.campaignName,
+            "Click here for more details.",
+            "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId
+        );
+    }
 
     for (let i = 0; i < dropRewards.length; ++i) {
         //#region Obtain information from reward references
