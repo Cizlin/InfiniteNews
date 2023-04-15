@@ -8,7 +8,6 @@ import wixData from 'wix-data';
 import * as SocketSetupFunctions from 'public/SocketSetup.js';
 
 $w.onReady(async function () {
-	$w("#button9").hide();
 	// The choice here is non-specific to the challenges. We could also use Shop Key or anything else that doesn't have cores.
 	// The goal is to refresh the saved session data for our filters and search.
 	SocketSetupFunctions.initialSocketSetup(CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY); 
@@ -133,6 +132,10 @@ $w.onReady(async function () {
 					rewardListText += ", ";
 				}
 			}
+		}
+
+		if (rewardListText === "") {
+			rewardListText = "Rewards pending. Check back soon!";
 		}
 
 		$w("#twitchDropRewards").text = rewardListText;
