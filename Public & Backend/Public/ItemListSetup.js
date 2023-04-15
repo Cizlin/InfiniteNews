@@ -1100,13 +1100,15 @@ export async function initialItemListSetup(customizationCategory) {
 
 				if (referencedRewards.length === 0) {
 					// There were no referenced rewards added to this drop. Use the rewardGroups field instead.
-					for (let i = 0; i < itemData.rewardGroups.length; ++i) {
-						for (let j = 0; j < itemData.rewardGroups[i].rewards.length; ++j) {
-							rewardListText += itemData.rewardGroups[i].rewards[j].name;
+					if (itemData.rewardGroups) {
+						for (let i = 0; i < itemData.rewardGroups.length; ++i) {
+							for (let j = 0; j < itemData.rewardGroups[i].rewards.length; ++j) {
+								rewardListText += itemData.rewardGroups[i].rewards[j].name;
 
-							if (i < referencedRewards.length - 1) {
-								// Add a comma-space separator in all but the last case.
-								rewardListText += ", ";
+								if (i < referencedRewards.length - 1) {
+									// Add a comma-space separator in all but the last case.
+									rewardListText += ", ";
+								}
 							}
 						}
 					}
