@@ -1122,6 +1122,10 @@ export async function initialItemListSetup(customizationCategory) {
 					}
 				}
 
+				if (rewardListText === "") {
+					rewardListText = "Rewards pending. Check back soon!";
+				}
+
 				$item("#rewardListText").text = rewardListText;
 			}
 
