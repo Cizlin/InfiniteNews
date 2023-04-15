@@ -82,42 +82,49 @@ $w.onReady(function () {
 		}
 
 		// Assign the array to the repeater
-		$w("#rewardGroupRepeater").data = repeaterArray;
-		console.log(repeaterArray);
+		if (repeaterArray.length === 0) {
+			$w("#rewardGroupRepeater").collapse();
+			$w("#rewardGroupHeader").text = "Rewards Pending. Check Back Soon!"
+		}
+		else {
+			$w("#rewardGroupRepeater").expand();
+			$w("#rewardGroupRepeater").data = repeaterArray;
+			console.log(repeaterArray);
 
-		$w("#rewardGroupRepeater").forEachItem(($item, itemData) => {
-			console.log(itemData);
-			// Display the repeater item's data.
-			var options = {
-				month: "short",
-				day: "numeric",
-				year: "numeric",
-				hour: "numeric",
-				minute: "numeric",
-				second: "numeric"
-			};
+			$w("#rewardGroupRepeater").forEachItem(($item, itemData) => {
+				console.log(itemData);
+				// Display the repeater item's data.
+				var options = {
+					month: "short",
+					day: "numeric",
+					year: "numeric",
+					hour: "numeric",
+					minute: "numeric",
+					second: "numeric"
+				};
 
-			$item("#startDateText").text = itemData.start.toLocaleString("en", options);
-			$item("#endDateText").text = itemData.end.toLocaleString("en", options);
+				$item("#startDateText").text = itemData.start.toLocaleString("en", options);
+				$item("#endDateText").text = itemData.end.toLocaleString("en", options);
 
-			$item("#watchLengthText").text = "Watch for " + itemData.minutesToWatch + " minutes";
+				$item("#watchLengthText").text = "Watch for " + itemData.minutesToWatch + " minutes";
 
-			$item("#rewardListText").text = itemData.rewardText;
+				$item("#rewardListText").text = itemData.rewardText;
 
-			// Hide the extra images that we don't need.
-			for (let i = itemData.imageArray.length + 1; i <= 8; ++i) {
-				if (i == 1) {
-					$item("#rewardImagesHeader").hide(); // We have no images to show right now.
+				// Hide the extra images that we don't need.
+				for (let i = itemData.imageArray.length + 1; i <= 8; ++i) {
+					if (i == 1) {
+						$item("#rewardImagesHeader").hide(); // We have no images to show right now.
+					}
+					$item("#image" + i).hide();
+					$item("#image" + i).collapse();
 				}
-				$item("#image" + i).hide();
-				$item("#image" + i).collapse();
-			}
 
-			for (let i = 0; i < 8 && i < itemData.imageArray.length; ++i) {
-				$item("#image" + (i + 1)).src = itemData.imageArray[i];
-				$item("#image" + (i + 1)).fitMode = "fit";
-			}
-		});
+				for (let i = 0; i < 8 && i < itemData.imageArray.length; ++i) {
+					$item("#image" + (i + 1)).src = itemData.imageArray[i];
+					$item("#image" + (i + 1)).fitMode = "fit";
+				}
+			});
+		}
 	});
 
 });
