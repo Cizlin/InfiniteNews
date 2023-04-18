@@ -35,7 +35,7 @@ export async function getClientIntegrity() {
 }  
 
 // Retrieves a list of drops from the Twitch API.
-export async function getDropList() {
+export async function getDropList(returnIdsOnly = false) {
     let headers = await makeTwitchHeaders();
 
     return await wixFetch.fetch("https://gql.twitch.tv/gql", { 
@@ -67,8 +67,22 @@ export async function getDropList() {
                 dropsList.push(drop); // Add the ID to the list.
             }
         }
+        if (!returnIdsOnly) {
+            return dropsList;
+        }
+        else {
+            let commaSeparatedIds = "";
+            for (let i = 0; i < dropsList.length; ++i) {
+                if (i === 0) {
+                    commaSeparatedIds = dropsList[i].id;
+                }
+                else {
+                    commaSeparatedIds += "," + dropsList[i].id;
+                }
+            }
 
-        return dropsList;
+            return commaSeparatedIds;
+        }
     })
     .catch((error) => {
         console.error(error + " occurred while retrieving list of Twitch Drops from the API.");
@@ -255,7 +269,7 @@ export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArra
                 databaseTwitchDrops[matchingIndex].needsReview = true;
                 sendAlert = true;
                 databaseTwitchDrops[matchingIndex].updatedFields.push("campaignStart");
-                databaseTwitchDrops[matchingIndex].sendCorrection = true;
+                databaseTwitchDrops[matchingIndex].sendCorrection = (databaseTwitchDrops[matchingIndex].upcomingNotificationsSent) ? true : false;
             }
 
             if (apiTwitchDrops[i].campaignEnd.valueOf() != databaseTwitchDrops[matchingIndex].campaignEnd.valueOf()) {
@@ -264,7 +278,7 @@ export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArra
                 databaseTwitchDrops[matchingIndex].needsReview = true;
                 sendAlert = true;
                 databaseTwitchDrops[matchingIndex].updatedFields.push("campaignEnd");
-                databaseTwitchDrops[matchingIndex].sendCorrection = true;
+                databaseTwitchDrops[matchingIndex].sendCorrection = (databaseTwitchDrops[matchingIndex].upcomingNotificationsSent) ? true : false;
             }
 
             if (apiTwitchDrops[i].campaignName != databaseTwitchDrops[matchingIndex].campaignName) {
@@ -288,7 +302,7 @@ export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArra
                     databaseTwitchDrops[matchingIndex].needsReview = true;
                     sendAlert = true;
                     databaseTwitchDrops[matchingIndex].updatedFields.push("rewardGroups");
-                    databaseTwitchDrops[matchingIndex].sendCorrection = true;
+                    databaseTwitchDrops[matchingIndex].sendCorrection = (databaseTwitchDrops[matchingIndex].upcomingNotificationsSent) ? true : false;
                 }
             }
 
@@ -459,15 +473,25 @@ export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArra
         .catch((error) => {
             console.error("Failed to update Twitch Drops due to " + error);
         });
+    
+    let commaSeparatedDropIds = "";
+    for (let i = 0; i < apiDropIdArray.length; ++i) {
+        if (i === 0) {
+            commaSeparatedDropIds = apiDropIdArray[i];
+        }
+        else {
+            commaSeparatedDropIds += "," + apiDropIdArray[i];
+        }
+    }
 
     if (sendAlert) {
         console.log("Sending Twitch Drop alert to owner...");
-        notifs.notifyOwner("New/Updated Twitch Drops", "Check the Twitch Drops database to note the latest changes.");
+        notifs.notifyOwner("New/Updated Twitch Drops", "Check the Twitch Drops database to note the latest changes for these drop IDs: " + commaSeparatedDropIds);
     }
 
     if (dropIsLive) {
         console.log("Sending ACTIVE Twitch Drop alert to owner...");
-        notifs.notifyOwner("Twitch Drop Now ACTIVE", "Send notifications for the active Twitch Drop.")
+        notifs.notifyOwner("Twitch Drop Now ACTIVE", "Validate the active Twitch Drop(s) and update these drop IDs (includes all drops in API): " + commaSeparatedDropIds);
     }
 }
 
