@@ -982,7 +982,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 	}
 
-	let originalDefaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
+	let originalDefaultOfCoreIdArray = []; // This array can be longer if the item is a default for multiple cores.
 	//console.info(customizationDetails);
 	if (existingItem && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 		const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
@@ -1302,10 +1302,16 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationDetails.IsKitItem) {
 			const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 
-			if (!arrayCompare(originalDefaultOfCoreIdArray, defaultOfCoreIdArray)) {
-				itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = defaultOfCoreIdArray;
+			for (let k = 0; k < defaultOfCoreIdArray.length; ++k) {
+				if (!originalDefaultOfCoreIdArray.includes(defaultOfCoreIdArray[k]) {
+					changed = true;
+					originalDefaultOfCoreIdArray.push(defaultOfCoreIdArray[k]);
+				}
+			}
 
-				changed = true;
+			itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = originalDefaultOfCoreIdArray;
+
+			if (changed) {
 				let returnedJsons = markItemAsChanged(itemJson, existingItem, DEFAULT_OF_CORE_REFERENCE_FIELD, customizationCategory);
 				itemJson = returnedJsons[0];
 				existingItem = returnedJsons[1];
