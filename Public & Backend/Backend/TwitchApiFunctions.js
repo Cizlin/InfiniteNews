@@ -565,9 +565,6 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         }
     }
 
-    let tweetArray = [];
-    let currentTweetIndex = 0;
-
     let dropRewardArrayStart = 0; // The array of rewardReferences, if defined, does not take into account the separate reward groups, so this is the start of the current reward group.
     let dropRewardArrayEnd = 0; // This is the end of the current reward group + 1.
 
@@ -582,6 +579,9 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
     }
 
     for (let i = 0; i < dropRewards.length; ++i) {
+        // The array of Tweets needs to be recreated each time to avoid contaminating subsequent announcements.
+        let tweetArray = [];
+        let currentTweetIndex = 0;
 
         //#region Obtain information from reward references
         dropRewardArrayStart = dropRewardArrayEnd; // Update the start of the rewardArray to the end of the previous one.
