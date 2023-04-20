@@ -36,12 +36,14 @@ $w.onReady(function () {
 			repeaterArrayObject.rewardText = "";
 			repeaterArrayObject.imageArray = [];
 
-			repeaterArrayObject._id = i.toString(); // Each object needs a unique ID.
+			repeaterArrayObject._id = (i + 1).toString(); // Each object needs a unique ID.
 
 			for (let j = 0; j < rewardGroupArray[i].rewards.length; ++j) {
 
 				let name = rewardGroupArray[i].rewards[j].name;
 				let code = rewardGroupArray[i].rewards[j].code;
+
+				console.log("Checking for " + name + " and " + code);
 
 				let rewardDefinition = await wixData.query("TwitchDropRewards")
 					.eq("waypointId", code)
@@ -60,6 +62,7 @@ $w.onReady(function () {
 					});
 
 				if (!rewardDefinition) {
+					console.log("Matching code not found. Checking name...");
 					// Try accessing the rewards without the code if possible.
 					rewardDefinition = await wixData.query("TwitchDropRewards")
 						.eq("title", name)
@@ -82,6 +85,9 @@ $w.onReady(function () {
 					console.log(name);
 					repeaterArrayObject.imageArray = repeaterArrayObject.imageArray.concat(rewardDefinition.imageSet);
 				}
+				else {
+					console.log("Matching name not found either.");
+				}
 				
 				repeaterArrayObject.rewardText += name + "\n";
 			}
@@ -101,6 +107,9 @@ $w.onReady(function () {
 
 			$w("#rewardGroupRepeater").forEachItem(($item, itemData) => {
 				console.log(itemData);
+
+				$item("#groupHeaderText").text = "Reward " + itemData._id + " of " + repeaterArray.length;
+
 				// Display the repeater item's data.
 				var options = {
 					month: "short",
