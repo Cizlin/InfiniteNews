@@ -188,11 +188,13 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
             minimalJson.dropId = dropId;
             minimalJson.allowedChannels = [];
 
-            for (let j = 0; j < dropJson.data.user.dropCampaign.allow.channels.length; ++j) {
-                minimalJson.allowedChannels.push({
-                    url: "https://www.twitch.tv/" + dropJson.data.user.dropCampaign.allow.channels[j].name,
-                    name: dropJson.data.user.dropCampaign.allow.channels[j].displayName
-                });
+            if (dropJson.data.user.dropCampaign.allow.channels) {
+                for (let j = 0; j < dropJson.data.user.dropCampaign.allow.channels.length; ++j) {
+                    minimalJson.allowedChannels.push({
+                        url: "https://www.twitch.tv/" + dropJson.data.user.dropCampaign.allow.channels[j].name,
+                        name: dropJson.data.user.dropCampaign.allow.channels[j].displayName
+                    });
+                }
             }
 
             minimalJson.campaignStart = new Date(Date.parse(dropJson.data.user.dropCampaign.startAt));
@@ -752,6 +754,9 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         if (drop.allowedChannels.length > 1) {
             channelText += "s";
         }
+        else if (drop.allowedChannels.length === 0) {
+            channelText += "\n(Pending)";
+        }
 
         channelText += "\n";
 
@@ -767,25 +772,27 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         charsLeftInTweet -= channelText.length;
         tweetText += channelText;
 
-        tweetText += drop.allowedChannels[0].url + "\n"; // We always want to add the first one.
-        charsLeftInTweet -= 24; // Must be hardcoded due to URL encoding.
+        if (drop.allowedChannels.length > 0) {
+            tweetText += drop.allowedChannels[0].url + "\n"; // We always want to add the first one.
+            charsLeftInTweet -= 24; // Must be hardcoded due to URL encoding.
 
-        for (let j = 1; j < drop.allowedChannels.length; ++j) {
-            if (charsLeftInTweet - 24 < 0) {
-                // This text goes over the limit. We need to make a new tweet.
-                tweetArray[currentTweetIndex] = tweetText;
-                currentTweetIndex++;
+            for (let j = 1; j < drop.allowedChannels.length; ++j) {
+                if (charsLeftInTweet - 24 < 0) {
+                    // This text goes over the limit. We need to make a new tweet.
+                    tweetArray[currentTweetIndex] = tweetText;
+                    currentTweetIndex++;
 
-                tweetText = "";
-                charsLeftInTweet = 280;
+                    tweetText = "";
+                    charsLeftInTweet = 280;
 
-                tweetText = "Channels (cont.)\n";
-                charsLeftInTweet -= tweetText.length;
+                    tweetText = "Channels (cont.)\n";
+                    charsLeftInTweet -= tweetText.length;
+                }
+
+                tweetText += drop.allowedChannels[j].url + "\n";
+                charsLeftInTweet -= 24;
             }
-
-            tweetText += drop.allowedChannels[j].url + "\n";
-            charsLeftInTweet -= 24;
-        }
+        }        
         //#endregion
 
         // At this point, add what's left to the array.
@@ -872,7 +879,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
 
         // Count the number of expected rewards
         let numExpectedRewards = 0;
-        for (let i =0; i < dropRewards.length; ++i) {
+        for (let i = 0; i < dropRewards.length; ++i) {
             numExpectedRewards += dropRewards[i].rewards.length;
         }
 
