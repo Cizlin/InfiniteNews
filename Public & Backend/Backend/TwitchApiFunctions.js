@@ -644,7 +644,7 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             tweetText += " TWITCH DROP NOW AVAILABLE\n";
         }
 
-        tweetText += drop.campaignName + "\n";
+        tweetText += drop.campaignName + ((dropRewards.length > 1) ? (" - Reward Group " + (i + 1)) : "") + "\n";
         charsLeftInTweet -= tweetText.length; // Subtract away the characters for this header.
 
         tweetText += "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"] + "\n\n";
@@ -965,7 +965,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         //#endregion
 
         //#region Reward Name List
-        let bodyText = drop.campaignName + ", Rewards: "
+        let bodyText = drop.campaignName + ", Reward" + ((dropRewards.length > 1) ? (" Group " + (i + 1)) : "s") + ":";
 
         for (let j = 0; j < nameArray.length - 1; ++j) {
             bodyText += nameArray[j] + ((nameArray.length > 2) ? ", " : " ");
