@@ -972,7 +972,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         //#endregion
 
         //#region Reward Name List
-        let bodyText = drop.campaignName + ", Reward" + ((dropRewards.length > 1) ? (" Group " + (i + 1)) : "s") + ":";
+        let bodyText = drop.campaignName + ", Reward" + ((dropRewards.length > 1) ? (" Group " + (i + 1)) : "s") + ": ";
 
         for (let j = 0; j < nameArray.length - 1; ++j) {
             bodyText += nameArray[j] + ((nameArray.length > 2) ? ", " : " ");
