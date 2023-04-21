@@ -5,6 +5,11 @@ $w.onReady(function () {
 		// We need to manually update the Reward Group Repeater.
 		let datasetItem = $w("#dynamicDataset").getCurrentItem();
 
+		if (!datasetItem.promoLink) {
+			$w("#eventDetailsHeader").collapse();
+			$w("#eventDetailsLink").collapse();
+		}
+
 		if (datasetItem.allowedChannels && datasetItem.allowedChannels.length > 0) {
 			let channelRepeaterArray = datasetItem.allowedChannels;
 			for (let i = 0; i < channelRepeaterArray.length; ++i) {
