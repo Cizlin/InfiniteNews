@@ -1356,7 +1356,7 @@ export async function generatePushNotifications(updateItemArray) {
 }
 
 // This function will be called by the job scheduler.
-export async function refreshShop() {
+export async function refreshShopListings() {
 	let currentlyAvailableShopListings = await getCurrentlyAvailableShopListings();
 	let newlyAvailableShopListings = await getConvertedShopList();
 
