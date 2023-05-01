@@ -444,7 +444,7 @@ export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArra
             databaseTwitchDrops[i].notifsSent = true;
         }
         else if (databaseTwitchDrops[i].sendCorrection && databaseTwitchDrops[i].upcomingNotificationsSent
-            && databaseTwitchDrops[i].status.toUpperCase() === "UPCOMING") {
+            && databaseTwitchDrops[i].status.toUpperCase() === "UPCOMING" && !useAutomation) { // Only want to send corrections when we have the fully updated information.
 
             // We've previously sent notifications for this drop, and we need to amend its start/end date or rewards.
             try {
@@ -907,7 +907,8 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         discord.sendPromotionNotification(
             "TWITCH DROP NOW AVAILABLE: " + drop.campaignName,
             "Click here for more details.",
-            "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId
+            "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId,
+            true
         );
     }
 
@@ -1024,7 +1025,8 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
                 bodyText,
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
                 startDate,
-                endDate
+                endDate,
+                true // Is Twitch Drop.
             );
         }
         else {
@@ -1032,7 +1034,8 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             discord.sendPromotionNotification(
                 headerText,
                 bodyText,
-                "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"]
+                "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
+                true
             );
         }
     }
