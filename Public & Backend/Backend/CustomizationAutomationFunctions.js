@@ -1303,7 +1303,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 
 			for (let k = 0; k < defaultOfCoreIdArray.length; ++k) {
-				if (!originalDefaultOfCoreIdArray.includes(defaultOfCoreIdArray[k]) {
+				if (!originalDefaultOfCoreIdArray.includes(defaultOfCoreIdArray[k])) {
 					changed = true;
 					originalDefaultOfCoreIdArray.push(defaultOfCoreIdArray[k]);
 				}
