@@ -389,6 +389,8 @@ export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArra
                     }
                 }
             }
+
+            console.log("Database Array Contents: ", databaseTwitchDrops[i].rewardReferences);
         }
     }
 
@@ -567,9 +569,6 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         }
     }
 
-    let dropRewardArrayStart = 0; // The array of rewardReferences, if defined, does not take into account the separate reward groups, so this is the start of the current reward group.
-    let dropRewardArrayEnd = 0; // This is the end of the current reward group + 1.
-
     if (!dropRewards && drop.status === "ACTIVE") {
         // There are no rewards defined, which means we also can't provide any channels or a watch length. Do a streamlined notification only if this is ACTIVE.
         let tweetText = "TWITCH DROP NOW AVAILABLE\n" + drop.campaignName + "\nClick here for more details.\n\n";
@@ -579,6 +578,8 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
 
         await twitter.sendTweet(tweetText, null);
     }
+    
+    let parentId = null; // The parent ID for the next Tweet to send, ensuring we send a thread and not individual Tweets.
 
     for (let i = 0; i < dropRewards.length; ++i) {
         // The array of Tweets needs to be recreated each time to avoid contaminating subsequent announcements.
@@ -586,8 +587,6 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         let currentTweetIndex = 0;
 
         //#region Obtain information from reward references
-        dropRewardArrayStart = dropRewardArrayEnd; // Update the start of the rewardArray to the end of the previous one.
-
         let nameArray = [];
         let imageArray = [];
 
@@ -599,9 +598,16 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             }
         }
         else {
-            dropRewardArrayEnd = dropRewardArrayStart + dropRewards[i].rewards.length; // Add the number of rewards in this group to our start in order to get the end index + 1.
-            console.log(dropRewardNotificationArray, dropRewardArrayStart, dropRewardArrayEnd);
-            let rewardArray = dropRewardNotificationArray.slice(dropRewardArrayStart, dropRewardArrayEnd); // Extract the specific rewards for this group.
+            let rewardArray = [];
+            for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
+                // Get a collection of matching rewards based on the title.
+                for (let k = 0; k < dropRewardNotificationArray.length; ++k) {
+                    if (dropRewardNotificationArray[k].title === dropRewards[i].rewards[j].name) {
+                        rewardArray.push(dropRewardNotificationArray[k]); // The indices of this object are guaranteed to align with the rewardGroups array.
+                    }
+                }
+            }
+
             for (let j = 0; j < rewardArray.length; ++j) {
                 nameArray.push(rewardArray[j].notificationText);
                 imageArray = imageArray.concat(rewardArray[j].imageSet);
@@ -831,7 +837,6 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         //#endregion
 
         // We now have the necessary arrays of tweets and images to send to Twitter. So we shall.
-        let parentId = null;
         for (let j = 0; j < tweetArray.length; ++j) {
             // Get the media to add to this Tweet.
             let mediaIds = "";
@@ -899,9 +904,6 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         }
     }
 
-    let dropRewardArrayStart = 0; // The array of rewardReferences, if defined, does not take into account the separate reward groups, so this is the start of the current reward group.
-    let dropRewardArrayEnd = 0; // This is the end of the current reward group + 1.
-
     if (!dropRewards && drop.status === "ACTIVE") {
         console.log("Sending ACTIVE notification to Twitch with limited info.");
         discord.sendPromotionNotification(
@@ -914,8 +916,6 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
 
     for (let i = 0; i < dropRewards.length; ++i) {
         //#region Obtain information from reward references
-        dropRewardArrayStart = dropRewardArrayEnd; // Update the start of the rewardArray to the end of the previous one.
-
         let nameArray = [];
 
         let containsNew = false; // This becomes true if one or more rewards is NEW
@@ -926,9 +926,18 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             }
         }
         else {
-            dropRewardArrayEnd = dropRewardArrayStart + dropRewards[i].rewards.length; // Add the number of rewards in this group to our start in order to get the end index + 1.
-            console.log(dropRewardNotificationArray, dropRewardArrayStart, dropRewardArrayEnd);
-            let rewardArray = dropRewardNotificationArray.slice(dropRewardArrayStart, dropRewardArrayEnd); // Extract the specific rewards for this group.
+            let rewardArray = [];
+            for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
+                // Get a collection of matching rewards based on the title.
+                for (let k = 0; k < dropRewardNotificationArray.length; ++k) {
+                    if (dropRewardNotificationArray[k].title === dropRewards[i].rewards[j].name) {
+                        rewardArray.push(dropRewardNotificationArray[k]); // The indices of this object are guaranteed to align with the rewardGroups array.
+                    }
+                }
+            }
+            //dropRewardArrayEnd = dropRewardArrayStart + dropRewards[i].rewards.length; // Add the number of rewards in this group to our start in order to get the end index + 1.
+            //console.log(dropRewardNotificationArray, dropRewardArrayStart, dropRewardArrayEnd);
+            //let rewardArray = dropRewardNotificationArray.slice(dropRewardArrayStart, dropRewardArrayEnd); // Extract the specific rewards for this group.
             for (let j = 0; j < rewardArray.length; ++j) {
                 nameArray.push(rewardArray[j].notificationText);
 
@@ -1086,5 +1095,5 @@ export async function sendUpcomingNotifications() {
         })
         .catch((error) => {
             console.error(error + " occurred while updating Twitch Drops after sending notifications.");
-        })
+        });
 }
