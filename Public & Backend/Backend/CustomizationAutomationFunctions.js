@@ -1306,6 +1306,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 			for (let k = 0; k < defaultOfCoreIdArray.length; ++k) {
 				if (!originalDefaultOfCoreIdArray.includes(defaultOfCoreIdArray[k])) {
+					console.log("Found mismatched default of Core array at index " + k, defaultOfCoreIdArray[k], "Original:", originalDefaultOfCoreIdArray);
 					defaultChanged = true;
 					originalDefaultOfCoreIdArray.push(defaultOfCoreIdArray[k]);
 				}
@@ -3147,7 +3148,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						continue;
 					}*/
 
-					console.log("Waypoint Groups", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
+					console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 					if (await generateJsonsFromThemeList(
 						itemCountLimit,
@@ -3167,7 +3168,10 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						itemsRemainingToProcess = true;
 					}
 
+					console.log("Finished Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
+
 					if (groupsAreCrossCore) {
+						console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
 						break; // We don't need to process cross-core items for every single core.
 					}
 				}
@@ -3204,7 +3208,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		}
 		else { // This applies for theme-less customization categories (i.e. Spartan ID).
 			let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
-			console.info("Spartan ID Paths to Process: ", customizationItemPathArray);
+			console.log("Starting Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 			let customizationItemPathsProcessed = {};
 
 			itemsRemainingToProcess = await generateJsonsFromItemList(
@@ -3219,6 +3223,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				customizationItemPathsProcessed,
 				customizationItemPathArray
 			);
+
+			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 		}
 
 		// It's time to save the entries to the Customization DB.
