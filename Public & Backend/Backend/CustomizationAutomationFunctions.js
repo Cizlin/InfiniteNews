@@ -1302,16 +1302,19 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationDetails.IsKitItem) {
 			const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 
+			let defaultChanged = false;
+
 			for (let k = 0; k < defaultOfCoreIdArray.length; ++k) {
 				if (!originalDefaultOfCoreIdArray.includes(defaultOfCoreIdArray[k])) {
-					changed = true;
+					defaultChanged = true;
 					originalDefaultOfCoreIdArray.push(defaultOfCoreIdArray[k]);
 				}
 			}
 
 			itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = originalDefaultOfCoreIdArray;
 
-			if (changed) {
+			if (defaultChanged) {
+				changed = true;
 				let returnedJsons = markItemAsChanged(itemJson, existingItem, DEFAULT_OF_CORE_REFERENCE_FIELD, customizationCategory);
 				itemJson = returnedJsons[0];
 				existingItem = returnedJsons[1];
