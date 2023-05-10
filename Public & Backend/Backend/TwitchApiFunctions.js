@@ -245,7 +245,7 @@ export async function getExistingTwitchDrops(dropIds) {
         });
 }
 
-export async function addAndUpdateTwitchDrops(useAutomation = true, dropJsonArray = []) {
+export async function refreshTwitchDrops(useAutomation = true, dropJsonArray = []) {
     let apiTwitchDrops = await generateNewTwitchDropJsons(useAutomation, dropJsonArray);
     let apiDropIdArray = [];
     for (let i = 0; i < apiTwitchDrops.length; ++i) {
