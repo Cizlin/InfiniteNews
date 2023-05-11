@@ -33,7 +33,12 @@ import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
 import * as NotificationFunctions from 'backend/NotificationFunctions.jsw';
-import * as CustomizationFunctions from 'backend/CustomizationAutomationFunctions.jsw';
+//import * as CustomizationFunctions from 'backend/CustomizationAutomationFunctions.jsw';
+import * as InternalNotifications from 'backend/InternalNotificationFunctions.jsw';
+
+//let currentlyAvailableIds = [];
+const CUSTOMIZATION_SHOP_LIMIT = 50;
+let resetOffset = false;
 
 // Gets a list of all currently available shop items, including the items contained within bundles.
 export async function getCurrentlyAvailableShopListings(getCustomizationShopListings = false) {
@@ -253,7 +258,25 @@ export async function getCustomizationOffersShopListFromWaypoint(headers) {
 		}
 	}
 
-	return waypointJson;
+	let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_SHOP_OFFSET_KEY)
+		.find()
+		.then((results) => {
+			if (results.items.length == 0) {
+				throw "Offset not found in Key Value DB. Throwing error.";
+			}
+			else {
+				return results.items[0];
+			}
+		})
+		.catch((error) => {
+			console.error("Error occurred when determining offset. Throwing", error);
+			throw "Dying because unable to retrieve offset from Key Value DB.";
+		});
+
+	resetOffset = waypointJson.Offerings.length <= currentOffsetObject.value.offset + CUSTOMIZATION_SHOP_LIMIT; // Check if we need to reset the offset at the end.
+
+	return waypointJson.Offerings.slice(currentOffsetObject.value.offset, currentOffsetObject.value.offset + CUSTOMIZATION_SHOP_LIMIT);
 }
 
 // Retrieves an item ID based on the JSON returned from Waypoint and some other efficiency arguments.
@@ -316,8 +339,7 @@ export async function getItemId(customizationCategory, waypointId) {
 		"consumables": []
 	}
 */
-export async function getConvertedShopList(processCustomizationOptions = false, currentlyAvailableIds = []) {
-	console.log(processCustomizationOptions, currentlyAvailableIds);
+export async function getConvertedShopList(processCustomizationOptions = false) {
 	let headers = await ApiFunctions.makeWaypointHeaders();
 
 	let typeDict = await GeneralBackendFunctions.generateTypeDict();
@@ -330,7 +352,6 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 		hcsShopListWaypoint = await getHcsShopListFromWaypoint(headers);
 	}
 	else {
-		
 		normalShopWaypointJson = await getCustomizationOffersShopListFromWaypoint(headers);
 	}
 
@@ -357,7 +378,7 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 
 	console.log("Folder dict retrieved!");
 
-	/*let qualityDict = {}; // The keys will be quality values (e.g. "Epic" or "Legendary"), and the values will be quality IDs. Let's us avoid querying the DB for every quality inquiry.
+	let qualityDict = {}; // The keys will be quality values (e.g. "Epic" or "Legendary"), and the values will be quality IDs. Let's us avoid querying the DB for every quality inquiry.
 	try {
 		let qualityResults = await wixData.query(CustomizationConstants.QUALITY_DB)
 			.ne("quality", "(Pending)")
@@ -382,7 +403,7 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 	}
 	catch (error) {
 		console.error(error, "occurred while querying quality DB.");
-	}*/
+	}
 
 	const maxRetries = 10;
 	let maxIterations = ((processCustomizationOptions) ? 1 : 2); // We're just going to do the same stuff twice, first on the normal Shop, then on the HCS Shop. For the customization shop, we only do this once.
@@ -391,25 +412,25 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 
 	for (let h = 0; h < maxIterations; h++) { 
 		let mainShopWaypointJson = (h == 0) ? normalShopWaypointJson : hcsShopListWaypoint;
-		let mainShopWaypointArray = mainShopWaypointJson.Offerings;
+		let mainShopWaypointArray = (processCustomizationOptions) ? mainShopWaypointJson : mainShopWaypointJson.Offerings;
 
-		const LIMIT = 25;
+		//const LIMIT = 25;
 
 		for (let i = 0; i < mainShopWaypointArray.length; ++i) {
 
 			// If we get more items in our array than our limit allows, we stop for now.
-			if (processCustomizationOptions && shopSiteArray.length >= LIMIT) {
+			/*if (processCustomizationOptions && shopSiteArray.length >= LIMIT) {
 				break;
-			}
+			}*/
 
 			let retryCount = 0;
 			let retry = true;
 			while (retry && retryCount < maxRetries) {
 				try {
 					console.log(mainShopWaypointArray[i].OfferingId);
-					if (processCustomizationOptions && currentlyAvailableIds.includes(mainShopWaypointArray[i].OfferingId)) {
+					/*if (processCustomizationOptions && currentlyAvailableIds.includes(mainShopWaypointArray[i].OfferingId)) {
 						continue; // If this bundle is already available, we're going to skip it. This could miss some updates, but there's too much to process otherwise.
-					}
+					}*/
 
 					let mainShopSiteJson = {};
 					let shopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i].OfferingDisplayPath);
@@ -448,7 +469,7 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 						mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE];
 					}
 
-					let qualityId = await wixData.query(CustomizationConstants.QUALITY_DB) //qualityDict[shopWaypointJson.Quality];
+					let qualityId = qualityDict[shopWaypointJson.Quality];/*await wixData.query(CustomizationConstants.QUALITY_DB) //
 						.eq(CustomizationConstants.QUALITY_FIELD, shopWaypointJson.Quality)
 						.find()
 						.then((results) => {
@@ -461,7 +482,7 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 						})
 						.catch((error) => {
 							console.error("Error encountered when trying to find matching quality for ", shopWaypointJson, error);
-						});
+						});*/
 
 					mainShopSiteJson[ShopConstants.SHOP_QUALITY_REFERENCE_FIELD] = qualityId;
 					mainShopSiteJson[ShopConstants.SHOP_DESCRIPTION_FIELD] = shopWaypointJson.Description;
@@ -469,6 +490,9 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 
 					let lastAvailableDatetime = new Date();
 					lastAvailableDatetime.setHours(18, 0, 0, 0); // This sets the datetime to today's date with the time 18:00:00.000 UTC.
+					if (processCustomizationOptions) {
+						lastAvailableDatetime.setDate(10); // This will only be applied while loading things in initially.
+					}
 
 					mainShopSiteJson[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD] = lastAvailableDatetime;
 					mainShopSiteJson[ShopConstants.SHOP_IS_HCS_FIELD] = (h == 1); // On the second iteration, we work on the HCS items, but on the first iteration, we deal with the normal items.
@@ -559,7 +583,18 @@ export async function getConvertedShopList(processCustomizationOptions = false, 
 								}
 
 								const SHOP_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].ShopReferenceField;
-								mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].push(await getItemId(typeCategory, waypointId));
+								let itemId = "";
+								try {
+									itemId = await getItemId(typeCategory, waypointId);
+								}
+								catch (error) {
+									console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
+									console.log("Querying API for Waypoint ID...");
+									let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
+									itemId = await getItemId(typeCategory, itemJson.CommonData.Id);
+								}
+
+								mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].push(itemId);
 
 								if (!mainShopSiteJson[ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].includes(SHOP_ITEM_REFERENCE_FIELD)) {
 									mainShopSiteJson[ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].push(SHOP_ITEM_REFERENCE_FIELD);
@@ -1640,47 +1675,30 @@ export async function refreshShopListings() {
 }
 
 // This is also called by the job scheduler. Thankfully, we don't need to send notifications for this.
+// This is my first checkpointed function. I can't process the whole list of customization bundles at once, so I do it LIMIT at a time and store the offset to use in a
 export async function refreshCustomizationShopListings() {
-	let currentlyAvailableShopListingIds = await getCurrentlyAvailableShopListings(true); // We need this array so that we can check each newly available listing and see if we already have it available.
+	//currentlyAvailableIds = await getCurrentlyAvailableShopListings(true); // We need this array so that we can check each newly available listing and see if we already have it available.
 
 	let newCustomizationShopListings = [];
 	try {
-		newCustomizationShopListings = await getConvertedShopList(true, currentlyAvailableShopListingIds);
+		newCustomizationShopListings = await getConvertedShopList(true);
 	}
 	catch (error) {
 		console.error("Error occurred while getting shop list from API", error);
 	}
 
-	/*if (currentCustomizationShopListings.length <= 0) {
-		throw "Error: No currently available Shop Listings were returned. Exiting now to avoid data poisoning.";
-	}*/
-
 	if (newCustomizationShopListings.length <= 0) {
 		throw "Error: No new Shop Listings were returned. Exiting now.";
 	}
 
-	// The bundles should always have unique waypoint IDs so we can just check to see if each currently available item is in the newlyAvailable list.
-	// If not, we mark it as not currently available.
+	// We need a list of Waypoint IDs to query the database.
 	let newlyAvailableShopListingIds = []; 
 
 	for (let i = 0; i < newCustomizationShopListings.length; ++i) {
 		newlyAvailableShopListingIds.push(newCustomizationShopListings[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD]);
-	}	
-
-	/*for (let i = 0; i < currentCustomizationShopListings.length; ++i) {
-		if (!newlyAvailableShopListingIds.includes(currentCustomizationShopListings[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD])) {
-			updateBundleAndItemsCurrentlyAvailableStatus(currentCustomizationShopListings[i], false, ShopConstants.SHOP_DB, true); // This doesn't need to be done synchronously thankfully.
-		}
-	}*/
+	}
 
 	let newShopListingsToUpdate = newCustomizationShopListings;
-
-	/*for (let i = 0; i < newCustomizationShopListings.length; ++i) {
-		if (!currentlyAvailableShopListingIds.includes(newCustomizationShopListings[i][ShopConstants.SHOP_WAYPOINT_ID_FIELD])) {
-			// If there's a listing not in the previously available array, we need to update it or add it and report that it's new.
-			newShopListingsToUpdate.push(newCustomizationShopListings[i]);
-		}			
-	}*/
 
 	if (newlyAvailableShopListingIds.length > 0) {
 		// Now that we've got the old bundles being marked as no longer available, we need to mark the new bundles as currently available when they exist and add them when they don't.
@@ -1712,8 +1730,11 @@ export async function refreshCustomizationShopListings() {
 						newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] = item[ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] || [];
 
 						// We have to add this here because we need the existing array of datetimes.
-						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]); 
-						newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
+						if (!item[ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD]) {
+							// We only want to add this if it isn't already marked as available through the customization menus.
+							newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]); 
+							newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
+						}
 
 						console.log("Last added datetime for ", item[ShopConstants.SHOP_WAYPOINT_ID_FIELD], " is ", item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
 						console.log(newShopListingsToUpdate[i]);
@@ -1729,6 +1750,32 @@ export async function refreshCustomizationShopListings() {
 						item = await addBundleToDb(newShopListingsToUpdate[i]); // We need to await this if we want to integrate with the Twitter API.
 					}
 				}
+
+				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+					.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_SHOP_OFFSET_KEY)
+					.find()
+					.then((results) => {
+						if (results.items.length == 0) {
+							throw "Offset not found in Key Value DB. Throwing error.";
+						}
+						else {
+							return results.items[0];
+						}
+					})
+					.catch((error) => {
+						console.error("Error occurred when determining offset. Throwing", error);
+						throw "Dying because unable to retrieve offset from Key Value DB.";
+					});
+
+				currentOffsetObject.value.offset = (resetOffset) ? 0 : currentOffsetObject.value.offset + CUSTOMIZATION_SHOP_LIMIT;
+
+				wixData.update(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+					.catch((error) => {
+						console.error(error, "occurred when updating current offset value");
+						InternalNotifications.notifyOwner("Error when updating customization shop offset.", "Resolve this issue promptly to ensure updates continue to occur.");
+					});
+
+				console.log("Current offset updated to " + currentOffsetObject.value.offset);
 			});
 	}
 }
