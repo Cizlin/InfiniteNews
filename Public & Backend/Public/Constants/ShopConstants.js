@@ -7,6 +7,7 @@ export const SHOP_DB = "ShopListings";
 
 export const SHOP_ITEM_NAME_FIELD = "itemName";
 export const SHOP_CURRENTLY_AVAILABLE_FIELD = "currentlyAvailable";
+export const SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD = "availableThroughCustomization";
 export const SHOP_FIELDS_WITH_ITEMS_FIELD = "fieldsWithItems";
 export const SHOP_TIME_TYPE_FIELD = "timeType";
 export const SHOP_DESCRIPTION_FIELD = "description";
@@ -41,17 +42,19 @@ export const SHOP_WEEKLY = "Weekly";
 export const SHOP_SEMI_WEEKLY = "Semi-Weekly";
 export const SHOP_INDEFINITE = "Indefinite";
 export const SHOP_HCS = "HCS";
+export const SHOP_CUSTOMIZATION_MENU = "CustomizationMenu";
 
 export const SHOP_FOLDER = "Shop";
 
 // This dictionary contains the folders for each Shop type within the /Customization Images/Shop/ folder.
-export const SHOP_TYPE_FOLDER_DICT = {
+/*export const SHOP_TYPE_FOLDER_DICT = {
 	[SHOP_DAILY]: "Daily",
 	[SHOP_WEEKLY]: "Weekly",
 	[SHOP_SEMI_WEEKLY]: "Semi-Weekly",
 	[SHOP_INDEFINITE]: "Indefinite",
-	[SHOP_HCS]: "HCS"
-}
+	[SHOP_HCS]: "HCS",
+	[SHOP_CUSTOMIZATION_MENU]: "CustomizationMenu"
+}*/
 
 // This dictionary converts Waypoint Shop types to ones recognized by the site. This is likely no longer in use.
 export const SHOP_WAYPOINT_TO_SITE_TYPE_DICT = {
