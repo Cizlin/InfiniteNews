@@ -3169,6 +3169,9 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 					}
 
 					console.log("Finished Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
+					
+					await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+					customizationItemDbArray = []; // Reset the items after each save.
 
 					if (groupsAreCrossCore) {
 						console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
@@ -3205,6 +3208,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			)) {
 				itemsRemainingToProcess = true;
 			}
+
+			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 		}
 		else { // This applies for theme-less customization categories (i.e. Spartan ID).
 			let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
@@ -3225,10 +3230,9 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			);
 
 			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
+			
+			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 		}
-
-		// It's time to save the entries to the Customization DB.
-		await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 
 		itemCountOffset += itemCountLimit;
 	}
@@ -3631,7 +3635,7 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 	}
 }
 
-export async function armorImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function armorImportFull(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3688,7 +3692,7 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 	}
 }
 
-export async function weaponImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function weaponImportFull(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3743,7 +3747,7 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 	}
 }
 
-export async function vehicleImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function vehicleImportFull(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3845,9 +3849,9 @@ export function generalCustomizationImport() {
 				.then(() => {
 					importEmblemPalettes(headers)
 						.then(() => {
-							armorImport(headers, true);
-							weaponImport(headers, true);
-							vehicleImport(headers, true);
+							armorImportFull(headers, true);
+							weaponImportFull(headers, true);
+							vehicleImportFull(headers, true);
 							bodyAiImport(headers, true);
 							spartanIdImport(headers, true);
 						});
@@ -3855,7 +3859,7 @@ export function generalCustomizationImport() {
 		});
 }
 
-export async function importEmblemPaletteImages() {
+export async function importEmblemPaletteImagesFull() {
 	let headers = await ApiFunctions.makeWaypointHeaders();
 	let generalDictsAndArrays = await getGeneralDictsAndArraysFromDbs(headers);
 	await importEmblemPalettes(headers, generalDictsAndArrays, true, 4, 10);
