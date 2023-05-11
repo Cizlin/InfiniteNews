@@ -79,25 +79,6 @@ export async function getEmblemPaletteMapping(headers) {
 	return waypointJson;
 }
 
-// Retrieves the list of Armor Cores from the Waypoint API.
-// TODO: Rework this to work for all three core types.
-/*export async function getArmorCoreList(headers) {
-	// Query the Waypoint API.
-	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
-
-	let coreList = inventoryCatalogJson.Cores;
-
-	let armorCorePathArray = [];
-	for (let i = 0; i < coreList.length; ++i) {
-		//console.info(coreList[i]);
-		if (coreList[i].ItemType == "ArmorCore") {
-			armorCorePathArray.push(coreList[i].ItemPath);
-		}
-	}
-
-	return armorCorePathArray;
-}*/
-
 // Retrieves a list of paths to owned Cores from the Waypoint API matching the customizationCategory. Ownership of Weapon, Vehicle, and AI Cores is guaranteed.
 async function getCoreList(headers, customizationCategory) {
 // Query the Waypoint API.
@@ -137,48 +118,6 @@ async function getCoreList(headers, customizationCategory) {
 
 // This function returns a list of themes for customization categories with no cores (currently only Body & AI).
 async function getThemeList(headers, customizationCategory) {
-	/*const XUID = await getSecret(ApiConstants.SECRETS_XUID_KEY);
-
-	let retry = true;
-	let inventoryJson = {};
-
-	let url = ApiConstants.WAYPOINT_URL_BASE_ECONOMY + ApiConstants.WAYPOINT_URL_XUID_PREFIX + XUID + ApiConstants.WAYPOINT_URL_XUID_SUFFIX +
-		ApiConstants.WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY;
-
-	while (retry) {
-		inventoryJson = await wixFetch.fetch(url, {
-			"method": "get",
-			"headers": headers
-		})
-			.then((httpResponse) => {
-				if (httpResponse.ok) {
-					retry = false;
-					return httpResponse.json();
-				}
-				else { // We want to retry once with updated headers if we got an error.
-					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					return {};
-				}
-			})
-			.then((json) => {
-				return json;
-			})
-			.catch(err => {
-				console.error(err);
-				return {};
-			});
-
-		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await ApiFunctions.getSpartanToken();
-			let clearance = await ApiFunctions.getClearance();
-
-			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
-			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
-
-			retry = false; // For now, let's just do a single retry after fixing the headers.
-		}
-	}*/
-
 	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
 	// Let's get a list of matching themes first.
@@ -401,7 +340,7 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 			}
 		});
 
-	// We want to make a dictionary with Waypoint IDs as keys and the ETags from the guide/xo endpoints as values.
+	// We want to make a dictionary with Waypoint Paths as keys and the ETags from the guide/xo endpoints as values.
 	let retry = true;
 	let retryCount = 0;
 	const maxRetries = 10;
@@ -449,14 +388,11 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 		// An array containing all matches in the Path string. Should be the Waypoint ID if it's valid.
 
 		if (extractedMatchArray && extractedMatchArray.length > 0) {
-			// There will only be one match.
-			let waypointId = extractedMatchArray[0];
-			eTagDict[waypointId] = file.ETag;
+			// We actually want to keep the path, but we need to be sure this is for a valid ID before we add it to our object.
+			let waypointPath = file.Uri.Path.toLowerCase(); // Force the waypoint path to lowercase.
+			eTagDict[waypointPath] = file.ETag;
 			//console.info(waypointId + " has ETag " + file.ETag);
 		}
-		/*else {
-			console.info("Skipping " + file.Uri.Path);
-		}*/
 	}
 
 	return [qualityDict, releaseDict, manufacturerArray, sourceTypeDict, eTagDict];
@@ -548,6 +484,7 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 		"ChildItems": [kitChildItemArray],
 		"ChildAttachments": [kitChildAttachmentArray],
 		"EmblemPalettes": [emblemPaletteDbIdArray] // This is only populated for emblems, and it allows the child Emblem Palettes to be linked.
+		"WaypointPath": [waypointPath] // We need to use this to fetch the ETag.
 	}
 */
 // forceCheck: If this is true, then full comparison processing will be performed, even if the ETag matches (this is necessary for items with attachments since 
@@ -641,7 +578,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	if (existingItem
 		&& existingItem.itemETag
 		&& existingItem.itemETag != ""
-		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]
+		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointPath.toLowerCase()]
 		&& !(!customizationDetails.IsKitItem && existingItem[IS_KIT_ITEM_ONLY_FIELD]) // We want to process items if we discover they aren't exclusively part of a kit.
 		&& !customizationDetails.DefaultOfCore // We want to process an item if it's the default of a core.
 		&& !forceCheck) {
@@ -1042,9 +979,9 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 
 		const CUSTOMIZATION_ITEM_E_TAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
-		if (customizationDetails.WaypointId in eTagDict && itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointId]) {
+		if (customizationDetails.WaypointPath.toLowerCase() in eTagDict && itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointPath.toLowerCase()]) {
 			// If the Waypoint ID exists in the ETag Dictionary and doesn't have a matching record to our DB entry.
-			itemJson.itemETag = eTagDict[customizationDetails.WaypointId];
+			itemJson.itemETag = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 			changed = true;
 		}
 
@@ -1343,7 +1280,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		itemJson[CUSTOMIZATION_WAYPOINT_ID_FIELD] = customizationDetails.WaypointId;
 
 		const CUSTOMIZATION_ITEM_E_TAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
-		itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointId];
+		itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 
 		const API_LAST_UPDATED_DATETIME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationApiLastUpdatedDatetimeField;
 		itemJson[API_LAST_UPDATED_DATETIME_FIELD] = new Date();
@@ -1595,7 +1532,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 	if (existingItem
 		&& existingItem.itemETag
 		&& existingItem.itemETag != ""
-		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]) {
+		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointPath.toLowerCase()]) {
 
 		// The ETag is identical. No need to process further.
 		return 1;
@@ -1633,9 +1570,9 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 		}
 
 		const CORE_E_TAG_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreItemETagField;
-		if (customizationDetails.WaypointId in eTagDict && itemJson[CORE_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointId]) {
+		if (customizationDetails.WaypointPath.toLowerCase() in eTagDict && itemJson[CORE_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointPath.toLowerCase()]) {
 			// If the Waypoint ID exists in the ETag Dictionary and doesn't have a matching record to our DB entry.
-			itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointId];
+			itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 			changed = true;
 		}
 
@@ -1755,7 +1692,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 		itemJson[CORE_WAYPOINT_ID_FIELD] = customizationDetails.WaypointId; // We're saving the Waypoint ID here.
 
 		const CORE_E_TAG_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreItemETagField;
-		itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointId];
+		itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 
 		const CORE_API_LAST_UPDATED_DATETIME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreApiLastUpdatedDatetimeField;
 		itemJson[CORE_API_LAST_UPDATED_DATETIME_FIELD] = new Date();
@@ -1835,6 +1772,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	 * kitChildAttachmentArray = []				// Required for Kits with attachments.
 	 * parentThemePath = ""						// Required for items with nothing in ParentPaths or ParentPath.
 	 * isDefault = false						// Required for items with cores.
+	 * waypointPath = ""						// Required in all cases.
 	 */
 
 	// We want to create this JSON structure:
@@ -1857,8 +1795,9 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			"WaypointId": [waypointId],
 			"IsKitItem": [isKitItem], // Only true if the item was added as part of a Kit.
 			"ChildItems": [kitChildItemArray],
-			"ChildAttachments": [kitChildAttachmentArray]
-			"DefaultOfCore": [coreForWhichThisIsDefaultItem]
+			"ChildAttachments": [kitChildAttachmentArray],
+			"DefaultOfCore": [coreForWhichThisIsDefaultItem],
+			"WaypointPath": [waypointPath]
 		}
 	*/
 
@@ -1998,6 +1937,13 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		itemJson.DefaultOfCore = null;
     }
 
+	if ("waypointPath" in options) {
+		itemJson.WaypointPath = options.waypointPath;
+	}
+	else {
+		throw "waypointPath must be specified in options for " + itemJson.WaypointId;
+	}
+
 	return itemJson;
 }
 
@@ -2121,7 +2067,7 @@ async function processItem(headers,
 	 * kitChildAttachmentArray = [],		// Required for kits.
 	 * forceCheck = false,					// Required for kits and items with attachments.
 	 * parentThemePath = "",				// Required for items without anything in ParentPaths or ParentTheme.
-	 * isDefault = false					// Required for items with cores.
+	 * isDefault = false,					// Required for items with cores.
 	 */
 
 	// This helps us avoid processing duplicate items.
@@ -2159,8 +2105,94 @@ async function processItem(headers,
 		itemPathsProcessed[itemWaypointPath] = true;
 	}
 
-	// Get the item.
-	let itemWaypointJson = await ApiFunctions.getCustomizationItem(headers, itemWaypointPath);
+	let itemWaypointJson = null;
+
+	// We should also check to see if the etag is even updated, unless forceCheck is specified.
+	if (!("forceCheck" in options && options.forceCheck) // If we aren't forced to check this.
+		&& itemType !== CustomizationConstants.ITEM_TYPES.attachment // If we aren't working with an attachment (needs to report its waypoint ID if nothing else)
+		&& !("isKitItem" in options && options.isKitItem)) { // If we aren't working with a kit item (needs to report its waypoint ID if nothing else)
+		// We don't want to force check, so let's abandon early if we don't need to 
+		const CUSTOMIZATION_DB = (itemType === CustomizationConstants.ITEM_TYPES.core) 
+			? CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb 
+			: CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
+		const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationWaypointIdField;
+		const ETAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
+
+		// Let's query based on extracted waypoint ID from the path first.
+		let abort = false;
+		let idFound = false;
+		let etagFound = false;
+
+		let waypointIdMatches = itemWaypointPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH);
+		await wixData.query(CUSTOMIZATION_DB)
+			.contains(WAYPOINT_ID_FIELD, waypointIdMatches[0])
+			.find()
+			.then((results) => {
+				if (results.items.length > 0) {
+					idFound = true;
+					// If the ETags match, we need to abort.
+					if (((ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()) in generalDictsAndArrays[4])) {
+						etagFound = true;
+						if (results.items[0][ETAG_FIELD] === generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()]) {
+							//console.log("Aborting processing for " + results.items[0][WAYPOINT_ID_FIELD] + " due to matching ETag. Item type is " + itemType);
+							abort = true;
+						}
+					}
+					else {
+						// The ETag isn't in the guide/xo endpoint. This isn't the end of the world, though, as we can grab it from the API.
+						etagFound = false;
+					}
+				}
+				else {
+					// We didn't find anything based on the extracted waypointID, but that's not necessarily bad. Let's get the actual waypointID from the item JSON.
+					idFound = false;
+				}
+			})
+			.catch((error) => {
+				console.error(error, "occurred while checking ETag in " + CUSTOMIZATION_DB + " based on regex " + waypointIdMatches[0]);
+			});
+
+		if (!idFound || !etagFound) {
+			//console.log("Querying API to retrieve Waypoint ID and ETag for " + itemWaypointPath);
+			// We need to fetch the waypoint ID from the API. This is expensive, but only if we do it a lot.
+			let itemWaypointJsonResults = await ApiFunctions.getCustomizationItem(headers, itemWaypointPath, true);
+			let itemWaypointJson = itemWaypointJsonResults[0];
+			if (!etagFound) {
+				generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()] = itemWaypointJsonResults[1]; // Store the ETag in our dict for future reference.
+			}
+
+			await wixData.query(CUSTOMIZATION_DB)
+				.eq(WAYPOINT_ID_FIELD, itemWaypointJson.CommonData.Id) // This should be an eq query because we directly copy this into the db.
+				.find()
+				.then((results) => {
+					if (results.items.length > 0) {
+						idFound = true;
+						// If the ETags match, we need to abort.
+						if (((ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()) in generalDictsAndArrays[4])
+						&& results.items[0][ETAG_FIELD] === generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()]) {
+							//console.log("Aborting processing for " + results.items[0][WAYPOINT_ID_FIELD] + " due to matching ETag. Item type is " + itemType);
+							abort = true;
+						}
+					}
+				})
+				.catch((error) => {
+					console.error(error, "occurred while checking ETag in " + CUSTOMIZATION_DB + " based on ID " + itemWaypointJson.CommonData.Id);
+				});
+		}
+
+		if (abort) {
+			return 1; // We don't need to do anything else here. Report success 
+		}
+		else {
+			console.log("Continuing process for " + itemWaypointPath + " as ETag was not found or did not match.");
+		}
+
+	}
+
+	// Get the item if we didn't already.
+	if (!itemWaypointJson) {
+		itemWaypointJson = await ApiFunctions.getCustomizationItem(headers, itemWaypointPath);
+	}
 
 	if (itemType == CustomizationConstants.ITEM_TYPES.kit) {
 		if ("coreWaypointId" in options && options.coreWaypointId != "") {
@@ -2242,7 +2274,8 @@ async function processItem(headers,
 			"kitChildItemArray": ("kitChildItemArray" in options) ? options.kitChildItemArray : [],
 			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : [],
 			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-			"isDefault": ("isDefault" in options) ? options.isDefault : false
+			"isDefault": ("isDefault" in options) ? options.isDefault : false,
+			"waypointPath": ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()
 		}
 	);
 
@@ -3324,22 +3357,10 @@ export async function importManufacturers(headers) {
 }
 
 // Let's add the emblem palette. We need to get all the field data now.
-async function processEmblemPalette(headers, folderDict, emblemPalettePath, eTag, existingDbObject = null) {
+async function processEmblemPalette(headers, emblemPalettePath, eTag, existingDbObject = null) {
 	let emblemPaletteWaypointJson = await ApiFunctions.getCustomizationItem(headers, emblemPalettePath);
 
 	let emblemPaletteName = emblemPaletteWaypointJson.CommonData.Title;
-
-	// Get the image URL.
-	/*let emblemPaletteWaypointImageUrl = emblemPaletteWaypointJson.CommonData.DisplayPath.Media.MediaUrl.Path;
-	let emblemPaletteMimeType = emblemPaletteWaypointJson.CommonData.DisplayPath.MimeType;
-	let emblemPaletteUrl = await MediaManagerFunctions.getCustomizationImageUrl(
-		folderDict,
-		headers,
-		emblemPaletteName,
-		emblemPaletteWaypointImageUrl,
-		emblemPaletteMimeType,
-		CustomizationConstants.EMBLEM_PALETTE_KEY,
-		"Emblem Palette");*/
 
 	let emblemPaletteWaypointId = emblemPaletteWaypointJson.CommonData.Id;
 
@@ -3527,19 +3548,20 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 		for (let i = 0; i < inventoryJson.EmblemCoatings.length; ++i) {
 			let emblemPalettePathObject = inventoryJson.EmblemCoatings[i];
 			let waypointId = emblemPalettePathObject.ItemId;
+			let waypointPath = (ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + emblemPalettePathObject.ItemPath).toLowerCase();
 			if (doImportPaletteImages ||											// If we're importing images, we have to process everything since the palette itself can remain unchanged.
 				!(waypointId in existingEmblemPaletteETags && 						// If the ID isn't in the existing Dict, it's a new Emblem Palette.
-				waypointId in eTagDict && 											// If the ID isn't in the ETag Dict from Waypoint, we have to process it anyway.
-				existingEmblemPaletteETags[waypointId] == eTagDict[waypointId])) {	// If the ETags exist and don't match one another, we have to process the data since it's changed.
+				waypointPath in eTagDict && 											// If the Path isn't in the ETag Dict from Waypoint, we have to process it anyway.
+				existingEmblemPaletteETags[waypointId] == eTagDict[waypointPath])) {	// If the ETags exist and don't match one another, we have to process the data since it's changed.
 
 				// Otherwise, it's changed and we gotta process it.
 				//console.info("Need to process " + waypointId + " with DB ID " + existingEmblemPaletteDbIds[waypointId]);
 
 				if (waypointId in existingEmblemPaletteETags) { // Item was in DB.
-					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, folderDict, emblemPalettePathObject.ItemPath, eTagDict[waypointId], existingEmblemPaletteDbObjects[waypointId]));
+					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, emblemPalettePathObject.ItemPath, eTagDict[waypointPath], existingEmblemPaletteDbObjects[waypointId]));
 				}
 				else {
-					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, folderDict, emblemPalettePathObject.ItemPath, eTagDict[waypointId]));
+					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, emblemPalettePathObject.ItemPath, eTagDict[waypointPath]));
 				}
 			}
 		}
