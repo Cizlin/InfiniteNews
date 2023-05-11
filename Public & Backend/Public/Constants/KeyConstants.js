@@ -3,6 +3,7 @@
 export const KEY_VALUE_DB = "DynamicKeyValues";
 export const KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY = "CustomizationFolderHierarchy";
 export const KEY_VALUE_EMBLEM_PALETTE_FOLDERS_KEY = "EmblemPaletteFolderHierarchy";
+export const KEY_VALUE_CUSTOMIZATION_SHOP_OFFSET_KEY = "CustomizationShopOffset";
 
 // The following keys are used to access and save the user's filter selections when viewing an item. They are reset upon visiting any Sockets page.
 export const QUALITY_KEY = "qualityKey";
