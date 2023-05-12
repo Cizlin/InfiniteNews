@@ -26,8 +26,6 @@ export const KEY_VALUE_CUSTOMIZATION_BODY_AND_AI_MODEL_COLORS_KEY = "BodyAndAiMo
 export const KEY_VALUE_CUSTOMIZATION_SPARTAN_ID_EMBLEMS_KEY = "SpartanEmblemOffset";
 export const KEY_VALUE_CUSTOMIZATION_SPARTAN_ID_POSE_BACKDROPS_KEY = "SpartanPoseBackdropOffset";
 
-// TODO: Add keys for weapons, vehicles, etc.
-
 // The following keys are used to access and save the user's filter selections when viewing an item. They are reset upon visiting any Sockets page.
 export const QUALITY_KEY = "qualityKey";
 export const PROMOTIONAL_KEY = "promotionalKey";
