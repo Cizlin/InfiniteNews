@@ -381,8 +381,6 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 	let qualityDict = {}; // The keys will be quality values (e.g. "Epic" or "Legendary"), and the values will be quality IDs. Let's us avoid querying the DB for every quality inquiry.
 	try {
 		let qualityResults = await wixData.query(CustomizationConstants.QUALITY_DB)
-			.ne("quality", "(Pending)")
-			.ne("quality", "N/A")
 			.find()
 			.catch((error) => {
 				console.error(error, "occurred while filling in quality dict");
@@ -392,9 +390,9 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 			});
 
 		if (qualityResults.items.length > 0) {
-			console.log("Quality values found", results);
-			for (let i = 0; i < results.items.length; ++i) {
-				qualityDict[results.items[i].quality] = results.items[i]._id;
+			console.log("Quality values found", qualityResults);
+			for (let i = 0; i < qualityResults.items.length; ++i) {
+				qualityDict[results.items[i].quality] = qualityResults.items[i]._id;
 			}
 		}
 		else {
@@ -490,9 +488,6 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 					let lastAvailableDatetime = new Date();
 					lastAvailableDatetime.setHours(18, 0, 0, 0); // This sets the datetime to today's date with the time 18:00:00.000 UTC.
-					if (processCustomizationOptions) {
-						lastAvailableDatetime.setDate(10); // This will only be applied while loading things in initially.
-					}
 
 					mainShopSiteJson[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD] = lastAvailableDatetime;
 					mainShopSiteJson[ShopConstants.SHOP_IS_HCS_FIELD] = (h == 1); // On the second iteration, we work on the HCS items, but on the first iteration, we deal with the normal items.
