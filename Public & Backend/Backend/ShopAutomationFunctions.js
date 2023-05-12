@@ -1784,3 +1784,29 @@ export async function refreshCustomizationShopListings() {
 			});
 	}
 }
+
+export async function deactivateOldCustomizationShopListings() {
+	// If we find a Customization Menu shop listing that hasn't been updated for 8 days, we can mark it unavailable through the customization menus.
+	const DAYS_BACK = 8; // We will mark these bundles deactivated if they go more than 8 days without an update (our function currently has a loop period of at least 5 hours; this may change in the future).
+
+	await wixData.query(ShopConstants.SHOP_DB)
+		.eq(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true)
+		.le("_updatedDate", new Date(Date.now() - DAYS_BACK * 24 * 60 * 60 * 1000)) // Convert the DAYS_BACK into a ms value to subtract from the current time.
+		.limit(1000)
+		.find()
+		.then((results) => {
+			let oldListings = results.items;
+			console.log("Marking the following listings as no longer available", oldListings);
+			for (let i = 0; i < oldListings.length; ++i) {
+				oldListings[ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD] = false;
+			}
+
+			wixData.bulkUpdate(ShopConstants.SHOP_DB, oldListings)
+				.catch((error) => {
+					console.error("Error occurred when marking old customization shop listings as unavailable.", error);
+				});
+		})
+		.catch((error) => {
+			console.error("Error occurred while retrieving customization shop listings that have not been touched in " + DAYS_BACK + " days.", error);
+		})
+}
