@@ -20,9 +20,6 @@ import * as ShopConstants from 'public/Constants/ShopConstants.js';
 import * as PassConstants from 'public/Constants/PassConstants.js';
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 
-//#region Initializing Atomic locks.
-let globalCustomizationCategory; // SharedArrayBuffer can't be used safely unless some specific security measures are taken, so we're doing a bad poor man's method instead.
-
 //#region Initializing all filter objects.
 let filter = wixData.filter(); // The filter for the dataset content displayed. The value will be established based on URL parameters. DO NOT CHANGE AFTER THIS!!!
 let searchFilter = wixData.filter(); // The filter for the dataset content displayed, plus the search in the name.
@@ -258,10 +255,16 @@ async function setOptionalFiltersShop(setPaginationFromSave = false) {
 
 	switch(availableDropdownSelection) {
 		case "Yes":
-			optionalFilter = optionalFilter.eq(currentlyAvailableField, true);
+			optionalFilter = optionalFilter.eq(currentlyAvailableField, true).or(optionalFilter.eq(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true));
+			break;
+		case "ShopOnly":
+			optionalFilter = optionalFilter.eq(currentlyAvailableField, true).ne(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true);
+			break;
+		case "CustomizationOnly":
+			optionalFilter = optionalFilter.ne(currentlyAvailableField, true).eq(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true);
 			break;
 		case "No":
-			optionalFilter = optionalFilter.eq(currentlyAvailableField, false);
+			optionalFilter = optionalFilter.ne(currentlyAvailableField, true).ne(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true);
 			break;
 		default:
 			break;
@@ -358,7 +361,7 @@ async function setOptionalFiltersPasses(setPaginationFromSave = false) {
 			break;
 	}	
 
-	// Finally, we add the Shop Type filter.
+	// Finally, we add the Pass Type filter.
 	let passTypeDropdownSelection = $w("#passTypeDropdown").value; // The item selected from the dropdown.
 	session.setItem(KeyConstants.PASS_TYPE_KEY, passTypeDropdownSelection);
 
@@ -370,6 +373,107 @@ async function setOptionalFiltersPasses(setPaginationFromSave = false) {
 			optionalFilter = optionalFilter.eq(PassConstants.PASS_IS_EVENT_FIELD, false);
 			break;
 		default:
+			break;
+	}
+
+	console.log("After all optional filtering.");
+	console.log(optionalFilter);
+
+	// Append the searchFilter contents to the optionalFilter.
+	console.log("After name filtering is added.");
+	console.log(optionalFilter.and(searchFilter.isNotEmpty(nameField)));
+
+	let finalFilter = optionalFilter.and(searchFilter.isNotEmpty(nameField));
+
+	await $w("#dynamicDataset").setFilter(finalFilter)
+		.then(function() {
+			console.log("Filter applied ", JSON.stringify(finalFilter));
+			if (!setPaginationFromSave) {
+				console.log("Resetting pagination to 1 after optional filter.");
+				$w("#pagination1").currentPage = 1;
+				$w("#dynamicDataset").loadPage(1);
+			}
+			else {
+				console.log("Setting Pagination Index after initial optional filter.");
+				setPaginationIndexFromSave();
+				console.log("Pagination Index Set after initial optional filter.");
+			}
+		})
+		.catch((error) => { console.error("Could not add filter " + error) });
+}
+
+// This function is used to set the optional filters for Twitch Drops
+async function setOptionalFiltersTwitchDrops(setPaginationFromSave = false) {
+	optionalFilter = filter;
+
+	// First we add the Reward filter.
+	let rewardDropdownSelection = $w("#rewardDropdown").value; // The item selected from the dropdown.
+	session.setItem(KeyConstants.REWARD_KEY, rewardDropdownSelection);
+
+	switch(rewardDropdownSelection) {
+		case "RESET_ALL":
+			break;
+		default:
+			await wixData.query("TwitchDropRewards")
+				.contains("notificationText", rewardDropdownSelection)
+				.find()
+				.then((results) => {
+
+					if (results.items.length === 0) {
+						throw "Error retrieving matching Twitch Drop Rewards for notification text " + rewardDropdownSelection;
+					}
+					let idArray = [];
+					for (let i = 0; i < results.items.length; ++i) {
+						idArray.push(results.items[i]._id);
+					}
+
+					optionalFilter = optionalFilter.hasSome("rewardReferences", idArray);
+				})
+				.catch ((error) => {
+					console.error("Error occurred while trying to filter by Twitch Drop Reward: " + rewardDropdownSelection, error);
+				});
+			break;
+	}
+
+	// Next, we add the Status filter.
+	let statusDropdownSelection = $w("#statusDropdown").value; // The item selected from the dropdown.
+	session.setItem(KeyConstants.STATUS_KEY, statusDropdownSelection);
+
+	switch(statusDropdownSelection) {
+		case "RESET_ALL":
+			break;
+		default:
+			optionalFilter = optionalFilter.eq("status", statusDropdownSelection);
+			break;
+	}
+
+	// Finally, we add the Time filter.
+	let filterByDropdownSelection = $w("#timeFilterByDropdown").value; // The item selected from the dropdown.
+	session.setItem(KeyConstants.TIME_FILTER_BY_KEY, filterByDropdownSelection);
+
+	let fromTimeSelection = $w("#startDatePicker").value;
+	$w("#endDatePicker").minDate = $w("#startDatePicker").value; // Ensure the To: date can't be before the From: date.
+	session.setItem(KeyConstants.TIME_FROM_KEY, fromTimeSelection.toISOString());
+
+	let toTimeSelection = $w("#endDatePicker").value;
+	$w("#startDatePicker").maxDate = $w("#endDatePicker").value; // Ensure the From: date can't be after the To: date.
+	session.setItem(KeyConstants.TIME_TO_KEY, toTimeSelection.toISOString());
+
+	switch(filterByDropdownSelection) {
+		case "StartDate":
+			$w("#startDatePicker").enable();
+			$w("#endDatePicker").enable();
+			optionalFilter = optionalFilter.ge("campaignStart", fromTimeSelection).le("campaignStart", toTimeSelection);
+			break;
+		case "EndDate":
+			$w("#startDatePicker").enable();
+			$w("#endDatePicker").enable();
+			optionalFilter = optionalFilter.ge("campaignEnd", fromTimeSelection).le("campaignEnd", toTimeSelection);
+			break;
+		default:
+			// Disable the date pickers while we aren't using them to filter.
+			$w("#endDatePicker").disable();
+			$w("#startDatePicker").disable();
 			break;
 	}
 
@@ -509,8 +613,6 @@ function updateSort() {
 //#endregion
 
 export async function initialItemListSetup(customizationCategory) {
-	globalCustomizationCategory = customizationCategory; // Save the customization category for later use.
-
 	// We want to update the name search text ASAP.
 	let savedQuickSearchText = session.getItem(KeyConstants.QUICK_SEARCH_KEY);
 	if (savedQuickSearchText)
@@ -570,6 +672,10 @@ export async function initialItemListSetup(customizationCategory) {
 		case PassConstants.PASS_KEY:
 			// We only need to set the name field.
 			nameField = PassConstants.PASS_TITLE_FIELD;
+			break;
+
+		case KeyConstants.TWITCH_DROPS_KEY:
+			nameField = "campaignName";
 			break;
 
 		case CapstoneChallengeConstants.CAPSTONE_CHALLENGE_KEY:
@@ -665,18 +771,6 @@ export async function initialItemListSetup(customizationCategory) {
 			// Initialize the search and optional filters.
 			searchFilter = filter;
 			optionalFilter = filter;
-			//#endregion
-
-			//#region Setting Filter and using saved pagination index.
-			/*await $w("#dynamicDataset").setFilter(filter)
-				.then(function(){
-					console.log("Setting Pagination Index after initial filter...");
-					setPaginationIndexFromSave();
-					console.log("Pagination Index Set");
-				})
-				.catch( (err) => {
-					console.log(err);
-				});*/
 			//#endregion
 
 			//#region Update the Core text field.
@@ -865,7 +959,7 @@ export async function initialItemListSetup(customizationCategory) {
 			});
 		}
 		else if (customizationCategory == PassConstants.PASS_KEY) {
-			// This setup is for the Shop only.
+			// This setup is for the Passes only.
 			let savedReleaseValue = session.getItem(KeyConstants.RELEASE_KEY);
 			let savedPassTypeValue = session.getItem(KeyConstants.PASS_TYPE_KEY);
 
@@ -890,6 +984,71 @@ export async function initialItemListSetup(customizationCategory) {
 
 				// If the PassType filter is set.
 				$w("#passTypeDropdown").onChange(setOptionalFiltersPasses);
+			});
+		}
+		else if (customizationCategory == KeyConstants.TWITCH_DROPS_KEY) {
+			let savedRewardValue = session.getItem(KeyConstants.REWARD_KEY);
+			let savedFromValue = session.getItem(KeyConstants.TIME_FROM_KEY);
+			let savedToValue = session.getItem(KeyConstants.TIME_TO_KEY);
+			let savedFilterByValue = session.getItem(KeyConstants.TIME_FILTER_BY_KEY);
+			let savedStatusValue = session.getItem(KeyConstants.STATUS_KEY);
+
+			$w("#dropRewardDataset").onReady(async function () {
+				if (savedRewardValue)
+				{
+					console.log("Found saved Reward value: " + savedRewardValue);
+					$w("#rewardDropdown").value = savedRewardValue;
+				}
+				else 
+				{
+					console.log("Using default Reward value: RESET_ALL");
+					$w("#rewardDropdown").value = "RESET_ALL";
+				}
+				if (savedFromValue)
+				{
+					
+					console.log("Found saved Time From value: " + savedFromValue);
+					$w("#startDatePicker").value = new Date(savedFromValue);
+				}
+				if (savedToValue) 
+				{
+					console.log("Found saved Time To value: " + savedToValue);
+					$w("#endDatePicker").value = new Date(savedToValue);
+				}
+				if (savedFilterByValue) 
+				{
+					console.log("Found saved Filter By value: " + savedFilterByValue);
+					$w("#timeFilterByDropdown").value = savedFilterByValue;
+				}
+				if (savedStatusValue) 
+				{
+					console.log("Found saved Status value: " + savedStatusValue);
+					$w("#statusDropdown").value = savedStatusValue;
+				}
+				else
+				{
+					console.log("Using default Status value: RESET_ALL");
+					$w("#statusDropdown").value = "RESET_ALL";
+				}
+
+				await setOptionalFiltersTwitchDrops(true);
+
+				filterBySearch(true);
+
+				// If the Reward filter is set.
+				$w("#rewardDropdown").onChange(setOptionalFiltersTwitchDrops);
+
+				// If the Start Date filter is set.
+				$w("#startDatePicker").onChange(setOptionalFiltersTwitchDrops);
+
+				// If the End Date filter is set.
+				$w("#endDatePicker").onChange(setOptionalFiltersTwitchDrops);
+
+				// If the Filter By filter is set.
+				$w("#timeFilterByDropdown").onChange(setOptionalFiltersTwitchDrops);
+
+				// If the Status filter is set.
+				$w("#statusDropdown").onChange(setOptionalFiltersTwitchDrops);
 			});
 		}
 		//#endregion
@@ -927,7 +1086,57 @@ export async function initialItemListSetup(customizationCategory) {
 		//#endregion
 
 		//#region Setting image fit mode to "fit" for all items and setting Source text.
-		$w("#listRepeater").onItemReady(($item, itemData) => {
+		$w("#listRepeater").onItemReady(async ($item, itemData) => {
+			if (customizationCategory == KeyConstants.TWITCH_DROPS_KEY) {
+				// We need to manually associate these images based on the references.
+				let referencedRewards = await wixData.queryReferenced("TwitchDrops", itemData._id, "rewardReferences")
+					.then((results) => {
+						return results.items;
+					})
+					.catch((error) => {
+						console.error("Error occurred while retrieving referenced rewards for a drop, ", error, itemData);
+						return [];
+					});
+
+				if (referencedRewards.length > 0 && referencedRewards[0].imageSet && referencedRewards[0].imageSet.length > 0) {
+					$item("#image").src = referencedRewards[0].imageSet[0]; // Associate the drop with its first reward if one is defined.
+				}
+
+				let rewardListText = "";
+
+				if (referencedRewards.length === 0) {
+					// There were no referenced rewards added to this drop. Use the rewardGroups field instead.
+					if (itemData.rewardGroups) {
+						for (let i = 0; i < itemData.rewardGroups.length; ++i) {
+							for (let j = 0; j < itemData.rewardGroups[i].rewards.length; ++j) {
+								rewardListText += itemData.rewardGroups[i].rewards[j].name;
+
+								if (i < referencedRewards.length - 1) {
+									// Add a comma-space separator in all but the last case.
+									rewardListText += ", ";
+								}
+							}
+						}
+					}
+				}
+				else {
+					for (let i = 0; i < referencedRewards.length; ++i) {
+						rewardListText += referencedRewards[i].notificationText;
+
+						if (i < referencedRewards.length - 1) {
+							// Add a comma-space separator in all but the last case.
+							rewardListText += ", ";
+						}
+					}
+				}
+
+				if (rewardListText === "") {
+					rewardListText = "Rewards pending. Check back soon!";
+				}
+
+				$item("#rewardListText").text = rewardListText;
+			}
+
 			if (customizationCategory != PassConstants.PASS_KEY) { // If we aren't working with Passes, fit the image.
 				$item("#image").fitMode = "fit";
 			}

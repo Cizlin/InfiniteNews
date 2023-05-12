@@ -3,6 +3,7 @@ import {getSecret} from 'wix-secrets-backend';
 const CHANNEL_NAME_TO_ID = {
     "shop": "926520859772981288",
     "promotions": "926524772538523668",
+    "twitch-drops": "1102701313218846830",
     "news": "926524570779926558",
     "weekly-reset": "929505647601537056",
     "test": "926520307014049792"
@@ -11,6 +12,7 @@ const CHANNEL_NAME_TO_ID = {
 const CHANNEL_NAME_TO_NOTIF_ROLE = {
     "shop": "941847238085341245",
     "promotions": "941847068434112552",
+    "twitch-drops": "1102702008898687016",
     "news": "941846560814293062",
     "weekly-reset": "941847552167399494",
     "test": "926516155626192988"
