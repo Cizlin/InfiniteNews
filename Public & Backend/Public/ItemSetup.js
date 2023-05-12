@@ -177,9 +177,11 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 			}
         }
 
-		
-
 		let currentlyAvailable = currentItem[currentlyAvailableField]; // Get currentlyAvailable value from currentItem.
+
+		if (customizationCategory === ShopConstants.SHOP_KEY) {
+			currentlyAvailable = currentItem[ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD] || currentlyAvailable; // If this bundle is available through customization menus, it is also valid.
+		}
 
 		// The value of currentlyAvailable will either be undefined or the string "false" if it isn't selected. Handle both cases here.
 		if (!currentlyAvailable || currentlyAvailable == "false") {

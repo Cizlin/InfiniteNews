@@ -79,25 +79,6 @@ export async function getEmblemPaletteMapping(headers) {
 	return waypointJson;
 }
 
-// Retrieves the list of Armor Cores from the Waypoint API.
-// TODO: Rework this to work for all three core types.
-/*export async function getArmorCoreList(headers) {
-	// Query the Waypoint API.
-	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
-
-	let coreList = inventoryCatalogJson.Cores;
-
-	let armorCorePathArray = [];
-	for (let i = 0; i < coreList.length; ++i) {
-		//console.info(coreList[i]);
-		if (coreList[i].ItemType == "ArmorCore") {
-			armorCorePathArray.push(coreList[i].ItemPath);
-		}
-	}
-
-	return armorCorePathArray;
-}*/
-
 // Retrieves a list of paths to owned Cores from the Waypoint API matching the customizationCategory. Ownership of Weapon, Vehicle, and AI Cores is guaranteed.
 async function getCoreList(headers, customizationCategory) {
 // Query the Waypoint API.
@@ -137,48 +118,6 @@ async function getCoreList(headers, customizationCategory) {
 
 // This function returns a list of themes for customization categories with no cores (currently only Body & AI).
 async function getThemeList(headers, customizationCategory) {
-	/*const XUID = await getSecret(ApiConstants.SECRETS_XUID_KEY);
-
-	let retry = true;
-	let inventoryJson = {};
-
-	let url = ApiConstants.WAYPOINT_URL_BASE_ECONOMY + ApiConstants.WAYPOINT_URL_XUID_PREFIX + XUID + ApiConstants.WAYPOINT_URL_XUID_SUFFIX +
-		ApiConstants.WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY;
-
-	while (retry) {
-		inventoryJson = await wixFetch.fetch(url, {
-			"method": "get",
-			"headers": headers
-		})
-			.then((httpResponse) => {
-				if (httpResponse.ok) {
-					retry = false;
-					return httpResponse.json();
-				}
-				else { // We want to retry once with updated headers if we got an error.
-					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					return {};
-				}
-			})
-			.then((json) => {
-				return json;
-			})
-			.catch(err => {
-				console.error(err);
-				return {};
-			});
-
-		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await ApiFunctions.getSpartanToken();
-			let clearance = await ApiFunctions.getClearance();
-
-			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
-			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
-
-			retry = false; // For now, let's just do a single retry after fixing the headers.
-		}
-	}*/
-
 	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
 	// Let's get a list of matching themes first.
@@ -401,7 +340,7 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 			}
 		});
 
-	// We want to make a dictionary with Waypoint IDs as keys and the ETags from the guide/xo endpoints as values.
+	// We want to make a dictionary with Waypoint Paths as keys and the ETags from the guide/xo endpoints as values.
 	let retry = true;
 	let retryCount = 0;
 	const maxRetries = 10;
@@ -449,14 +388,11 @@ export async function getGeneralDictsAndArraysFromDbs(headers) {
 		// An array containing all matches in the Path string. Should be the Waypoint ID if it's valid.
 
 		if (extractedMatchArray && extractedMatchArray.length > 0) {
-			// There will only be one match.
-			let waypointId = extractedMatchArray[0];
-			eTagDict[waypointId] = file.ETag;
+			// We actually want to keep the path, but we need to be sure this is for a valid ID before we add it to our object.
+			let waypointPath = file.Uri.Path.toLowerCase(); // Force the waypoint path to lowercase.
+			eTagDict[waypointPath] = file.ETag;
 			//console.info(waypointId + " has ETag " + file.ETag);
 		}
-		/*else {
-			console.info("Skipping " + file.Uri.Path);
-		}*/
 	}
 
 	return [qualityDict, releaseDict, manufacturerArray, sourceTypeDict, eTagDict];
@@ -548,6 +484,7 @@ export async function getCategorySpecificDictsAndArraysFromDbs(customizationCate
 		"ChildItems": [kitChildItemArray],
 		"ChildAttachments": [kitChildAttachmentArray],
 		"EmblemPalettes": [emblemPaletteDbIdArray] // This is only populated for emblems, and it allows the child Emblem Palettes to be linked.
+		"WaypointPath": [waypointPath] // We need to use this to fetch the ETag.
 	}
 */
 // forceCheck: If this is true, then full comparison processing will be performed, even if the ETag matches (this is necessary for items with attachments since 
@@ -588,6 +525,11 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 	// It's time to select the item!
 	let existingItem = {};
+
+	// Use this to check if a specific waypoint ID is getting hit.
+	/*if (customizationDetails.WaypointId === "201-201-b45d9dcc") {
+		console.log(customizationDetails);
+	}*/
 
 	const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 	const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationWaypointIdField;
@@ -636,7 +578,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	if (existingItem
 		&& existingItem.itemETag
 		&& existingItem.itemETag != ""
-		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]
+		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointPath.toLowerCase()]
 		&& !(!customizationDetails.IsKitItem && existingItem[IS_KIT_ITEM_ONLY_FIELD]) // We want to process items if we discover they aren't exclusively part of a kit.
 		&& !customizationDetails.DefaultOfCore // We want to process an item if it's the default of a core.
 		&& !forceCheck) {
@@ -977,7 +919,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 	}
 
-	let originalDefaultOfCoreIdArray = []; // This array should have a length of either 0 or 1, no more.
+	let originalDefaultOfCoreIdArray = []; // This array can be longer if the item is a default for multiple cores.
 	//console.info(customizationDetails);
 	if (existingItem && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 		const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
@@ -1037,9 +979,9 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 
 		const CUSTOMIZATION_ITEM_E_TAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
-		if (customizationDetails.WaypointId in eTagDict && itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointId]) {
+		if (customizationDetails.WaypointPath.toLowerCase() in eTagDict && itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointPath.toLowerCase()]) {
 			// If the Waypoint ID exists in the ETag Dictionary and doesn't have a matching record to our DB entry.
-			itemJson.itemETag = eTagDict[customizationDetails.WaypointId];
+			itemJson.itemETag = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 			changed = true;
 		}
 
@@ -1297,9 +1239,19 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory) && !customizationDetails.IsKitItem) {
 			const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
 
-			if (!arrayCompare(originalDefaultOfCoreIdArray, defaultOfCoreIdArray)) {
-				itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = defaultOfCoreIdArray;
+			let defaultChanged = false;
 
+			for (let k = 0; k < defaultOfCoreIdArray.length; ++k) {
+				if (!originalDefaultOfCoreIdArray.includes(defaultOfCoreIdArray[k])) {
+					console.log("Found mismatched default of Core array at index " + k, defaultOfCoreIdArray[k], "Original:", originalDefaultOfCoreIdArray);
+					defaultChanged = true;
+					originalDefaultOfCoreIdArray.push(defaultOfCoreIdArray[k]);
+				}
+			}
+
+			itemJson[DEFAULT_OF_CORE_REFERENCE_FIELD] = originalDefaultOfCoreIdArray;
+
+			if (defaultChanged) {
 				changed = true;
 				let returnedJsons = markItemAsChanged(itemJson, existingItem, DEFAULT_OF_CORE_REFERENCE_FIELD, customizationCategory);
 				itemJson = returnedJsons[0];
@@ -1328,7 +1280,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		itemJson[CUSTOMIZATION_WAYPOINT_ID_FIELD] = customizationDetails.WaypointId;
 
 		const CUSTOMIZATION_ITEM_E_TAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
-		itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointId];
+		itemJson[CUSTOMIZATION_ITEM_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 
 		const API_LAST_UPDATED_DATETIME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationApiLastUpdatedDatetimeField;
 		itemJson[API_LAST_UPDATED_DATETIME_FIELD] = new Date();
@@ -1580,7 +1532,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 	if (existingItem
 		&& existingItem.itemETag
 		&& existingItem.itemETag != ""
-		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointId]) {
+		&& existingItem.itemETag == eTagDict[customizationDetails.WaypointPath.toLowerCase()]) {
 
 		// The ETag is identical. No need to process further.
 		return 1;
@@ -1618,9 +1570,9 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 		}
 
 		const CORE_E_TAG_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreItemETagField;
-		if (customizationDetails.WaypointId in eTagDict && itemJson[CORE_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointId]) {
+		if (customizationDetails.WaypointPath.toLowerCase() in eTagDict && itemJson[CORE_E_TAG_FIELD] != eTagDict[customizationDetails.WaypointPath.toLowerCase()]) {
 			// If the Waypoint ID exists in the ETag Dictionary and doesn't have a matching record to our DB entry.
-			itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointId];
+			itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 			changed = true;
 		}
 
@@ -1740,7 +1692,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 		itemJson[CORE_WAYPOINT_ID_FIELD] = customizationDetails.WaypointId; // We're saving the Waypoint ID here.
 
 		const CORE_E_TAG_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreItemETagField;
-		itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointId];
+		itemJson[CORE_E_TAG_FIELD] = eTagDict[customizationDetails.WaypointPath.toLowerCase()];
 
 		const CORE_API_LAST_UPDATED_DATETIME_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreApiLastUpdatedDatetimeField;
 		itemJson[CORE_API_LAST_UPDATED_DATETIME_FIELD] = new Date();
@@ -1820,6 +1772,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	 * kitChildAttachmentArray = []				// Required for Kits with attachments.
 	 * parentThemePath = ""						// Required for items with nothing in ParentPaths or ParentPath.
 	 * isDefault = false						// Required for items with cores.
+	 * waypointPath = ""						// Required in all cases.
 	 */
 
 	// We want to create this JSON structure:
@@ -1842,8 +1795,9 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			"WaypointId": [waypointId],
 			"IsKitItem": [isKitItem], // Only true if the item was added as part of a Kit.
 			"ChildItems": [kitChildItemArray],
-			"ChildAttachments": [kitChildAttachmentArray]
-			"DefaultOfCore": [coreForWhichThisIsDefaultItem]
+			"ChildAttachments": [kitChildAttachmentArray],
+			"DefaultOfCore": [coreForWhichThisIsDefaultItem],
+			"WaypointPath": [waypointPath]
 		}
 	*/
 
@@ -1983,6 +1937,13 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		itemJson.DefaultOfCore = null;
     }
 
+	if ("waypointPath" in options) {
+		itemJson.WaypointPath = options.waypointPath;
+	}
+	else {
+		throw "waypointPath must be specified in options for " + itemJson.WaypointId;
+	}
+
 	return itemJson;
 }
 
@@ -2106,7 +2067,7 @@ async function processItem(headers,
 	 * kitChildAttachmentArray = [],		// Required for kits.
 	 * forceCheck = false,					// Required for kits and items with attachments.
 	 * parentThemePath = "",				// Required for items without anything in ParentPaths or ParentTheme.
-	 * isDefault = false					// Required for items with cores.
+	 * isDefault = false,					// Required for items with cores.
 	 */
 
 	// This helps us avoid processing duplicate items.
@@ -2144,8 +2105,101 @@ async function processItem(headers,
 		itemPathsProcessed[itemWaypointPath] = true;
 	}
 
-	// Get the item.
-	let itemWaypointJson = await ApiFunctions.getCustomizationItem(headers, itemWaypointPath);
+	let itemWaypointJson = null;
+
+	// We should also check to see if the etag is even updated, unless forceCheck is specified.
+	if (!("forceCheck" in options && options.forceCheck) // If we aren't forced to check this.
+		&& itemType !== CustomizationConstants.ITEM_TYPES.attachment // If we aren't working with an attachment (needs to report its waypoint ID if nothing else)
+		&& !("isKitItem" in options && options.isKitItem)) { // If we aren't working with a kit item (needs to report its waypoint ID if nothing else)
+		// We don't want to force check, so let's abandon early if we don't need to 
+		const CUSTOMIZATION_DB = (itemType === CustomizationConstants.ITEM_TYPES.core) 
+			? CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb 
+			: CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
+		const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationWaypointIdField;
+		const ETAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
+
+		// Let's query based on extracted waypoint ID from the path first.
+		let abort = false;
+		let idFound = false;
+		let etagFound = false;
+
+		let waypointIdMatches = itemWaypointPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH);
+		await wixData.query(CUSTOMIZATION_DB)
+			.contains(WAYPOINT_ID_FIELD, waypointIdMatches[0])
+			.find()
+			.then((results) => {
+				if (results.items.length > 0) {
+					idFound = true;
+					// If the ETags match, we need to abort.
+					if (((ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()) in generalDictsAndArrays[4])) {
+						etagFound = true;
+						if (results.items[0][ETAG_FIELD] === generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()]) {
+							//console.log("Aborting processing for " + results.items[0][WAYPOINT_ID_FIELD] + " due to matching ETag. Item type is " + itemType);
+							abort = true;
+						}
+					}
+					else {
+						// The ETag isn't in the guide/xo endpoint. This isn't the end of the world, though, as we can grab it from the API.
+						etagFound = false;
+					}
+				}
+				else {
+					// We didn't find anything based on the extracted waypointID, but that's not necessarily bad. Let's get the actual waypointID from the item JSON.
+					idFound = false;
+				}
+			})
+			.catch((error) => {
+				console.error(error, "occurred while checking ETag in " + CUSTOMIZATION_DB + " based on regex " + waypointIdMatches[0]);
+			});
+
+		if (!idFound || !etagFound) {
+			//console.log("Querying API to retrieve Waypoint ID and ETag for " + itemWaypointPath);
+			// We need to fetch the waypoint ID from the API. This is expensive, but only if we do it a lot.
+			let itemWaypointJsonResults = await ApiFunctions.getCustomizationItem(headers, itemWaypointPath, true);
+			let itemWaypointJson = itemWaypointJsonResults[0];
+			if (!etagFound) {
+				generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()] = itemWaypointJsonResults[1]; // Store the ETag in our dict for future reference.
+			}
+
+			await wixData.query(CUSTOMIZATION_DB)
+				.eq(WAYPOINT_ID_FIELD, itemWaypointJson.CommonData.Id) // This should be an eq query because we directly copy this into the db.
+				.find()
+				.then((results) => {
+					if (results.items.length > 0) {
+						idFound = true;
+						// If the ETags match, we need to abort.
+						if (((ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()) in generalDictsAndArrays[4])
+						&& results.items[0][ETAG_FIELD] === generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()]) {
+							//console.log("Aborting processing for " + results.items[0][WAYPOINT_ID_FIELD] + " due to matching ETag. Item type is " + itemType);
+							abort = true;
+						}
+					}
+				})
+				.catch((error) => {
+					console.error(error, "occurred while checking ETag in " + CUSTOMIZATION_DB + " based on ID " + itemWaypointJson.CommonData.Id);
+				});
+		}
+
+		if (abort) {
+			return 1; // We don't need to do anything else here. Report success 
+		}
+		else {
+			console.log("Continuing process for " + itemWaypointPath + " as ETag was not found or did not match.");
+		}
+
+	}
+
+	// Get the item if we didn't already.
+	if (!itemWaypointJson) {
+		let itemWaypointJsonResults = await ApiFunctions.getCustomizationItem(headers, itemWaypointPath, true);
+		itemWaypointJson = itemWaypointJsonResults[0];
+		let etag = itemWaypointJsonResults[1];
+
+		if (!((ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()) in generalDictsAndArrays[4])) {
+			// Add the ETag if it wasn't already in our dictionary.
+			generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()] = etag;
+		}
+	}
 
 	if (itemType == CustomizationConstants.ITEM_TYPES.kit) {
 		if ("coreWaypointId" in options && options.coreWaypointId != "") {
@@ -2227,7 +2281,8 @@ async function processItem(headers,
 			"kitChildItemArray": ("kitChildItemArray" in options) ? options.kitChildItemArray : [],
 			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : [],
 			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-			"isDefault": ("isDefault" in options) ? options.isDefault : false
+			"isDefault": ("isDefault" in options) ? options.isDefault : false,
+			"waypointPath": ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()
 		}
 	);
 
@@ -2314,7 +2369,7 @@ async function generateJsonsFromItemList(
 	 */
 
 	for (let k = offset; k < customizationItemPathArray.length; ++k) {
-		if (limit != -1 && k >= limit) {
+		if (limit != -1 && k >= limit + offset) {
 			return true;
 		}
 		// Use the below controls to limit the amount of items imported at a time. Make sure to also limit the number of themes considered if applicable.
@@ -2997,7 +3052,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 // This function is going to basically run the getCustomizationItemToSave function repeatedly on each item JSON returned and then save those JSONs to the DB.
 // It uses the customizationCategory to get the list of items pertaining to that category.
 // The waypointGroupsToProcess limits what we process in this execution.
-async function updateDbsFromApi(headers, customizationCategory, waypointGroupsToProcess, generalDictsAndArrays, categorySpecificDictsAndArrays) {
+async function updateDbsFromApi(headers, customizationCategory, waypointGroupsToProcess, generalDictsAndArrays, categorySpecificDictsAndArrays, groupsAreCrossCore = false, checkpointKey = null) {
 	let folderDict; // This will be passed to our image grabbing function.
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
 		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
@@ -3023,8 +3078,28 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 
 	// These variables allow us to process and update a chunk of items at a time.
 	let itemsRemainingToProcess = true;
-	const itemCountLimit = 50;
+	const itemCountLimit = 40;
 	let itemCountOffset = 0;
+
+	if (checkpointKey) {
+		// Retrieve the checkpoint key from the Key Value DB:
+		itemCountOffset = await wixData.query(KeyConstants.KEY_VALUE_DB)
+			.eq("key", checkpointKey)
+			.find()
+			.then((results) => {
+				if (results.items.length > 0) {
+					return results.items[0].value.offset;
+				}
+				else {
+					console.error("No offset found for checkpointKey " + checkpointKey);
+					return 0;
+				}
+			})
+			.catch((error) => {
+				console.error("Error occurred while fetching offset based on checkpointKey " + checkpointKey, error);
+				return 0;
+			});
+	}
 
 	while (itemsRemainingToProcess) {
 		itemsRemainingToProcess = false; // This may later become true, in which case we need to continue processing.
@@ -3133,6 +3208,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						continue;
 					}*/
 
+					console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
+
 					if (await generateJsonsFromThemeList(
 						itemCountLimit,
 						itemCountOffset,
@@ -3150,6 +3227,14 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 					)) {
 						itemsRemainingToProcess = true;
 					}
+
+					await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+					customizationItemDbArray = []; // Reset the items after each save.
+
+					if (groupsAreCrossCore) {
+						console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
+						break; // We don't need to process cross-core items for every single core.
+					}
 				}
 
 				//console.info("After obtaining all JSONs for these Waypoint Groups: ", waypointGroupsToProcess, ", we got this Array: ", customizationItemDbArray);
@@ -3163,6 +3248,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		else if (customizationCategory != SpartanIdConstants.SPARTAN_ID_KEY) { // For right now, this case only applies to Body & AI, but it could also apply to other customization categories in the future.
 			let themePathArray = await getThemeList(headers, customizationCategory);
 			let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
+			console.log("Starting Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 			//console.info(themePathArray);
 
@@ -3181,10 +3267,14 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			)) {
 				itemsRemainingToProcess = true;
 			}
+
+			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
+
+			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 		}
 		else { // This applies for theme-less customization categories (i.e. Spartan ID).
 			let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
-			console.info("Spartan ID Paths to Process: ", customizationItemPathArray);
+			console.log("Starting Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 			let customizationItemPathsProcessed = {};
 
 			itemsRemainingToProcess = await generateJsonsFromItemList(
@@ -3199,12 +3289,45 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				customizationItemPathsProcessed,
 				customizationItemPathArray
 			);
+
+			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
+			
+			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 		}
 
-		// It's time to save the entries to the Customization DB.
-		await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
-
 		itemCountOffset += itemCountLimit;
+
+		// Save the offset using our checkpointKey.
+		if (checkpointKey) {
+			let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+				.eq("key", checkpointKey)
+				.find()
+				.then((results) => {
+					if (results.items.length == 0) {
+						// Return a default object because there isn't one in the DB.
+						return { 
+							"key": checkpointKey,
+							"value": {
+								"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+							}
+						}
+					}
+					else {
+						results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
+						return results.items[0];
+					}
+				})
+				.catch((error) => {
+					console.error("Error occurred when determining existing offset.", error);
+				});
+
+			wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+				.catch((error) => {
+					console.error(error, "occurred when updating current offset value");
+				});
+
+			console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
+		}		
 	}
 
 	return 0;
@@ -3294,22 +3417,10 @@ export async function importManufacturers(headers) {
 }
 
 // Let's add the emblem palette. We need to get all the field data now.
-async function processEmblemPalette(headers, folderDict, emblemPalettePath, eTag, existingDbObject = null) {
+async function processEmblemPalette(headers, emblemPalettePath, eTag, existingDbObject = null) {
 	let emblemPaletteWaypointJson = await ApiFunctions.getCustomizationItem(headers, emblemPalettePath);
 
 	let emblemPaletteName = emblemPaletteWaypointJson.CommonData.Title;
-
-	// Get the image URL.
-	/*let emblemPaletteWaypointImageUrl = emblemPaletteWaypointJson.CommonData.DisplayPath.Media.MediaUrl.Path;
-	let emblemPaletteMimeType = emblemPaletteWaypointJson.CommonData.DisplayPath.MimeType;
-	let emblemPaletteUrl = await MediaManagerFunctions.getCustomizationImageUrl(
-		folderDict,
-		headers,
-		emblemPaletteName,
-		emblemPaletteWaypointImageUrl,
-		emblemPaletteMimeType,
-		CustomizationConstants.EMBLEM_PALETTE_KEY,
-		"Emblem Palette");*/
 
 	let emblemPaletteWaypointId = emblemPaletteWaypointJson.CommonData.Id;
 
@@ -3451,18 +3562,6 @@ async function importPaletteImages(headers, emblemPaletteFolderDict, emblemMappi
 // The limit parameter indicates how many nameplates to look at for the Palette Image import, and the offset indicates how far to skip before looking at nameplates.
 export async function importEmblemPalettes(headers, generalDictsAndArrays, doImportPaletteImages=false, nameplatesPerProcess=10, threadLimit=5) {
 	try {
-		let folderDict; // This will be passed to our image grabbing function. 
-		let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
-			.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
-			.find();
-
-		if (results.items.length > 0) {
-			folderDict = results.items[0].value;
-		}
-		else {
-			throw "Could not retrieve folder dict. Cannot get customization image urls.";
-		}
-
 		// [0]: qualityDict
 		// [1]: releaseDict
 		// [2]: manufacturerArray (index aligns with Waypoint ID num)
@@ -3497,19 +3596,20 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 		for (let i = 0; i < inventoryJson.EmblemCoatings.length; ++i) {
 			let emblemPalettePathObject = inventoryJson.EmblemCoatings[i];
 			let waypointId = emblemPalettePathObject.ItemId;
+			let waypointPath = (ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + emblemPalettePathObject.ItemPath).toLowerCase();
 			if (doImportPaletteImages ||											// If we're importing images, we have to process everything since the palette itself can remain unchanged.
 				!(waypointId in existingEmblemPaletteETags && 						// If the ID isn't in the existing Dict, it's a new Emblem Palette.
-				waypointId in eTagDict && 											// If the ID isn't in the ETag Dict from Waypoint, we have to process it anyway.
-				existingEmblemPaletteETags[waypointId] == eTagDict[waypointId])) {	// If the ETags exist and don't match one another, we have to process the data since it's changed.
+				waypointPath in eTagDict && 											// If the Path isn't in the ETag Dict from Waypoint, we have to process it anyway.
+				existingEmblemPaletteETags[waypointId] == eTagDict[waypointPath])) {	// If the ETags exist and don't match one another, we have to process the data since it's changed.
 
 				// Otherwise, it's changed and we gotta process it.
 				//console.info("Need to process " + waypointId + " with DB ID " + existingEmblemPaletteDbIds[waypointId]);
 
 				if (waypointId in existingEmblemPaletteETags) { // Item was in DB.
-					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, folderDict, emblemPalettePathObject.ItemPath, eTagDict[waypointId], existingEmblemPaletteDbObjects[waypointId]));
+					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, emblemPalettePathObject.ItemPath, eTagDict[waypointPath], existingEmblemPaletteDbObjects[waypointId]));
 				}
 				else {
-					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, folderDict, emblemPalettePathObject.ItemPath, eTagDict[waypointId]));
+					emblemPalettesToPushToDb.push(await processEmblemPalette(headers, emblemPalettePathObject.ItemPath, eTagDict[waypointPath]));
 				}
 			}
 		}
@@ -3605,7 +3705,7 @@ export async function importEmblemPalettes(headers, generalDictsAndArrays, doImp
 	}
 }
 
-export async function armorImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function armorImportFull(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3640,17 +3740,18 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 
 		if (!returnCode) {
 			let processingGroups = [
-				["Coatings"],
-				["Emblems"],
-				["Helmets"],
-				["Visors", "LeftShoulderPads", "RightShoulderPads", "Gloves", "KneePads"],
-				["ChestAttachments", "WristAttachments", "HipAttachments", "ArmorFx", "MythicFx"]
+				{ groups: ["Coatings"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_COATINGS_KEY },
+				{ groups: ["Emblems"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_EMBLEMS_KEY },
+				{ groups: ["Helmets"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_HELMETS_KEY },
+				{ groups: ["LeftShoulderPads", "Gloves", "ChestAttachments"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_LSHOULDER_CHEST_GLOVES_KEY },
+				{ groups: ["RightShoulderPads", "KneePads", "WristAttachments", "HipAttachments"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_RSHOULDER_KNEE_HIP_WRISTS_KEY },
+				{ groups: ["Visors", "ArmorFx", "MythicFx"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_VISOR_ARMORFX_MYTHICFX_KEY },
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
-				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+				updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, processingGroup.crossCore, processingGroup.checkpointKey)
+					.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+					.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 			});
 		}
 		else {
@@ -3662,7 +3763,7 @@ export async function armorImport(headers = null, manufacturerImportCompleted = 
 	}
 }
 
-export async function weaponImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function weaponImportFull(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3697,15 +3798,15 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 
 		if (!returnCode) {
 			let processingGroups = [
-				["Coatings"],
-				["Emblems"],
-				["WeaponCharms", "DeathFx", "AlternateGeometryRegions"]
+				{ groups: ["Coatings"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_WEAPON_COATINGS_KEY },
+				{ groups: ["Emblems"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_WEAPON_EMBLEMS_KEY },
+				{ groups: ["WeaponCharms", "DeathFx", "AlternateGeometryRegions"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_WEAPON_CHARM_DEATHFX_ALT_GEO_KEY },
 			];
 
 			processingGroups.forEach(async (processingGroup) => {
-				updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-					.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-					.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+				updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, processingGroup.crossCore, processingGroup.checkpointKey)
+					.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+					.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 			});
 		}
 		else {
@@ -3717,7 +3818,7 @@ export async function weaponImport(headers = null, manufacturerImportCompleted =
 	}
 }
 
-export async function vehicleImport(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
+export async function vehicleImportFull(headers = null, manufacturerImportCompleted = false, emblemPaletteImportCompleted = false) {
 	if (!headers) {
 		headers = await ApiFunctions.makeWaypointHeaders(); // Getting the headers once and then using them a bunch is way more efficient than getting them for each request.
 	}
@@ -3739,20 +3840,20 @@ export async function vehicleImport(headers = null, manufacturerImportCompleted 
 	if (!returnCode) { // Return code 0 means success.
 		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
+		if (!emblemPaletteImportCompleted) { // Need to process emblems before adding Kits.
+			await importEmblemPalettes(headers, generalDictsAndArrays);
+		}
+
 		let processingGroups = [
-			["Coatings"],
-			["AlternateGeometryRegions"],
-			["Emblems"]
+			{ groups: ["Coatings"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_VEHICLE_COATINGS_KEY },
+			{ groups: ["Emblems"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_VEHICLE_EMBLEMS_KEY },
+			{ groups: ["AlternateGeometryRegions"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_VEHICLE_ALT_GEO_KEY },
 		];
 
 		processingGroups.forEach(async (processingGroup) => {
-			if (processingGroup.includes("Emblems") && !emblemPaletteImportCompleted) {
-				await importEmblemPalettes(headers, generalDictsAndArrays);
-			}
-
-			updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-				.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-				.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+			updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, processingGroup.crossCore, processingGroup.checkpointKey)
+				.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+				.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 		});
 	}
 	else { // If we weren't successful in adding the Cores, we probably won't have the necessary information to successfully add items. Might as well be done.
@@ -3776,13 +3877,13 @@ export async function bodyAiImport(headers = null, manufacturerImportCompleted =
 	let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
 	let processingGroups = [
-		["Models", "Colors"]
+		{ groups: ["Models", "Colors"], checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_BODY_AND_AI_MODEL_COLORS_KEY }
 	];
 
 	processingGroups.forEach((processingGroup) => {
-		updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-			.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+		updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, false, processingGroup.checkpointKey)
+			.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+			.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 	});
 }
 
@@ -3802,17 +3903,18 @@ export async function spartanIdImport(headers = null, manufacturerImportComplete
 	let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
 	let processingGroups = [
-		["SpartanActionPose", "SpartanBackdropImage"],
-		["SpartanEmblem"]
+		{ groups: ["SpartanActionPose", "SpartanBackdropImage"], checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_SPARTAN_ID_POSE_BACKDROPS_KEY },
+		{ groups: ["SpartanEmblem"], checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_SPARTAN_ID_EMBLEMS_KEY }
 	];
 
 	processingGroups.forEach(async (processingGroup) => {
-		if (processingGroup.includes("SpartanEmblem") && !emblemPaletteImportCompleted) {
+		if (processingGroup.groups.includes("SpartanEmblem") && !emblemPaletteImportCompleted) {
 			await importEmblemPalettes(headers, generalDictsAndArrays);
 		}
-		updateDbsFromApi(headers, customizationCategory, processingGroup, generalDictsAndArrays, categorySpecificDictsAndArrays)
-			.then(() => console.info("Finished processing ", processingGroup, " for " + customizationCategory))
-			.catch((error) => console.error("Error occurred while processing ", processingGroup, " for " + customizationCategory, error));
+		
+		updateDbsFromApi(headers, customizationCategory, processingGroup.groups, generalDictsAndArrays, categorySpecificDictsAndArrays, false, processingGroup.checkpointKey)
+			.then(() => console.info("Finished processing ", processingGroup.groups, " for " + customizationCategory))
+			.catch((error) => console.error("Error occurred while processing ", processingGroup.groups, " for " + customizationCategory, error));
 	});
 }
 
@@ -3823,9 +3925,9 @@ export function generalCustomizationImport() {
 				.then(() => {
 					importEmblemPalettes(headers)
 						.then(() => {
-							armorImport(headers, true);
-							weaponImport(headers, true);
-							vehicleImport(headers, true);
+							armorImportFull(headers, true);
+							weaponImportFull(headers, true);
+							vehicleImportFull(headers, true);
 							bodyAiImport(headers, true);
 							spartanIdImport(headers, true);
 						});
@@ -3833,7 +3935,7 @@ export function generalCustomizationImport() {
 		});
 }
 
-export async function importEmblemPaletteImages() {
+export async function importEmblemPaletteImagesFull() {
 	let headers = await ApiFunctions.makeWaypointHeaders();
 	let generalDictsAndArrays = await getGeneralDictsAndArraysFromDbs(headers);
 	await importEmblemPalettes(headers, generalDictsAndArrays, true, 4, 10);

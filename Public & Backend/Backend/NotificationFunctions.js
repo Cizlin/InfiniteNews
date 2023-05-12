@@ -36,9 +36,9 @@ export function sendNewsNotification(articleTitle, articleShortDescription, arti
     DiscordFunctions.sendDiscordMessage("news", articleTitle + "\n" + articleShortDescription + "\n" + articleUrl, true);
 }
 
-export function sendPromotionNotification(articleTitle, articleShortDescription, articleUrl) {
+export function sendPromotionNotification(articleTitle, articleShortDescription, articleUrl, isTwitchDrop = false) {
     sendPushNotification(articleTitle, articleShortDescription, "Promotion", articleUrl, "Promotion Articles");
-    DiscordFunctions.sendDiscordMessage("promotions", articleTitle + "\n" + articleShortDescription + "\n" + articleUrl, true);
+    DiscordFunctions.sendDiscordMessage(((isTwitchDrop) ? "twitch-drops" : "promotions"), articleTitle + "\n" + articleShortDescription + "\n" + articleUrl, true);
 }
 
 // How to use:
@@ -46,7 +46,7 @@ export function sendPromotionNotification(articleTitle, articleShortDescription,
 // In push notifications, these will be replaced with PST or PDT strings. 
 // In Discord notifications, they will be replaced with dynamic timestamps
 // The startTimeSecSinceEpoch and endTimeSecSinceEpoch should be retrieved from https://hammertime.cyou/, with the desired start date input.
-export function sendPromotionNotificationWithStartEndTime(title, shortDescription, url, startTimeSecSinceEpoch, endTimeSecSinceEpoch) {
+export function sendPromotionNotificationWithStartEndTime(title, shortDescription, url, startTimeSecSinceEpoch, endTimeSecSinceEpoch, isTwitchDrop = false) {
     let startDate = new Date(startTimeSecSinceEpoch * 1000); // Initialize the date object.
     let startString = startDate.toLocaleString("en-US", {
         year: "numeric",
@@ -94,5 +94,5 @@ export function sendPromotionNotificationWithStartEndTime(title, shortDescriptio
     console.log(discordShortDescription);
 
     sendPushNotification(pushTitle, pushShortDescription, "Promotion", url, "Promotion Articles");
-    DiscordFunctions.sendDiscordMessage("promotions", discordTitle + "\n" + discordShortDescription + "\n" + url, true);
+    DiscordFunctions.sendDiscordMessage(((isTwitchDrop) ? "twitch-drops" : "promotions"), discordTitle + "\n" + discordShortDescription + "\n" + url, true);
 }

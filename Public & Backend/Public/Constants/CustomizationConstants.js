@@ -581,7 +581,8 @@ export const CUSTOMIZATION_TYPE_FOLDER_DICT = {
 		[ShopConstants.SHOP_WEEKLY]: "Weekly",
 		[ShopConstants.SHOP_SEMI_WEEKLY]: "Semi-Weekly",
 		[ShopConstants.SHOP_INDEFINITE]: "Indefinite",
-		[ShopConstants.SHOP_HCS]: "HCS"
+		[ShopConstants.SHOP_HCS]: "HCS",
+		[ShopConstants.SHOP_CUSTOMIZATION_MENU]: "CustomizationMenu"
 	},
 	[PassConstants.PASS_KEY]: {
 		[PassConstants.PASS_BATTLE]: "Battle Passes",

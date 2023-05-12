@@ -59,6 +59,7 @@ export const WAYPOINT_URL_SUFFIX_WAYPOINT_EMBLEM_MAPPING = "images/emblems/mappi
 export const WAYPOINT_URL_SUFFIX_ECONOMY_INVENTORY = "inventory";
 export const WAYPOINT_URL_SUFFIX_ECONOMY_STORE_MAIN = "stores/Main";
 export const WAYPOINT_URL_SUFFIX_ECONOMY_STORE_HCS = "stores/Hcs";
+export const WAYPOINT_URL_SUFFIX_ECONOMY_STORE_CUSTOMIZATION_OFFERS = "stores/CustomizationOffers";
 
 // Use with HALOSTATS base.
 export const WAYPOINT_URL_SUFFIX_HALOSTATS_DECKS = "decks";
