@@ -33,11 +33,9 @@ import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
 import * as NotificationFunctions from 'backend/NotificationFunctions.jsw';
-//import * as CustomizationFunctions from 'backend/CustomizationAutomationFunctions.jsw';
 import * as InternalNotifications from 'backend/InternalNotificationFunctions.jsw';
 
-//let currentlyAvailableIds = [];
-const CUSTOMIZATION_SHOP_LIMIT = 50;
+const CUSTOMIZATION_SHOP_LIMIT = 40;
 let resetOffset = false;
 
 // Gets a list of all currently available shop items, including the items contained within bundles.
@@ -542,15 +540,53 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 					let bundleType = (mainShopSiteJson[ShopConstants.SHOP_IS_HCS_FIELD]) ? "HCS" : mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD][0];
 
-					mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = await MediaManagerFunctions.getCustomizationImageUrl(
-						folderDict,
-						headers,
-						shopWaypointJson.Title,
-						shopWaypointJson.ObjectImagePath,
-						"image/png",
-						ShopConstants.SHOP_KEY,
-						bundleType
-					);
+					if (processCustomizationOptions) {
+						// Get the existing ETag from the DB.
+						let existingETag = await wixData.query(ShopConstants.SHOP_DB)
+							.eq(ShopConstants.SHOP_WAYPOINT_ID_FIELD, mainShopWaypointArray[i].OfferingId)
+							.find()
+							.then((results) => {
+								if (results.items.length > 0) {
+									return results.items[0][ShopConstants.SHOP_IMAGE_ETAG_FIELD];
+								}
+								else {
+									return "";
+								}
+							})
+							.catch((error) => {
+								console.error("Error occurred while retrieving Image ETag from Shop DB for " + mainShopWaypointArray[i].OfferingId, error);
+							});
+
+						
+						let imageResults = await MediaManagerFunctions.getCustomizationImageUrl(
+							folderDict,
+							headers,
+							shopWaypointJson.Title,
+							shopWaypointJson.ObjectImagePath,
+							"image/png",
+							ShopConstants.SHOP_KEY,
+							bundleType,
+							null,
+							null,
+							null,
+							existingETag,
+							true
+						);
+
+						mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = imageResults[0]; // The image URL is here.
+						mainShopSiteJson[ShopConstants.SHOP_IMAGE_ETAG_FIELD] = imageResults[1]; // The image ETag is here.
+					}
+					else {
+						mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = await MediaManagerFunctions.getCustomizationImageUrl(
+							folderDict,
+							headers,
+							shopWaypointJson.Title,
+							shopWaypointJson.ObjectImagePath,
+							"image/png",
+							ShopConstants.SHOP_KEY,
+							bundleType
+						);
+					}
 
 					mainShopSiteJson[ShopConstants.SHOP_ARMOR_REFERENCE_FIELD] = [];
 					mainShopSiteJson[ShopConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD] = [];
@@ -675,10 +711,6 @@ export async function qualityTest() {
 		});
 	
 	return qualityDict;
-}
-
-export function regexTest(waypointPath) {
-	return waypointPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH)[0];
 }
 
 // We store item IDs in an array, which lets us query for items matching those IDs and then update them to 
@@ -1809,4 +1841,9 @@ export async function deactivateOldCustomizationShopListings() {
 		.catch((error) => {
 			console.error("Error occurred while retrieving customization shop listings that have not been touched in " + DAYS_BACK + " days.", error);
 		})
+}
+
+
+export function regexTest(waypointPath) {
+	return waypointPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH)[0];
 }
