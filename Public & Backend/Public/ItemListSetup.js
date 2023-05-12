@@ -255,10 +255,16 @@ async function setOptionalFiltersShop(setPaginationFromSave = false) {
 
 	switch(availableDropdownSelection) {
 		case "Yes":
-			optionalFilter = optionalFilter.eq(currentlyAvailableField, true);
+			optionalFilter = optionalFilter.eq(currentlyAvailableField, true).or(optionalFilter.eq(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true));
+			break;
+		case "ShopOnly":
+			optionalFilter = optionalFilter.eq(currentlyAvailableField, true).ne(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true);
+			break;
+		case "CustomizationOnly":
+			optionalFilter = optionalFilter.ne(currentlyAvailableField, true).eq(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true);
 			break;
 		case "No":
-			optionalFilter = optionalFilter.eq(currentlyAvailableField, false);
+			optionalFilter = optionalFilter.ne(currentlyAvailableField, true).ne(ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD, true);
 			break;
 		default:
 			break;
