@@ -392,7 +392,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 		if (qualityResults.items.length > 0) {
 			console.log("Quality values found", qualityResults);
 			for (let i = 0; i < qualityResults.items.length; ++i) {
-				qualityDict[results.items[i].quality] = qualityResults.items[i]._id;
+				qualityDict[qualityResults.items[i].quality] = qualityResults.items[i]._id;
 			}
 		}
 		else {
@@ -1718,6 +1718,11 @@ export async function refreshCustomizationShopListings() {
 
 					if (itemIndex > -1) { // If the item was found.
 						item = items[itemIndex];
+						if (item[ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD]) {
+							console.log("Skipping this shop bundle as it is already available in the Shop right now.", newShopListingsToUpdate[i]);
+							continue; // We don't want to process listings that are actually in the Shop right now.
+						}
+
 						newShopListingsToUpdate[i]._id = item._id; // The DB ID ties both items together, so we need to transfer it.
 
 						// If these arrays exist, we grab them to add onto them. Otherwise, we create it from scratch.
@@ -1730,6 +1735,11 @@ export async function refreshCustomizationShopListings() {
 							newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]); 
 							newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
 						}
+						else {
+							newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD] = item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]; // This isn't newly available.
+						}
+
+						newShopListingsToUpdate[i][ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD] = item[ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD]; // This listing may be available through the normal shop, too.
 
 						console.log("Last added datetime for ", item[ShopConstants.SHOP_WAYPOINT_ID_FIELD], " is ", item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]);
 						console.log(newShopListingsToUpdate[i]);
