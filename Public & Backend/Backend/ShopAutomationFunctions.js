@@ -1663,6 +1663,9 @@ export async function refreshShopListings() {
 						item = items[itemIndex];
 						newShopListingsToUpdate[i]._id = item._id; // The DB ID ties both items together, so we need to transfer it.
 
+						// Transfer the imageETag since we didn't grab it ourselves.
+						newShopListingsToUpdate[i][ShopConstants.SHOP_IMAGE_ETAG_FIELD] = item[ShopConstants.SHOP_IMAGE_ETAG_FIELD];
+
 						// If these arrays exist, we grab them to add onto them. Otherwise, we create it from scratch.
 						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD] = item[ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD] || [];
 						newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] = item[ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD] || [];
