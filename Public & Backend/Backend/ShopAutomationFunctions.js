@@ -1341,7 +1341,7 @@ export async function generateSocialNotifications(updateItemArray) {
 	}
 
 	// Then, we need to assemble the lines summarizing each bundle/item.
-	// These arrays will includes strings with one of two formats: " - [bundleName] ([creditCost] Credits)" or " - [bundleName] ([creditCost] Credits, last added [MM/DD/YYYY])"
+	// These arrays will includes strings with one of two formats: "- [bundleName] ([creditCost] Credits)" or "- [bundleName] ([creditCost] Credits, last added [MM/DD/YYYY])"
 	let mainItemListingArray = []; 
 	let mainItemArray = [];
 	let hcsItemListingArray = [];
@@ -1354,24 +1354,24 @@ export async function generateSocialNotifications(updateItemArray) {
 			let dateString = GeneralFunctions.getLongMonthDayYearFromDate(lastAvailableDatetime);
 
 			if (!updateItemArray[i][ShopConstants.SHOP_IS_HCS_FIELD]) {
-				mainItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				mainItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits, last added " + dateString + ")");
 				mainItemArray.push(updateItemArray[i]);
 			}
 			else {
-				hcsItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				hcsItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits, last added " + dateString + ")");
 				hcsItemArray.push(updateItemArray[i]);
 			}
 		}
 		else {
 			if (!updateItemArray[i][ShopConstants.SHOP_IS_HCS_FIELD]) {
-				mainItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				mainItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits)");
 				mainItemArray.push(updateItemArray[i]);
 			}
 			else {
-				hcsItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				hcsItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits)");
 				hcsItemArray.push(updateItemArray[i]);
 			}
@@ -1436,7 +1436,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			for (let j = 0; j < mainItemArray[i].childItemInfo.length; ++j) {
 				let childItem = mainItemArray[i].childItemInfo[j];
-				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
+				let childItemText = "- " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
@@ -1452,7 +1452,7 @@ export async function generateSocialNotifications(updateItemArray) {
 					});
 
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
-						childItemText = " - " + childItem.itemName + " Emblem Set\n";
+						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
 					}
 				}
@@ -1516,7 +1516,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
 				let childItem = hcsItemArray[i].childItemInfo[j];
-				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
+				let childItemText = "- " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
@@ -1532,7 +1532,7 @@ export async function generateSocialNotifications(updateItemArray) {
 					});
 
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
-						childItemText = " - " + childItem.itemName + " Emblem Set\n";
+						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
 					}
 				}
