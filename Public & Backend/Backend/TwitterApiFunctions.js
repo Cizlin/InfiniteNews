@@ -1,6 +1,7 @@
 const Twitter = require('twitter');
 import {getSecret} from 'wix-secrets-backend';
 import wixMediaBackend from 'wix-media-backend';
+import * as internalNotifications from 'backend/InternalNotificationFunctions.jsw';
 
 // mediaIds should be comma-separated list of media IDs to include in the Tweet.
 export async function sendTweet(tweetBody, parentId = null, mediaIds = null) {
@@ -12,12 +13,13 @@ export async function sendTweet(tweetBody, parentId = null, mediaIds = null) {
 		access_token_secret: await getSecret("TwitterAccessTokenSecret")
 	});
 
-	console.log("Sending Tweet with Images...");
+	//console.log("Sending Tweet with Images...");
 
 	return await CLIENT.post("statuses/update", { status: tweetBody, in_reply_to_status_id: parentId, auto_populate_reply_metadata: true, media_ids: mediaIds })
 		.then((tweet, error, response) => {
 			if (error) {
 				console.error(error);
+				internalNotifications.notifyOwner("Error occurred during Tweet send.", error[0].message);
 			} else {
 				console.log(tweet);
 				return tweet["id_str"];
@@ -96,6 +98,7 @@ export async function uploadTwitterImage(wixImageUrl) {
 		.then((media, error, response) => {
 			if (error) {
 				console.error(error);
+				internalNotifications.notifyOwner("Error occurred during Twitter Image Upload.", error[0].message);
 				return "erroneous";
 			} else {
 				console.log(media);
@@ -104,6 +107,7 @@ export async function uploadTwitterImage(wixImageUrl) {
 		})
 		.catch(error => {
 			console.error(error);
+			internalNotifications.notifyOwner("Error occurred during Twitter Image Upload.", error[0].message);
 			return "erroneous";
 		});
 
@@ -112,14 +116,15 @@ export async function uploadTwitterImage(wixImageUrl) {
 		return media_id_string;
 	}
 	else {
+
 		throw "Could not upload image to Twitter from Wix URL " + wixImageUrl;
 	}
 }
 
-async function testTweet() {
-	let parentId = await sendTweet("This should finally be the one that works. If not, we'll be done testing anyway for tonight. Sorry for the notification spam!");
+export async function testTweet() {
+	let parentId = await sendTweet("Testing new setup on API side. Please ignore! This will be deleted soon.");
 	console.log(parentId);
 	if (parentId) {
-		sendTweet("This is the final test reply to the above Tweet", parentId);
+		sendTweet("Test reply", parentId);
 	}
 }
