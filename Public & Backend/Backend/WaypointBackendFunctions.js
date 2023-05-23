@@ -1570,7 +1570,7 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 }
 
 // This function can be called by the job scheduler to update the Capstone Challenge each week.
-export async function refreshCapstoneChallenge() {
+export async function updateCapstoneChallenge() {
 	let currentlyAvailableCapstoneChallenge = await getPreviousAvailableCapstoneChallenge(); // This is an array.
 	let newlyAvailableCapstoneChallenge = [await getCurrentCapstoneChallengeDbJson()]; // This function does not currently return an array.
 
