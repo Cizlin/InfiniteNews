@@ -1820,7 +1820,7 @@ export async function refreshCustomizationShopListings() {
 	}
 }
 
-export async function deactivateOldCustomizationShopListings() {
+export async function deactivateUnavailableCustomizationShopListings() {
 	// If we find a Customization Menu shop listing that hasn't been updated for 8 days, we can mark it unavailable through the customization menus.
 	const DAYS_BACK = 8; // We will mark these bundles deactivated if they go more than 8 days without an update (our function currently has a loop period of at least 5 hours; this may change in the future).
 
@@ -1837,6 +1837,9 @@ export async function deactivateOldCustomizationShopListings() {
 			}
 
 			wixData.bulkUpdate(ShopConstants.SHOP_DB, oldListings)
+				.then(result => {
+					console.log("Results of marking the listings as no longer available: ", result, oldListings);
+				})
 				.catch((error) => {
 					console.error("Error occurred when marking old customization shop listings as unavailable.", error);
 				});
