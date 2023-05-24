@@ -1833,7 +1833,7 @@ export async function deactivateUnavailableCustomizationShopListings() {
 			let oldListings = results.items;
 			console.log("Marking the following listings as no longer available", oldListings);
 			for (let i = 0; i < oldListings.length; ++i) {
-				oldListings[ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD] = false;
+				oldListings[i][ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD] = false;
 			}
 
 			wixData.bulkUpdate(ShopConstants.SHOP_DB, oldListings)
