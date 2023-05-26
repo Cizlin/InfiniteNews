@@ -449,7 +449,12 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 								}
 								break;
 							case "daily":
-								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_DAILY];
+								if (h == 0 && i == 2) { // In the main shop, it seems like the i == 2 listing is Semi-Weekly. Hopefully this remains true.
+									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+								}
+								else {
+									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_DAILY];
+								}
 								break;
 							default:
 								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE];
