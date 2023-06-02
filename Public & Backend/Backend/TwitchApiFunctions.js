@@ -247,6 +247,46 @@ export async function getExistingTwitchDrops(dropIds) {
         });
 }
 
+function rewardGroupsAreEqual(rewardGroupArray1, rewardGroupArray2) {
+    console.log(rewardGroupArray1, rewardGroupArray2);
+    // We want to check the equivalence of the start, end, requiredMinutesWatched, and rewards fields.
+    if (rewardGroupArray1.length != rewardGroupArray2.length) {
+        return false; // There's a mismatch in the number of rewards in each group.
+    }
+
+    for (let i = 0; i < rewardGroupArray1.length; ++i) {
+        let matchingRewardGroupFound = false;
+
+        for (let j = 0; j < rewardGroupArray2.length; ++j) {
+            // Scan through the second reward group array to see if we find matching rewards arrays.
+            if (arraysAreEqual(rewardGroupArray1[i].rewards, rewardGroupArray2[j].rewards)) {
+                console.log("Arrays are equal.");
+                // The two reward arrays are equal. Now, check to see if the start, end, and requiredMinutesWatched match.
+                console.log(rewardGroupArray1[i].start.getTime(), rewardGroupArray2[j].start.getTime());
+                if (rewardGroupArray1[i].start.getTime() != rewardGroupArray2[j].start.getTime()
+                || rewardGroupArray1[i].end.getTime() != rewardGroupArray2[j].end.getTime()
+                || rewardGroupArray1[i].requiredMinutesWatched != rewardGroupArray2[j].requiredMinutesWatched) {
+                    // This is a mismatch, so we return false.
+                    return false;
+                }
+                else {
+                    // These are equal, so we found a match. We can move on to the next 
+                    matchingRewardGroupFound = true;
+                    break;
+                }
+            }
+        }
+
+        // Now that we're done searching, check to see if we found a match.
+        if (!matchingRewardGroupFound) {
+            return false;
+        }
+    }
+
+    // We managed to avoid returning false, so we must have exactly matching arrays. Return true.
+    return true;
+}
+
 export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray = []) {
     let apiTwitchDrops = await generateNewTwitchDropJsons(useAutomation, dropJsonArray);
     let apiDropIdArray = [];
@@ -300,8 +340,17 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
                     databaseTwitchDrops[matchingIndex].updatedFields.push("allowedChannels");
                 }
 
-                if (!arraysAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
-                    // The lists of rewards are not equivalent. Check for matching rewards.
+                if (!rewardGroupsAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
+                    // The lists of rewards are not equivalent. We must port over the Twitter and Discord notification flags where possible.
+                    for (let k = 0; k < apiTwitchDrops[i].rewardGroups.length; ++k) {
+                        for (let j = 0; j < databaseTwitchDrops[matchingIndex].rewardGroups.length; ++j) {
+                            if (arraysAreEqual(apiTwitchDrops[i].rewardGroups[k].rewards, databaseTwitchDrops[matchingIndex].rewardGroups[j].rewards)) {
+                                apiTwitchDrops[i].rewardGroups[k].activeDiscordNotifsSent = databaseTwitchDrops[matchingIndex].rewardGroups[j].activeDiscordNotifsSent;
+                                apiTwitchDrops[i].rewardGroups[k].activeTwitterNotifsSent = databaseTwitchDrops[matchingIndex].rewardGroups[j].activeTwitterNotifsSent;
+                            }
+                        }
+                    }
+
                     databaseTwitchDrops[matchingIndex].rewardGroups = apiTwitchDrops[i].rewardGroups;
                     databaseTwitchDrops[matchingIndex].needsReview = true;
                     sendAlert = true;
@@ -325,6 +374,8 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
             sendAlert = true;
         }
     }
+
+    console.log(databaseTwitchDrops);
 
     // Now, let's tie the drops to their rewards.
     for (let i = 0; i < databaseTwitchDrops.length; ++i) {
