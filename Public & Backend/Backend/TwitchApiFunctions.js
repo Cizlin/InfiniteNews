@@ -340,7 +340,14 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
                     databaseTwitchDrops[matchingIndex].updatedFields.push("allowedChannels");
                 }
 
-                if (!rewardGroupsAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
+                if (!Array.isArray(databaseTwitchDrops[matchingIndex].rewardGroups)) {
+                    databaseTwitchDrops[matchingIndex].rewardGroups = apiTwitchDrops[i].rewardGroups;
+                    databaseTwitchDrops[matchingIndex].needsReview = true;
+                    sendAlert = true;
+                    databaseTwitchDrops[matchingIndex].updatedFields.push("rewardGroups");
+                    databaseTwitchDrops[matchingIndex].sendCorrection = (databaseTwitchDrops[matchingIndex].upcomingNotificationsSent) ? true : false;
+                }
+                else if (!rewardGroupsAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
                     // The lists of rewards are not equivalent. We must port over the Twitter and Discord notification flags where possible.
                     for (let k = 0; k < apiTwitchDrops[i].rewardGroups.length; ++k) {
                         for (let j = 0; j < databaseTwitchDrops[matchingIndex].rewardGroups.length; ++j) {
