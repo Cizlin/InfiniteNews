@@ -210,7 +210,9 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
                     start: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].startAt)),
                     end: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].endAt)),
                     requiredMinutesWatched: dropJson.data.user.dropCampaign.timeBasedDrops[j].requiredMinutesWatched,
-                    rewards: []
+                    rewards: [],
+                    activeTwitterNotifsSent: false,
+                    activeDiscordNotifsSent: false
                 };
 
                 for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
@@ -427,8 +429,10 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
         // Loop through the Twitch drops to be sent to the DB to see if we need to send any notifications for them.
         if (!databaseTwitchDrops[i].notifsSent && databaseTwitchDrops[i].status.toUpperCase() === "ACTIVE") {
             // This drop is now active and we haven't sent notifications. We need to let folks know immediately.
+            let allNotifsSent = false;
+
             try {
-                await sendTwitterNotification(databaseTwitchDrops[i], false);
+                allNotifsSent = await sendTwitterNotification(databaseTwitchDrops[i], false);
             }
             catch (error) {
                 console.error(error + " occurred while sending Twitter notification. Continuing...");
@@ -436,14 +440,15 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
             }
 
             try {
-                await sendDiscordAndPushNotification(databaseTwitchDrops[i], false);
+                let result = await sendDiscordAndPushNotification(databaseTwitchDrops[i], false);
+                allNotifsSent = result && allNotifsSent; // The Discord and Twitter notifications must both be fully sent for this to be true.
             }
             catch (error) {
                 console.error(error + " occurred while sending Discord notification. Continuing...");
                 continue;
             }
 
-            databaseTwitchDrops[i].notifsSent = true;
+            databaseTwitchDrops[i].notifsSent = allNotifsSent;
         }
         else if (databaseTwitchDrops[i].sendCorrection && databaseTwitchDrops[i].upcomingNotificationsSent
             && databaseTwitchDrops[i].status.toUpperCase() === "UPCOMING" && !useAutomation) { // Only want to send corrections when we have the fully updated information.
@@ -581,7 +586,22 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
     
     let parentId = null; // The parent ID for the next Tweet to send, ensuring we send a thread and not individual Tweets.
 
+    let allNotifsSent = true; // This becomes false if any notification for an active drop has not been sent (due to timeframe restrictions).
+
     for (let i = 0; i < dropRewards.length; ++i) {
+        // We only want to send notifications for this particular drop if it's a valid timeframe and we haven't sent the notifications yet.
+
+        let now = new Date(); // The current datetime.
+
+        if (dropRewards[i].activeTwitterNotifsSent && drop.status === "ACTIVE") { // If this field is defined and true, we don't need to send notifications for this group anymore.
+            continue;
+        }
+        else if (dropRewards[i].start > now && drop.status === "ACTIVE") {
+            // If the drop starts after the current time and this is an active drop.
+            allNotifsSent = false; // We aren't sending this yet, so we need to note it.
+            continue;
+        }
+
         // The array of Tweets needs to be recreated each time to avoid contaminating subsequent announcements.
         let tweetArray = [];
         let currentTweetIndex = 0;
@@ -852,14 +872,18 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             parentId = await twitter.sendTweet(tweetArray[j], parentId, mediaIds);
         }
 
+        dropRewards[i].activeTwitterNotifsSent = (drop.status === "ACTIVE"); // This should be true if the drop is active and false otherwise.
+
     }
+
+    return allNotifsSent;
 }
 
 /* This is the format of a typical Upcoming Discord Announcement.
 RETURNING UPCOMING TWITCH DROP: Gladiator's Edge Armor Coating for Mark VII - $(startTime) - $(endTime)
 Watch for 1 hour. Participating channels for this upcoming Twitch Drop will be posted in the Twitch Drops article shortly.
 https://www.haloinfinitenews.com/post/twitch-drops
-@PromoNotifs
+@TwitchDropNotifs
 */
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrection = false) {
@@ -914,7 +938,22 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         );
     }
 
+    let allNotifsSent = true; // This becomes false if any notification for an active drop has not been sent (due to timeframe restrictions).
+
     for (let i = 0; i < dropRewards.length; ++i) {
+        // We only want to send notifications for this particular drop if it's a valid timeframe and we haven't sent the notifications yet.
+
+        let now = new Date(); // The current datetime.
+
+        if (dropRewards[i].activeDiscordNotifsSent && drop.status === "ACTIVE") { // If this field is defined and true, we don't need to send notifications for this group anymore.
+            continue;
+        }
+        else if (dropRewards[i].start > now && drop.status === "ACTIVE") {
+            // If the drop starts after the current time.
+            allNotifsSent = false; // We aren't sending this yet, so we need to note it.
+            continue;
+        }
+
         //#region Obtain information from reward references
         let nameArray = [];
 
@@ -1029,7 +1068,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             let startDate = Math.floor(dropRewards[i].start.getTime() / 1000); // We want the seconds since epoch. Make sure it's an integer.
             let endDate = Math.floor(dropRewards[i].end.getTime() / 1000);
             console.log(headerText, bodyText, startDate, endDate);
-            discord.sendPromotionNotificationWithStartEndTime(
+            await discord.sendPromotionNotificationWithStartEndTime(
                 headerText,
                 bodyText,
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
@@ -1040,14 +1079,18 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         }
         else {
             console.log(headerText, bodyText);
-            discord.sendPromotionNotification(
+            await discord.sendPromotionNotification(
                 headerText,
                 bodyText,
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
                 true
             );
         }
+
+        dropRewards[i].activeDiscordNotifsSent = (drop.status === "ACTIVE");
     }
+
+    return allNotifsSent;
 }
 
 export async function sendUpcomingNotifications() {
