@@ -60,6 +60,7 @@ export async function getDropList(returnIdsOnly = false) {
     })
     .then(jsonResponse => {
         let dropsList = [];
+        console.log(jsonResponse);
         for (let i = 0; i < jsonResponse.data.currentUser.dropCampaigns.length; ++i) {
             let drop = jsonResponse.data.currentUser.dropCampaigns[i];
             if (drop.game.id == "506416") { // Halo Infinite ID.
@@ -1132,7 +1133,8 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
                 startDate,
                 endDate,
-                true // Is Twitch Drop.
+                true, // Is Twitch Drop.
+                containsNew // Contains a new reward, so notify the new drop users.
             );
         }
         else {
@@ -1141,7 +1143,8 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
                 headerText,
                 bodyText,
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
-                true
+                true,
+                containsNew
             );
         }
 
