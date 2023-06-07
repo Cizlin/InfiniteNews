@@ -15,12 +15,13 @@ const CHANNEL_NAME_TO_NOTIF_ROLE = {
     "twitch-drops": "1102702008898687016",
     "news": "941846560814293062",
     "weekly-reset": "941847552167399494",
-    "test": "926516155626192988"
+    "test": "926516155626192988",
+    "new-twitch-drops": "1116078304429088788"
 };
 
 const discord = require('@jsmrcaga/discord');
 
-export async function sendDiscordMessage(channel, messageText, notify = false) {
+export async function sendDiscordMessage(channel, messageText, notify = false, newTwitchDrop=false) {
     // Executes `Identify` command on its own
     // Handles `Resume`, `Heartbeat` automatically
     let bot = new discord({
@@ -33,7 +34,7 @@ export async function sendDiscordMessage(channel, messageText, notify = false) {
 
     await bot.message({
         channel: CHANNEL_ID,
-        content: messageText + ((notify) ? ("\n<@&" + CHANNEL_NAME_TO_NOTIF_ROLE[channel] + ">") : "")
+        content: messageText + ((notify) ? ("\n<@&" + CHANNEL_NAME_TO_NOTIF_ROLE[channel] + ">") : "") + ((newTwitchDrop) ? ("\n<@&" + CHANNEL_NAME_TO_NOTIF_ROLE["new-twitch-drops"] + ">") : "")
     }).then(({ status, headers, response }) => {
         console.log(status);
         console.log(headers);
