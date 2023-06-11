@@ -94,6 +94,17 @@ $w.onReady(async function () {
 	// Update the Feature Twitch Drop listing.
 	$w("#twitchDropDataset").onReady(async () => {
 		let twitchDrop = $w("#twitchDropDataset").getCurrentItem();
+		console.log(twitchDrop);
+
+		if(!twitchDrop) {
+			$w("#twitchDropStatus").hide();
+			$w("#twitchDropCampaignStart").hide();
+			$w("#twitchDropToText").hide();
+			$w("#twitchDropCampaignEnd").hide();
+			$w("#twitchDropRewards").hide();
+			$w("#twitchDropButton").hide();
+			return;
+		}
 		// We need to manually associate these images based on the references.
 		let referencedRewards = await wixData.queryReferenced("TwitchDrops", twitchDrop._id, "rewardReferences")
 			.then((results) => {
