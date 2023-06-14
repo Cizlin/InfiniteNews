@@ -3235,7 +3235,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 					// Save the offset using our checkpointKey.
 					if (checkpointKey) {
 						// Append the core title to the key if we don't have cross-core items.
-						let adjustedCheckpointKey = checkpointKey + (groupsAreCrossCore) ? "" : "_" + coreWaypointJsonArray[i].CommonData.Title;
+						let adjustedCheckpointKey = checkpointKey + ((groupsAreCrossCore) ? "" : "_" + coreWaypointJsonArray[i].CommonData.Title);
 
 						let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
 							.eq("key", adjustedCheckpointKey) 
