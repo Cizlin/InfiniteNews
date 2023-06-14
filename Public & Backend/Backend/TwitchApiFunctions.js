@@ -918,17 +918,17 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         // We now have the necessary arrays of tweets and images to send to Twitter. So we shall.
         for (let j = 0; j < tweetArray.length; ++j) {
             // Get the media to add to this Tweet.
-            let mediaIds = "";
+            let mediaIdSubArray = [];
             for (let k = 4 * j; k < mediaIdArray.length; ++k) {
-                mediaIds += mediaIdArray[k] + ",";
-                if (mediaIds.length == 4) { // Can't add more than four media IDs to a single tweet.
+                mediaIdSubArray.push(mediaIdArray[k]);
+                if (mediaIdSubArray.length >= 4) { // Can't add more than four media IDs to a single tweet.
                     break;
                 }
             }
 
-            console.log(tweetArray[j], mediaIds);
+            console.log("Tweet: ", tweetArray[j], "Media: ", mediaIdSubArray);
 
-            parentId = await twitter.sendTweet(tweetArray[j], parentId, mediaIds);
+            parentId = await twitter.sendTweet(tweetArray[j], parentId, mediaIdSubArray);
         }
 
         dropRewards[i].activeTwitterNotifsSent = (drop.status === "ACTIVE"); // This should be true if the drop is active and false otherwise.
