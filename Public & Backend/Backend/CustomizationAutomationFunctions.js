@@ -3201,6 +3201,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				for (let i = 0; i < coreWaypointJsonArray.length; i++) {
 					let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
 					let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
+					let itemsRemainingToProcessForThisCore = false;
 
 					// Use this trick to avoid checking multiple cores for cross-core items.
 					// LIMITER
@@ -3226,9 +3227,46 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						waypointThemePathToCoreDict
 					)) {
 						itemsRemainingToProcess = true;
+						itemsRemainingToProcessForThisCore = true;
 					}
 
 					await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+
+					// Save the offset using our checkpointKey.
+					if (checkpointKey) {
+						// Append the core title to the key if we don't have cross-core items.
+						let adjustedCheckpointKey = checkpointKey + (groupsAreCrossCore) ? "" : "_" + coreWaypointJsonArray[i].CommonData.Title;
+
+						let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+							.eq("key", adjustedCheckpointKey) 
+							.find()
+							.then((results) => {
+								if (results.items.length == 0) {
+									// Return a default object because there isn't one in the DB.
+									return { 
+										"key": adjustedCheckpointKey,
+										"value": {
+											"offset": (itemsRemainingToProcessForThisCore) ? itemCountOffset + itemCountLimit : 0
+										}
+									}
+								}
+								else {
+									results.items[0].value.offset = (itemsRemainingToProcessForThisCore) ? itemCountOffset + itemCountLimit : 0;
+									return results.items[0];
+								}
+							})
+							.catch((error) => {
+								console.error("Error occurred when determining existing offset.", error);
+							});
+
+						wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+							.catch((error) => {
+								console.error(error, "occurred when updating current offset value");
+							});
+
+						console.log("Current offset for " + adjustedCheckpointKey + " updated to " + currentOffsetObject.value.offset);
+					}
+
 					customizationItemDbArray = []; // Reset the items after each save.
 
 					if (groupsAreCrossCore) {
@@ -3236,6 +3274,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						break; // We don't need to process cross-core items for every single core.
 					}
 				}
+
+				itemCountOffset += itemCountLimit; // Add this here after processing all the cores.
 
 				//console.info("After obtaining all JSONs for these Waypoint Groups: ", waypointGroupsToProcess, ", we got this Array: ", customizationItemDbArray);
 			}
@@ -3271,6 +3311,40 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+
+			itemCountOffset += itemCountLimit;
+
+			// Save the offset using our checkpointKey.
+			if (checkpointKey) {
+				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+					.eq("key", checkpointKey)
+					.find()
+					.then((results) => {
+						if (results.items.length == 0) {
+							// Return a default object because there isn't one in the DB.
+							return { 
+								"key": checkpointKey,
+								"value": {
+									"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+								}
+							}
+						}
+						else {
+							results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
+							return results.items[0];
+						}
+					})
+					.catch((error) => {
+						console.error("Error occurred when determining existing offset.", error);
+					});
+
+				wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+					.catch((error) => {
+						console.error(error, "occurred when updating current offset value");
+					});
+
+				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
+			}
 		}
 		else { // This applies for theme-less customization categories (i.e. Spartan ID).
 			let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
@@ -3293,41 +3367,41 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 			
 			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
-		}
 
-		itemCountOffset += itemCountLimit;
+			itemCountOffset += itemCountLimit;
 
-		// Save the offset using our checkpointKey.
-		if (checkpointKey) {
-			let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
-				.eq("key", checkpointKey)
-				.find()
-				.then((results) => {
-					if (results.items.length == 0) {
-						// Return a default object because there isn't one in the DB.
-						return { 
-							"key": checkpointKey,
-							"value": {
-								"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+			// Save the offset using our checkpointKey.
+			if (checkpointKey) {
+				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+					.eq("key", checkpointKey)
+					.find()
+					.then((results) => {
+						if (results.items.length == 0) {
+							// Return a default object because there isn't one in the DB.
+							return { 
+								"key": checkpointKey,
+								"value": {
+									"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+								}
 							}
 						}
-					}
-					else {
-						results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
-						return results.items[0];
-					}
-				})
-				.catch((error) => {
-					console.error("Error occurred when determining existing offset.", error);
-				});
+						else {
+							results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
+							return results.items[0];
+						}
+					})
+					.catch((error) => {
+						console.error("Error occurred when determining existing offset.", error);
+					});
 
-			wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
-				.catch((error) => {
-					console.error(error, "occurred when updating current offset value");
-				});
+				wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+					.catch((error) => {
+						console.error(error, "occurred when updating current offset value");
+					});
 
-			console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
-		}		
+				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
+			}
+		}
 	}
 
 	return 0;
