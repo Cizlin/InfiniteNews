@@ -33,7 +33,7 @@ export async function sendTweet(tweetBody, parentId = null, mediaIds = null) {
 		}
 	}
 
-	if (mediaIds) {
+	if (mediaIds && mediaIds.length > 0) {
 		options.media = {
 			media_ids: mediaIds
 		}
