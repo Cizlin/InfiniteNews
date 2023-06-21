@@ -3800,7 +3800,7 @@ export async function weaponImportFull(headers = null, manufacturerImportComplet
 			let processingGroups = [
 				{ groups: ["Coatings"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_WEAPON_COATINGS_KEY },
 				{ groups: ["Emblems"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_WEAPON_EMBLEMS_KEY },
-				{ groups: ["WeaponCharms", "DeathFx", "AlternateGeometryRegions"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_WEAPON_CHARM_DEATHFX_KEY },
+				{ groups: ["WeaponCharms", "DeathFx"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_WEAPON_CHARM_DEATHFX_KEY },
 				{ groups: ["AlternateGeometryRegions"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ALT_GEO_KEY }
 			];
 
