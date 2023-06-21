@@ -140,7 +140,7 @@ export async function getMainShopListFromWaypoint(headers) {
 				} 
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					return {};
+					return { "Offerings" : [] };
 				}
 			} )
 			.then((json) => {
@@ -148,7 +148,7 @@ export async function getMainShopListFromWaypoint(headers) {
 			})
 			.catch(err => {
 				console.error(err);
-				return {};
+				return { "Offerings" : [] };
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
@@ -161,6 +161,18 @@ export async function getMainShopListFromWaypoint(headers) {
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
 	}
+
+	let refinedOfferings = [];
+
+	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
+		if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
+			continue;
+		}
+
+		refinedOfferings.push(waypointJson.Offerings[i]);
+	}
+
+	waypointJson.Offerings = refinedOfferings;
 
 	return waypointJson;
 }
@@ -187,7 +199,7 @@ export async function getHcsShopListFromWaypoint(headers) {
 				} 
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					return {};
+					return { "Offerings" : [] };
 				}
 			} )
 			.then((json) => {
@@ -195,7 +207,7 @@ export async function getHcsShopListFromWaypoint(headers) {
 			})
 			.catch(err => {
 				console.error(err);
-				return {};
+				return { "Offerings" : [] };
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
@@ -208,6 +220,18 @@ export async function getHcsShopListFromWaypoint(headers) {
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
 	}
+
+	let refinedOfferings = [];
+
+	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
+		if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
+			continue;
+		}
+
+		refinedOfferings.push(waypointJson.Offerings[i]);
+	}
+
+	waypointJson.Offerings = refinedOfferings;
 
 	return waypointJson;
 }
@@ -355,10 +379,10 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 	let shopSiteArray = [];
 
-	console.log("Retrieving folderDict...");
+	console.log("Retrieving Shop-exclusive folderDict...");
 	let folderDict;
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB)
-		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + CustomizationConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT[ShopConstants.SHOP_KEY] + "/")
 		.find()
 		.catch((error) => {
 			console.error(error, "occurred while querying Key Value DB.");
@@ -374,31 +398,30 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 		throw "Could not retrieve folder dict. Cannot get customization image urls.";
 	}
 
-	console.log("Folder dict retrieved!");
+	console.log("Shop-exclusive Folder dict retrieved!");
 
 	let qualityDict = {}; // The keys will be quality values (e.g. "Epic" or "Legendary"), and the values will be quality IDs. Let's us avoid querying the DB for every quality inquiry.
-	try {
-		let qualityResults = await wixData.query(CustomizationConstants.QUALITY_DB)
-			.find()
-			.catch((error) => {
-				console.error(error, "occurred while filling in quality dict");
-				return {
-					items: []
-				};
-			});
 
-		if (qualityResults.items.length > 0) {
-			console.log("Quality values found", qualityResults);
-			for (let i = 0; i < qualityResults.items.length; ++i) {
-				qualityDict[qualityResults.items[i].quality] = qualityResults.items[i]._id;
-			}
-		}
-		else {
-			throw "No quality values found in the DB! Major emergency!";
+	console.log("Querying for quality data");
+	let qualityResults = await wixData.query(CustomizationConstants.QUALITY_DB)
+		.find()
+		.catch((error) => {
+			console.error(error, "occurred while filling in quality dict");
+			return {
+				items: []
+			};
+		});
+
+	console.log("Quality data returned");
+
+	if (qualityResults.items.length > 0) {
+		console.log("Quality values found", qualityResults);
+		for (let i = 0; i < qualityResults.items.length; ++i) {
+			qualityDict[qualityResults.items[i].quality] = qualityResults.items[i]._id;
 		}
 	}
-	catch (error) {
-		console.error(error, "occurred while querying quality DB.");
+	else {
+		throw "No quality values found in the DB! Major emergency!";
 	}
 
 	const maxRetries = 10;
@@ -424,6 +447,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 			while (retry && retryCount < maxRetries) {
 				try {
 					console.log(mainShopWaypointArray[i].OfferingId);
+					
 					/*if (processCustomizationOptions && currentlyAvailableIds.includes(mainShopWaypointArray[i].OfferingId)) {
 						continue; // If this bundle is already available, we're going to skip it. This could miss some updates, but there's too much to process otherwise.
 					}*/
@@ -441,7 +465,8 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "returning":
 							case "sale":
 							case "event":
-								if (h == 0 && i == 2) { // In the main shop, it seems like the i == 2 listing is Semi-Weekly. Hopefully this remains true.
+							case "EXCLUSIVE CONTENT!":
+								if (h == 0 && i == 4) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
 								}
 								else {
@@ -449,7 +474,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 								}
 								break;
 							case "daily":
-								if (h == 0 && i == 2) { // In the main shop, it seems like the i == 2 listing is Semi-Weekly. Hopefully this remains true.
+								if (h == 0 && i == 4) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
 								}
 								else {
