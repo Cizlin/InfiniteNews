@@ -1855,23 +1855,23 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			itemJson.Cores = [];
 			if (waypointCommonDataJson.ParentPaths.length > 0) { // First check the ParentPaths array.
 				waypointCommonDataJson.ParentPaths.forEach((themePathItem) => {
-					if (themePathItem.Path in options.waypointThemePathToCoreDict &&
-						!itemJson.Cores.includes(options.waypointThemePathToCoreDict[themePathItem.Path])) {
+					if (themePathItem.Path.toLowerCase() in options.waypointThemePathToCoreDict &&
+						!itemJson.Cores.includes(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()])) {
 
-						itemJson.Cores.push(options.waypointThemePathToCoreDict[themePathItem.Path]);
+						itemJson.Cores.push(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()]);
 					}
 				});
 			}
 			else { // If that wasn't populated, check the ParentTheme field.
-				if (waypointCommonDataJson.ParentTheme in options.waypointThemePathToCoreDict &&
-					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme])) {
+				if (waypointCommonDataJson.ParentTheme.toLowerCase() in options.waypointThemePathToCoreDict &&
+					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()])) {
 
-					itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme]);
+					itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()]);
 				}
-				else if ("parentThemePath" in options && options.parentThemePath in options.waypointThemePathToCoreDict &&
-					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath])) {
+				else if ("parentThemePath" in options && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict &&
+					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()])) {
 
-					itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath]);
+					itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
 				}
 				else {
 					throw "Item " + itemJson.Title + " does not have a valid parent core. Skipping for now...";
@@ -2209,7 +2209,7 @@ async function processItem(headers,
 			}
 
 			itemWaypointJson.CommonData.ParentPaths.forEach((waypointCorePath) => { // This is needed to correctly add the core to the item site JSON.
-				options.waypointThemePathToCoreDict[waypointCorePath.Path] = options.coreWaypointId;
+				options.waypointThemePathToCoreDict[waypointCorePath.Path.toLowerCase()] = options.coreWaypointId;
 			});
 		}
 	}
@@ -2314,7 +2314,7 @@ async function processItem(headers,
 		);
 
 		itemWaypointJson.Themes.OptionPaths.forEach((waypointThemePath) => {
-			options.waypointThemePathToCoreDict[waypointThemePath] = itemWaypointJson.CommonData.Id;
+			options.waypointThemePathToCoreDict[waypointThemePath.toLowerCase()] = itemWaypointJson.CommonData.Id;
 		});
 	}
 	else { // Anything other than a core uses the same function to get a DB JSON.
@@ -2372,15 +2372,6 @@ async function generateJsonsFromItemList(
 		if (limit != -1 && k >= limit + offset) {
 			return true;
 		}
-		// Use the below controls to limit the amount of items imported at a time. Make sure to also limit the number of themes considered if applicable.
-		// LIMITER
-		/*if (k < 200) {
-			continue;
-		}*/
-
-		/*if (k >= 200) {
-			break;
-		}*/
 
 		try {
 			let itemPath = customizationItemPathArray[k];
@@ -3182,7 +3173,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						let coreWaypointJson = await ApiFunctions.getCustomizationItem(headers, coreList[i]);
 						coreWaypointJsonArray.push(coreWaypointJson);
 						coreWaypointJson.Themes.OptionPaths.forEach((waypointThemePath) => {
-							waypointThemePathToCoreDict[waypointThemePath] = coreWaypointJson.CommonData.Id;
+							waypointThemePathToCoreDict[waypointThemePath.toLowerCase()] = coreWaypointJson.CommonData.Id;
 						});
 					}
 					catch (error) {
