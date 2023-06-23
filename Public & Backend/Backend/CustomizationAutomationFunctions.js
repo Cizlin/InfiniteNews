@@ -1866,7 +1866,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			}
 
 			// Sometimes ParentTheme is used instead or in addition.
-			if (waypointCommonDataJson.ParentTheme.toLowerCase() in options.waypointThemePathToCoreDict &&
+			if ("ParentTheme" in waypointCommonDataJson && waypointCommonDataJson.ParentTheme.toLowerCase() in options.waypointThemePathToCoreDict &&
 				!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()])) {
 
 				itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()]);
