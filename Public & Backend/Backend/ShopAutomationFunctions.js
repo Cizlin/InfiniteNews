@@ -469,9 +469,13 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 								if (h == 0 && i == 4) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
 								}
+								else if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
+									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE]; // The Boost and Swap Pack is getting picked up by this.
+								}
 								else {
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
 								}
+
 								break;
 							case "daily":
 								if (h == 0 && i == 4) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
