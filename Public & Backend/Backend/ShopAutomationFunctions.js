@@ -465,7 +465,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "returning":
 							case "sale":
 							case "event":
-							case "EXCLUSIVE CONTENT!":
+							case "exclusive content!":
 								if (h == 0 && i == 4) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
 								}
