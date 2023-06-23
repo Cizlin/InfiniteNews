@@ -197,7 +197,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"UrlSocketParam": GeneralConstants.URL_ARMOR_SOCKET_PARAM,
 		"DefaultCoreName": "All Armor Cores",
 		"DefaultSocketName": "All Armor Sockets",
-		"SearchCategory": "Armor"
+		"SearchCategory": "Armor",
+		"ThemeType": ArmorConstants.ARMOR_THEME_WAYPOINT_TYPE
 	},
 
 	[ArmorConstants.ARMOR_ATTACHMENT_KEY]: {
@@ -292,7 +293,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"UrlSocketParam": GeneralConstants.URL_WEAPON_SOCKET_PARAM,
 		"DefaultCoreName": "All Weapon Cores",
 		"DefaultSocketName": "All Weapon Sockets",
-		"SearchCategory": "Weapons"
+		"SearchCategory": "Weapons",
+		"ThemeType": WeaponConstants.WEAPON_THEME_WAYPOINT_TYPE
 	},
 
 	[VehicleConstants.VEHICLE_KEY]: {
@@ -342,7 +344,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"UrlSocketParam": GeneralConstants.URL_VEHICLE_SOCKET_PARAM,
 		"DefaultCoreName": "All Vehicle Cores",
 		"DefaultSocketName": "All Vehicle Sockets",
-		"SearchCategory": "Vehicles"
+		"SearchCategory": "Vehicles",
+		"ThemeType": VehicleConstants.VEHICLE_THEME_WAYPOINT_TYPE
 	},
 
 	[BodyAndAiConstants.BODY_AND_AI_KEY]: {
