@@ -1855,27 +1855,31 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			itemJson.Cores = [];
 			if (waypointCommonDataJson.ParentPaths.length > 0) { // First check the ParentPaths array.
 				waypointCommonDataJson.ParentPaths.forEach((themePathItem) => {
-					if (themePathItem.Path.toLowerCase() in options.waypointThemePathToCoreDict &&
-						!itemJson.Cores.includes(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()])) {
+					if (themePathItem.Path.toLowerCase() in options.waypointThemePathToCoreDict 
+					&& !itemJson.Cores.includes(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()])
+					&& themePathItem.Type.toLowerCase() === CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].ThemeType.toLowerCase()) { 
+						// Poorly configured items may use the wrong theme type so skip these ones.
 
 						itemJson.Cores.push(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()]);
 					}
 				});
 			}
-			else { // If that wasn't populated, check the ParentTheme field.
-				if (waypointCommonDataJson.ParentTheme.toLowerCase() in options.waypointThemePathToCoreDict &&
-					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()])) {
 
-					itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()]);
-				}
-				else if ("parentThemePath" in options && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict &&
-					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()])) {
+			// Sometimes ParentTheme is used instead or in addition.
+			if (waypointCommonDataJson.ParentTheme.toLowerCase() in options.waypointThemePathToCoreDict &&
+				!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()])) {
 
-					itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
-				}
-				else {
-					throw "Item " + itemJson.Title + " does not have a valid parent core. Skipping for now...";
-				}
+				itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()]);
+			}
+			
+			// Other times we need to use the core we followed to get to this as well.
+			if ("parentThemePath" in options && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict &&
+				!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()])) {
+
+				itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
+			}
+			else {
+				throw "Item " + itemJson.Title + " does not have a valid parent core. Skipping for now...";
 			}
 		}
 		else {
