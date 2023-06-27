@@ -165,9 +165,9 @@ export async function getMainShopListFromWaypoint(headers) {
 	let refinedOfferings = [];
 
 	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
-		if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
+		/*if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
 			continue;
-		}
+		}*/
 
 		refinedOfferings.push(waypointJson.Offerings[i]);
 	}
@@ -224,9 +224,9 @@ export async function getHcsShopListFromWaypoint(headers) {
 	let refinedOfferings = [];
 
 	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
-		if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
+		/*if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
 			continue;
-		}
+		}*/
 
 		refinedOfferings.push(waypointJson.Offerings[i]);
 	}
@@ -466,7 +466,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "sale":
 							case "event":
 							case "exclusive content!":
-								if (h == 0 && i == 4) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
+								if (h == 0 && i == 5) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
 								}
 								else if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
@@ -478,7 +478,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 								break;
 							case "daily":
-								if (h == 0 && i == 4) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
+								if (h == 0 && i == 5) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
 								}
 								else {
