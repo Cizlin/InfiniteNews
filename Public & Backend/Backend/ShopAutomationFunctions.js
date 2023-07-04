@@ -466,10 +466,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "sale":
 							case "event":
 							case "exclusive content!":
-								if (h == 0 && i == 5) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
-									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
-								}
-								else if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
+								if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE]; // The Boost and Swap Pack is getting picked up by this.
 								}
 								else {
@@ -478,11 +475,10 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 								break;
 							case "daily":
-								if (h == 0 && i == 5) { // In the main shop, it seems like the i == 4 listing is Semi-Weekly. Hopefully this remains true.
-									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
-								}
-								else {
-									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_DAILY];
+								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_DAILY];
+								// We need to update the prior bundle to be semi-weekly.
+								if (shopSiteArray.length > 0) {
+									shopSiteArray[shopSiteArray.length - 1][ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
 								}
 								break;
 							default:
