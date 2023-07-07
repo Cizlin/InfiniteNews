@@ -433,24 +433,13 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 		let mainShopWaypointJson = (h == 0) ? normalShopWaypointJson : hcsShopListWaypoint;
 		let mainShopWaypointArray = (processCustomizationOptions) ? mainShopWaypointJson : mainShopWaypointJson.Offerings;
 
-		//const LIMIT = 25;
-
 		for (let i = 0; i < mainShopWaypointArray.length; ++i) {
-
-			// If we get more items in our array than our limit allows, we stop for now.
-			/*if (processCustomizationOptions && shopSiteArray.length >= LIMIT) {
-				break;
-			}*/
 
 			let retryCount = 0;
 			let retry = true;
 			while (retry && retryCount < maxRetries) {
 				try {
 					console.log(mainShopWaypointArray[i].OfferingId);
-					
-					/*if (processCustomizationOptions && currentlyAvailableIds.includes(mainShopWaypointArray[i].OfferingId)) {
-						continue; // If this bundle is already available, we're going to skip it. This could miss some updates, but there's too much to process otherwise.
-					}*/
 
 					let mainShopSiteJson = {};
 					let shopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i].OfferingDisplayPath);
@@ -468,6 +457,15 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "exclusive content!":
 								if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE]; // The Boost and Swap Pack is getting picked up by this.
+								}
+								else if (mainShopWaypointArray.length > i + 1) { // Check the next item to see if this should be semi-weekly.
+									let tempShopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i + 1].OfferingDisplayPath);
+									if (tempShopWaypointJson.FlairText.toLowerCase() === "daily") { // If the next item is daily, this is a semi-weekly listing most likely.
+										mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+									}
+									else {
+										mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
+									}
 								}
 								else {
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
@@ -495,20 +493,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 						mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE];
 					}
 
-					let qualityId = qualityDict[shopWaypointJson.Quality];/*await wixData.query(CustomizationConstants.QUALITY_DB) //
-						.eq(CustomizationConstants.QUALITY_FIELD, shopWaypointJson.Quality)
-						.find()
-						.then((results) => {
-							if (results.items.length > 0) {
-								return results.items[0]._id;
-							}
-							else {
-								throw "Could not locate quality matching " + shopWaypointJson.Quality;
-							}
-						})
-						.catch((error) => {
-							console.error("Error encountered when trying to find matching quality for ", shopWaypointJson, error);
-						});*/
+					let qualityId = qualityDict[shopWaypointJson.Quality];
 
 					mainShopSiteJson[ShopConstants.SHOP_QUALITY_REFERENCE_FIELD] = qualityId;
 					mainShopSiteJson[ShopConstants.SHOP_DESCRIPTION_FIELD] = shopWaypointJson.Description;
