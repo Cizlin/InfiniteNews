@@ -1878,8 +1878,8 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 
 				itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
 			}
-			else {
-				throw "Item " + itemJson.Title + " does not have a valid parent core. Skipping for now...";
+			if (itemJson.Cores.length <= 0) {
+				throw "Item " + itemJson.Title + " does not have any valid parent cores. Skipping for now...";
 			}
 		}
 		else {
