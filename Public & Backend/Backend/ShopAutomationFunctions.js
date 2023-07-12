@@ -128,7 +128,19 @@ export async function getMainShopListFromWaypoint(headers) {
 	let url = ApiConstants.WAYPOINT_URL_BASE_ECONOMY + ApiConstants.WAYPOINT_URL_XUID_PREFIX + XUID + ApiConstants.WAYPOINT_URL_XUID_SUFFIX +
 		ApiConstants.WAYPOINT_URL_SUFFIX_ECONOMY_STORE_MAIN;
 
+	let remakeHeaders = false;
+
 	while (retry) {
+		if (remakeHeaders) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
+			let spartanToken = await ApiFunctions.getSpartanToken();
+			let clearance = await ApiFunctions.getClearance();
+
+			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
+			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
+
+			retry = false; // For now, let's just do a single retry after fixing the headers.
+		}
+
 		waypointJson = await wixFetch.fetch(url, {
 				"method": "get",
 				"headers": headers
@@ -151,15 +163,7 @@ export async function getMainShopListFromWaypoint(headers) {
 				return { "Offerings" : [] };
 			});
 
-		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await ApiFunctions.getSpartanToken();
-			let clearance = await ApiFunctions.getClearance();
-
-			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
-			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
-
-			retry = false; // For now, let's just do a single retry after fixing the headers.
-		}
+		remakeHeaders = retry; // If we retry, remake the headers first.
 	}
 
 	let refinedOfferings = [];
@@ -187,7 +191,19 @@ export async function getHcsShopListFromWaypoint(headers) {
 	let url = ApiConstants.WAYPOINT_URL_BASE_ECONOMY + ApiConstants.WAYPOINT_URL_XUID_PREFIX + XUID + ApiConstants.WAYPOINT_URL_XUID_SUFFIX +
 		ApiConstants.WAYPOINT_URL_SUFFIX_ECONOMY_STORE_HCS;
 
+	let remakeHeaders = false;
+
 	while (retry) {
+		if (remakeHeaders) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
+			let spartanToken = await ApiFunctions.getSpartanToken();
+			let clearance = await ApiFunctions.getClearance();
+
+			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
+			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
+
+			retry = false; // For now, let's just do a single retry after fixing the headers.
+		}
+
 		waypointJson = await wixFetch.fetch(url, {
 				"method": "get",
 				"headers": headers
@@ -210,15 +226,7 @@ export async function getHcsShopListFromWaypoint(headers) {
 				return { "Offerings" : [] };
 			});
 
-		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
-			let spartanToken = await ApiFunctions.getSpartanToken();
-			let clearance = await ApiFunctions.getClearance();
-			
-			headers[ApiConstants.WAYPOINT_SPARTAN_TOKEN_HEADER] = spartanToken;
-			headers[ApiConstants.WAYPOINT_343_CLEARANCE_HEADER] = clearance;
-
-			retry = false; // For now, let's just do a single retry after fixing the headers.
-		}
+		remakeHeaders = retry;
 	}
 
 	let refinedOfferings = [];
