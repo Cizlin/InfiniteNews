@@ -6,6 +6,11 @@ import * as notifs from 'backend/InternalNotificationFunctions.jsw';
 import * as twitter from 'backend/TwitterApiFunctions.jsw';
 import * as discord from 'backend/NotificationFunctions.jsw';
 
+const gameIdToGameName = {
+    "417969": "Halo: The Master Chief Collection",
+    "506416": "Halo Infinite"
+}
+
 // Retrieves the headers from the secret manager.
 export async function makeTwitchHeaders() {
     return {
@@ -63,7 +68,7 @@ export async function getDropList(returnIdsOnly = false) {
         console.log(jsonResponse);
         for (let i = 0; i < jsonResponse.data.currentUser.dropCampaigns.length; ++i) {
             let drop = jsonResponse.data.currentUser.dropCampaigns[i];
-            if (drop.game.id == "506416") { // Halo Infinite ID.
+            if (drop.game.id in gameIdToGameName) { // Halo Infinite or Halo: MCC ID.
                 console.log(drop.id);
                 dropsList.push(drop); // Add the ID to the list.
             }
@@ -154,6 +159,8 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
 
             minimalJson.status = dropJson.status; //dropJson.data.user.dropCampaign.status;
 
+            minimalJson.game = gameIdToGameName[dropJson.game.id];
+
             /*minimalJson.rewardGroups = [];
 
             for (let j = 0; j < dropJson.data.user.dropCampaign.timeBasedDrops.length; ++j) {
@@ -221,6 +228,15 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
                         name: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name,
                         code: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id
                     });
+
+                    let dropGameName = gameIdToGameName[dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.game.id];
+
+                    if (k === 0) {
+                        minimalJson.game = dropGameName;
+                    }
+                    else if (minimalJson.game !== dropGameName) {
+                        minimalJson.game += ", " + dropGameName;
+                    }
                 }
 
                 minimalJson.rewardGroups.push(rewardGroup);
@@ -370,6 +386,12 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
             if (apiTwitchDrops[i].status != databaseTwitchDrops[matchingIndex].status) {
                 databaseTwitchDrops[matchingIndex].status = apiTwitchDrops[i].status;
                 dropIsLive = (apiTwitchDrops[i].status.toUpperCase() === "ACTIVE");
+            }
+
+            if (apiTwitchDrops[i].game != databaseTwitchDrops[matchingIndex].game) {
+                databaseTwitchDrops[matchingIndex].game = apiTwitchDrops[i].game;
+                databaseTwitchDrops[matchingIndex].needsReview = true;
+                databaseTwitchDrops[matchingIndex].updatedFields.push("game");
             }
         }
         else {
@@ -635,12 +657,14 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
 
     if (!dropRewards && drop.status === "ACTIVE") {
         // There are no rewards defined, which means we also can't provide any channels or a watch length. Do a streamlined notification only if this is ACTIVE.
-        let tweetText = "TWITCH DROP NOW AVAILABLE\n" + drop.campaignName + "\nClick here for more details.\n\n";
+        let tweetText = "TWITCH DROP NOW AVAILABLE\n" + drop.game + "\n" + drop.campaignName + "\nClick here for more details.\n\n";
 
         tweetText += "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId;
         console.log(tweetText);
 
         await twitter.sendTweet(tweetText, null);
+
+        return true;
     }
     
     let parentId = null; // The parent ID for the next Tweet to send, ensuring we send a thread and not individual Tweets.
@@ -731,7 +755,7 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             tweetText += " TWITCH DROP NOW AVAILABLE\n";
         }
 
-        tweetText += drop.campaignName + ((dropRewards.length > 1) ? (" - Reward Group " + (i + 1)) : "") + "\n";
+        tweetText += drop.game + "\n" + drop.campaignName + ((dropRewards.length > 1) ? (" - Reward Group " + (i + 1)) : "") + "\n";
         charsLeftInTweet -= tweetText.length; // Subtract away the characters for this header.
 
         tweetText += "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"] + "\n\n";
@@ -989,12 +1013,14 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
 
     if (!dropRewards && drop.status === "ACTIVE") {
         console.log("Sending ACTIVE notification to Twitch with limited info.");
-        discord.sendPromotionNotification(
-            "TWITCH DROP NOW AVAILABLE: " + drop.campaignName,
+        await discord.sendPromotionNotification(
+            "TWITCH DROP NOW AVAILABLE, " + drop.game + ": " + drop.campaignName,
             "Click here for more details.",
             "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId,
             true
         );
+
+        return true;
     }
 
     let allNotifsSent = true; // This becomes false if any notification for an active drop has not been sent (due to timeframe restrictions).
@@ -1080,7 +1106,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         //#endregion
 
         //#region Reward Name List
-        let bodyText = drop.campaignName + ", Reward" + ((dropRewards.length > 1) ? (" Group " + (i + 1)) : "s") + ": ";
+        let bodyText = drop.game + ": " + drop.campaignName + ", Reward" + ((dropRewards.length > 1) ? (" Group " + (i + 1)) : "s") + ": ";
 
         for (let j = 0; j < nameArray.length - 1; ++j) {
             bodyText += nameArray[j] + ((nameArray.length > 2) ? ", " : " ");
