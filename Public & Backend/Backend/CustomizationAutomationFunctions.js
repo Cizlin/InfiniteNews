@@ -1859,7 +1859,6 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 					&& !itemJson.Cores.includes(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()])
 					&& themePathItem.Type.toLowerCase() === CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].ThemeType.toLowerCase()) { 
 						// Poorly configured items may use the wrong theme type so skip these ones.
-
 						itemJson.Cores.push(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()]);
 					}
 				});
@@ -1873,7 +1872,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			}
 			
 			// Other times we need to use the core we followed to get to this as well.
-			if ("parentThemePath" in options && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict &&
+			if ("parentThemePath" in options && options.parentThemePath && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict &&
 				!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()])) {
 
 				itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
@@ -1934,8 +1933,8 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	}
 
 	if ("isDefault" in options && options.isDefault &&
-		"waypointThemePathToCoreDict" in options && "parentThemePath" in options && options.parentThemePath in options.waypointThemePathToCoreDict) {
-		itemJson.DefaultOfCore = options.waypointThemePathToCoreDict[options.parentThemePath];
+		"waypointThemePathToCoreDict" in options && "parentThemePath" in options && options.parentThemePath && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict) {
+		itemJson.DefaultOfCore = options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()];
 	}
 	else {
 		itemJson.DefaultOfCore = null;
@@ -2272,6 +2271,9 @@ async function processItem(headers,
 	// Get the details for the core to pass into our site JSON generation function.
 	let itemDetails;
 
+	if (itemType === CustomizationConstants.ITEM_TYPES.attachment) {
+		//console.log("About to get Customization Details from Waypoint JSON for attachment.");
+	}
 	itemDetails = getCustomizationDetailsFromWaypointJson(
 		customizationCategory,
 		itemWaypointJson,
@@ -2490,6 +2492,7 @@ async function generateJsonsFromItemAndAttachmentList(
 		for (let m = 0; m < itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]].OptionPaths.length; ++m) {
 			try {
 				let attachmentPath = itemAndAttachmentsArray[l][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_LIST_FIELD]].OptionPaths[m];
+				//console.log("Default Attachment Path", defaultAttachmentPath, "Attachment Path", attachmentPath);
 				let attachmentDbJson = await processItem(
 					headers,
 					ATTACHMENT_KEY,
@@ -2626,6 +2629,10 @@ async function generateJsonsFromThemeList(
 
 		// Kits must be processed in full before any individual items are added.
 		for (let l = 0; l < themePathArray.length; ++l) {
+			if (themePathArray[l] === "remainingItems") { // Skip this path.
+				continue;
+			}
+			
 			let kitPath = themePathArray[l];
 			if (kitPath in kitPathsProcessed) {
 				continue;
@@ -2726,6 +2733,10 @@ async function generateJsonsFromThemeList(
 
 		// Now that the items have been added, we need to go back through and add the Kits (with the arrays of child items).
 		for (let l = 0; l < themePathArray.length; ++l) {
+			if (themePathArray[l] === "remainingItems") { // Skip the remainingItems path because it isn't a real path.
+				continue;
+			}
+
 			let themeWaypointJson = await ApiFunctions.getCustomizationItem(headers, themePathArray[l]);
 
 			if (themeWaypointJson.IsKit) { // Either we have a Kit or the default theme. We only want to add Kits.
@@ -2773,7 +2784,9 @@ async function generateJsonsFromThemeList(
 		}
 		customizationItemPathsProcessed[themePathArray[j]] = true; // Add this path to the array so we don't process it again.
 
-		let themeWaypointJson = await ApiFunctions.getCustomizationItem(headers, themePathArray[j]);
+		let themeWaypointJson = ((themePathArray[j] === "remainingItems") 
+			? await createRemainingThemeJson(headers, customizationCategory, waypointGroupsToProcess, categorySpecificDictsAndArrays) 
+			: await ApiFunctions.getCustomizationItem(headers, themePathArray[j]));
 
 		if (!themeWaypointJson.IsKit) { // This is the default theme. We want to iterate over each of its sub items. These are defined in a constant.
 			if (categorySpecificDictsAndArrays.length != 3) { // Ensure we can get the type array.
@@ -2819,7 +2832,7 @@ async function generateJsonsFromThemeList(
 						customizationItemPathArray,
 						{
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
-							"parentThemePath": themePathArray[j],
+							"parentThemePath": (themePathArray[j] === "remainingItems") ? "" : themePathArray[j],
 							"defaultPath": defaultPath
 						}
 					)) {
@@ -2845,18 +2858,87 @@ async function generateJsonsFromThemeList(
 						type,
 						{
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
-							"parentThemePath": themePathArray[j],
+							"parentThemePath": (themePathArray[j] === "remainingItems") ? "" : themePathArray[j],
 							"defaultPath": defaultPath
 						}
 					);
 				}
-
 			}
 		}
 	}
 
 	return itemsLeftToProcess;
 }
+
+export async function createRemainingThemeJson(headers, customizationCategory, waypointGroupsToProcess, categorySpecificDictsAndArrays) {
+	const TYPE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointIdField;
+	const TYPE_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
+	const TYPE_HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketHasAttachmentsField;
+
+	// Query the Waypoint API.
+	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
+
+	let itemList = inventoryCatalogJson.Items;
+
+	if (categorySpecificDictsAndArrays.length != 3) { // Ensure we can get the type array.
+		console.error("categorySpecificDictsAndArrays does not have expected length of 3 in generateJsonsFromThemeList().");
+	}
+
+	let customizationTypeArray = categorySpecificDictsAndArrays[0]; // We only need this one for our purposes.
+
+	let waypointTypeToWaypointGroup = {};
+
+	for (let i = 0; i < customizationTypeArray.length; ++i) {
+		waypointTypeToWaypointGroup[customizationTypeArray[i][TYPE_WAYPOINT_ID_FIELD]] = customizationTypeArray[i][TYPE_WAYPOINT_FIELD_FIELD];
+	}
+
+	//console.log(waypointTypeToWaypointGroup);
+
+	let waypointGroupToHasAttachments = {};
+
+	// Map the Waypoint Type name to whether the item has attachments.
+	for (let i = 0; i < customizationTypeArray.length; ++i) {
+		waypointGroupToHasAttachments[customizationTypeArray[i][TYPE_WAYPOINT_FIELD_FIELD]] = customizationTypeArray[i][TYPE_HAS_ATTACHMENTS_FIELD];
+	}
+
+	let fakeThemeJson = {};
+
+	for (let i = 0; i < customizationTypeArray.length; ++i) {
+		let type = customizationTypeArray[i];
+
+		fakeThemeJson[type[TYPE_WAYPOINT_FIELD_FIELD]] = {};
+		if (type[TYPE_HAS_ATTACHMENTS_FIELD]) {
+			// Items with attachments are set up differently.
+			fakeThemeJson[type[TYPE_WAYPOINT_FIELD_FIELD]].Options = []; // Empty array for now.
+			fakeThemeJson[type[TYPE_WAYPOINT_FIELD_FIELD]].DefaultOptionPath = "";
+		}
+		else {
+			fakeThemeJson[type[TYPE_WAYPOINT_FIELD_FIELD]].OptionPaths = []; // Empty array for now.
+			fakeThemeJson[type[TYPE_WAYPOINT_FIELD_FIELD]].DefaultOptionPath = "";
+		}
+	}
+
+	fakeThemeJson.IsKit = false;
+
+	//console.log(fakeThemeJson);
+
+	for (let i = 0; i < itemList.length; ++i) {
+		let itemGroup = waypointTypeToWaypointGroup[itemList[i].ItemType];
+		if (waypointGroupsToProcess.includes(itemGroup)) {
+			// We want to add this item to our "theme".
+			if (waypointGroupToHasAttachments[itemGroup]) {
+				// The item has attachments. This is formatted in a slightly different way. We're just going to punt this one for now because there's a lot of cross-references that could be broken.
+				continue;
+			}
+			else {
+				fakeThemeJson[itemGroup].OptionPaths.push(itemList[i].ItemPath)
+			}
+		}
+	}
+
+	return fakeThemeJson;
+}
+
 
 // Saves the items in the customizationItemDbArray to their respective databases.
 async function saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess) {
@@ -3197,12 +3279,6 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 					let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
 					let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
 
-					// Use this trick to avoid checking multiple cores for cross-core items.
-					// LIMITER
-					/*if (i < coreWaypointJsonArray.length - 1) {
-						continue;
-					}*/
-
 					console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 					if (await generateJsonsFromThemeList(
@@ -3232,7 +3308,31 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 					}
 				}
 
-				//console.info("After obtaining all JSONs for these Waypoint Groups: ", waypointGroupsToProcess, ", we got this Array: ", customizationItemDbArray);
+				if (!waypointGroupsToProcess.includes("Kits")) {
+					console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Remaining Items", "Limit", itemCountLimit, "Offset", itemCountOffset);
+
+					// Add the remaining items.
+					if (await generateJsonsFromThemeList(
+						itemCountLimit,
+						itemCountOffset,
+						headers,
+						customizationCategory,
+						folderDict,
+						generalDictsAndArrays,
+						categorySpecificDictsAndArrays,
+						customizationItemDbArray,
+						customizationItemPathsProcessed,
+						["remainingItems"],
+						waypointGroupsToProcess,
+						null,
+						waypointThemePathToCoreDict
+					)) {
+						itemsRemainingToProcess = true;
+					}
+
+					await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+					customizationItemDbArray = []; // Reset the items after each save.
+				}
 			}
 			catch (error) {
 				console.error(error);
