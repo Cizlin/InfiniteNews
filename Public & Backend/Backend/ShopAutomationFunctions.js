@@ -33,11 +33,9 @@ import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
 import * as NotificationFunctions from 'backend/NotificationFunctions.jsw';
-//import * as CustomizationFunctions from 'backend/CustomizationAutomationFunctions.jsw';
 import * as InternalNotifications from 'backend/InternalNotificationFunctions.jsw';
 
-//let currentlyAvailableIds = [];
-const CUSTOMIZATION_SHOP_LIMIT = 50;
+const CUSTOMIZATION_SHOP_LIMIT = 40;
 let resetOffset = false;
 
 // Gets a list of all currently available shop items, including the items contained within bundles.
@@ -142,7 +140,7 @@ export async function getMainShopListFromWaypoint(headers) {
 				} 
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					return {};
+					return { "Offerings" : [] };
 				}
 			} )
 			.then((json) => {
@@ -150,7 +148,7 @@ export async function getMainShopListFromWaypoint(headers) {
 			})
 			.catch(err => {
 				console.error(err);
-				return {};
+				return { "Offerings" : [] };
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
@@ -163,6 +161,18 @@ export async function getMainShopListFromWaypoint(headers) {
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
 	}
+
+	let refinedOfferings = [];
+
+	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
+		/*if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
+			continue;
+		}*/
+
+		refinedOfferings.push(waypointJson.Offerings[i]);
+	}
+
+	waypointJson.Offerings = refinedOfferings;
 
 	return waypointJson;
 }
@@ -189,7 +199,7 @@ export async function getHcsShopListFromWaypoint(headers) {
 				} 
 				else { // We want to retry once with updated headers if we got an error.
 					console.warn("Headers did not work. Got HTTP response " + httpResponse.status + ": " + httpResponse.statusText + " when trying to retrieve from " + httpResponse.url);
-					return {};
+					return { "Offerings" : [] };
 				}
 			} )
 			.then((json) => {
@@ -197,7 +207,7 @@ export async function getHcsShopListFromWaypoint(headers) {
 			})
 			.catch(err => {
 				console.error(err);
-				return {};
+				return { "Offerings" : [] };
 			});
 
 		if (retry) { // We need to remake the headers, but we do it by adjusting the actual contents of the JSON.
@@ -210,6 +220,18 @@ export async function getHcsShopListFromWaypoint(headers) {
 			retry = false; // For now, let's just do a single retry after fixing the headers.
 		}
 	}
+
+	let refinedOfferings = [];
+
+	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
+		/*if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
+			continue;
+		}*/
+
+		refinedOfferings.push(waypointJson.Offerings[i]);
+	}
+
+	waypointJson.Offerings = refinedOfferings;
 
 	return waypointJson;
 }
@@ -357,10 +379,10 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 	let shopSiteArray = [];
 
-	console.log("Retrieving folderDict...");
+	console.log("Retrieving Shop-exclusive folderDict...");
 	let folderDict;
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB)
-		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + CustomizationConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT[ShopConstants.SHOP_KEY] + "/")
 		.find()
 		.catch((error) => {
 			console.error(error, "occurred while querying Key Value DB.");
@@ -376,31 +398,30 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 		throw "Could not retrieve folder dict. Cannot get customization image urls.";
 	}
 
-	console.log("Folder dict retrieved!");
+	console.log("Shop-exclusive Folder dict retrieved!");
 
 	let qualityDict = {}; // The keys will be quality values (e.g. "Epic" or "Legendary"), and the values will be quality IDs. Let's us avoid querying the DB for every quality inquiry.
-	try {
-		let qualityResults = await wixData.query(CustomizationConstants.QUALITY_DB)
-			.find()
-			.catch((error) => {
-				console.error(error, "occurred while filling in quality dict");
-				return {
-					items: []
-				};
-			});
 
-		if (qualityResults.items.length > 0) {
-			console.log("Quality values found", qualityResults);
-			for (let i = 0; i < qualityResults.items.length; ++i) {
-				qualityDict[qualityResults.items[i].quality] = qualityResults.items[i]._id;
-			}
-		}
-		else {
-			throw "No quality values found in the DB! Major emergency!";
+	console.log("Querying for quality data");
+	let qualityResults = await wixData.query(CustomizationConstants.QUALITY_DB)
+		.find()
+		.catch((error) => {
+			console.error(error, "occurred while filling in quality dict");
+			return {
+				items: []
+			};
+		});
+
+	console.log("Quality data returned");
+
+	if (qualityResults.items.length > 0) {
+		console.log("Quality values found", qualityResults);
+		for (let i = 0; i < qualityResults.items.length; ++i) {
+			qualityDict[qualityResults.items[i].quality] = qualityResults.items[i]._id;
 		}
 	}
-	catch (error) {
-		console.error(error, "occurred while querying quality DB.");
+	else {
+		throw "No quality values found in the DB! Major emergency!";
 	}
 
 	const maxRetries = 10;
@@ -412,23 +433,13 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 		let mainShopWaypointJson = (h == 0) ? normalShopWaypointJson : hcsShopListWaypoint;
 		let mainShopWaypointArray = (processCustomizationOptions) ? mainShopWaypointJson : mainShopWaypointJson.Offerings;
 
-		//const LIMIT = 25;
-
 		for (let i = 0; i < mainShopWaypointArray.length; ++i) {
-
-			// If we get more items in our array than our limit allows, we stop for now.
-			/*if (processCustomizationOptions && shopSiteArray.length >= LIMIT) {
-				break;
-			}*/
 
 			let retryCount = 0;
 			let retry = true;
 			while (retry && retryCount < maxRetries) {
 				try {
 					console.log(mainShopWaypointArray[i].OfferingId);
-					/*if (processCustomizationOptions && currentlyAvailableIds.includes(mainShopWaypointArray[i].OfferingId)) {
-						continue; // If this bundle is already available, we're going to skip it. This could miss some updates, but there's too much to process otherwise.
-					}*/
 
 					let mainShopSiteJson = {};
 					let shopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i].OfferingDisplayPath);
@@ -443,15 +454,30 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "returning":
 							case "sale":
 							case "event":
-								if (h == 0 && i == 2) { // In the main shop, it seems like the i == 2 listing is Semi-Weekly. Hopefully this remains true.
-									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+							case "exclusive content!":
+								if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
+									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE]; // The Boost and Swap Pack is getting picked up by this.
+								}
+								else if (mainShopWaypointArray.length > i + 1) { // Check the next item to see if this should be semi-weekly.
+									let tempShopWaypointJson = await ApiFunctions.getCustomizationItem(headers, mainShopWaypointArray[i + 1].OfferingDisplayPath);
+									if (tempShopWaypointJson.FlairText.toLowerCase() === "daily") { // If the next item is daily, this is a semi-weekly listing most likely.
+										mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+									}
+									else {
+										mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
+									}
 								}
 								else {
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_WEEKLY];
 								}
+
 								break;
 							case "daily":
 								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_DAILY];
+								// We need to update the prior bundle to be semi-weekly.
+								if (shopSiteArray.length > 0) {
+									shopSiteArray[shopSiteArray.length - 1][ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_SEMI_WEEKLY];
+								}
 								break;
 							default:
 								mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE];
@@ -467,20 +493,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 						mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE];
 					}
 
-					let qualityId = qualityDict[shopWaypointJson.Quality];/*await wixData.query(CustomizationConstants.QUALITY_DB) //
-						.eq(CustomizationConstants.QUALITY_FIELD, shopWaypointJson.Quality)
-						.find()
-						.then((results) => {
-							if (results.items.length > 0) {
-								return results.items[0]._id;
-							}
-							else {
-								throw "Could not locate quality matching " + shopWaypointJson.Quality;
-							}
-						})
-						.catch((error) => {
-							console.error("Error encountered when trying to find matching quality for ", shopWaypointJson, error);
-						});*/
+					let qualityId = qualityDict[shopWaypointJson.Quality];
 
 					mainShopSiteJson[ShopConstants.SHOP_QUALITY_REFERENCE_FIELD] = qualityId;
 					mainShopSiteJson[ShopConstants.SHOP_DESCRIPTION_FIELD] = shopWaypointJson.Description;
@@ -542,15 +555,53 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 					let bundleType = (mainShopSiteJson[ShopConstants.SHOP_IS_HCS_FIELD]) ? "HCS" : mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD][0];
 
-					mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = await MediaManagerFunctions.getCustomizationImageUrl(
-						folderDict,
-						headers,
-						shopWaypointJson.Title,
-						shopWaypointJson.ObjectImagePath,
-						"image/png",
-						ShopConstants.SHOP_KEY,
-						bundleType
-					);
+					if (processCustomizationOptions) {
+						// Get the existing ETag from the DB.
+						let existingETag = await wixData.query(ShopConstants.SHOP_DB)
+							.eq(ShopConstants.SHOP_WAYPOINT_ID_FIELD, mainShopWaypointArray[i].OfferingId)
+							.find()
+							.then((results) => {
+								if (results.items.length > 0) {
+									return results.items[0][ShopConstants.SHOP_IMAGE_ETAG_FIELD];
+								}
+								else {
+									return "";
+								}
+							})
+							.catch((error) => {
+								console.error("Error occurred while retrieving Image ETag from Shop DB for " + mainShopWaypointArray[i].OfferingId, error);
+							});
+
+						
+						let imageResults = await MediaManagerFunctions.getCustomizationImageUrl(
+							folderDict,
+							headers,
+							shopWaypointJson.Title,
+							shopWaypointJson.ObjectImagePath,
+							"image/png",
+							ShopConstants.SHOP_KEY,
+							bundleType,
+							null,
+							null,
+							null,
+							existingETag,
+							true
+						);
+
+						mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = imageResults[0]; // The image URL is here.
+						mainShopSiteJson[ShopConstants.SHOP_IMAGE_ETAG_FIELD] = imageResults[1]; // The image ETag is here.
+					}
+					else {
+						mainShopSiteJson[ShopConstants.SHOP_BUNDLE_IMAGE_FIELD] = await MediaManagerFunctions.getCustomizationImageUrl(
+							folderDict,
+							headers,
+							shopWaypointJson.Title,
+							shopWaypointJson.ObjectImagePath,
+							"image/png",
+							ShopConstants.SHOP_KEY,
+							bundleType
+						);
+					}
 
 					mainShopSiteJson[ShopConstants.SHOP_ARMOR_REFERENCE_FIELD] = [];
 					mainShopSiteJson[ShopConstants.SHOP_ARMOR_ATTACHMENT_REFERENCE_FIELD] = [];
@@ -675,10 +726,6 @@ export async function qualityTest() {
 		});
 	
 	return qualityDict;
-}
-
-export function regexTest(waypointPath) {
-	return waypointPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH)[0];
 }
 
 // We store item IDs in an array, which lets us query for items matching those IDs and then update them to 
@@ -1309,7 +1356,7 @@ export async function generateSocialNotifications(updateItemArray) {
 	}
 
 	// Then, we need to assemble the lines summarizing each bundle/item.
-	// These arrays will includes strings with one of two formats: " - [bundleName] ([creditCost] Credits)" or " - [bundleName] ([creditCost] Credits, last added [MM/DD/YYYY])"
+	// These arrays will includes strings with one of two formats: "- [bundleName] ([creditCost] Credits)" or "- [bundleName] ([creditCost] Credits, last added [MM/DD/YYYY])"
 	let mainItemListingArray = []; 
 	let mainItemArray = [];
 	let hcsItemListingArray = [];
@@ -1322,24 +1369,24 @@ export async function generateSocialNotifications(updateItemArray) {
 			let dateString = GeneralFunctions.getLongMonthDayYearFromDate(lastAvailableDatetime);
 
 			if (!updateItemArray[i][ShopConstants.SHOP_IS_HCS_FIELD]) {
-				mainItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				mainItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits, last added " + dateString + ")");
 				mainItemArray.push(updateItemArray[i]);
 			}
 			else {
-				hcsItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				hcsItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits, last added " + dateString + ")");
 				hcsItemArray.push(updateItemArray[i]);
 			}
 		}
 		else {
 			if (!updateItemArray[i][ShopConstants.SHOP_IS_HCS_FIELD]) {
-				mainItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				mainItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits)");
 				mainItemArray.push(updateItemArray[i]);
 			}
 			else {
-				hcsItemListingArray.push(" - " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
+				hcsItemListingArray.push("- " + updateItemArray[i][ShopConstants.SHOP_ITEM_NAME_FIELD] + " (" + updateItemArray[i][ShopConstants.SHOP_COST_CREDITS_FIELD] +
 					" Credits)");
 				hcsItemArray.push(updateItemArray[i]);
 			}
@@ -1404,7 +1451,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			for (let j = 0; j < mainItemArray[i].childItemInfo.length; ++j) {
 				let childItem = mainItemArray[i].childItemInfo[j];
-				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
+				let childItemText = "- " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
@@ -1420,7 +1467,7 @@ export async function generateSocialNotifications(updateItemArray) {
 					});
 
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
-						childItemText = " - " + childItem.itemName + " Emblem Set\n";
+						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
 					}
 				}
@@ -1484,7 +1531,7 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
 				let childItem = hcsItemArray[i].childItemInfo[j];
-				let childItemText = " - " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
+				let childItemText = "- " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 				if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
@@ -1500,7 +1547,7 @@ export async function generateSocialNotifications(updateItemArray) {
 					});
 
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
-						childItemText = " - " + childItem.itemName + " Emblem Set\n";
+						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
 					}
 				}
@@ -1630,6 +1677,9 @@ export async function refreshShopListings() {
 					if (itemIndex > -1) { // If the item was found.
 						item = items[itemIndex];
 						newShopListingsToUpdate[i]._id = item._id; // The DB ID ties both items together, so we need to transfer it.
+
+						// Transfer the imageETag since we didn't grab it ourselves.
+						newShopListingsToUpdate[i][ShopConstants.SHOP_IMAGE_ETAG_FIELD] = item[ShopConstants.SHOP_IMAGE_ETAG_FIELD];
 
 						// If these arrays exist, we grab them to add onto them. Otherwise, we create it from scratch.
 						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD] = item[ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD] || [];
@@ -1785,7 +1835,7 @@ export async function refreshCustomizationShopListings() {
 	}
 }
 
-export async function deactivateOldCustomizationShopListings() {
+export async function deactivateUnavailableCustomizationShopListings() {
 	// If we find a Customization Menu shop listing that hasn't been updated for 8 days, we can mark it unavailable through the customization menus.
 	const DAYS_BACK = 8; // We will mark these bundles deactivated if they go more than 8 days without an update (our function currently has a loop period of at least 5 hours; this may change in the future).
 
@@ -1798,10 +1848,13 @@ export async function deactivateOldCustomizationShopListings() {
 			let oldListings = results.items;
 			console.log("Marking the following listings as no longer available", oldListings);
 			for (let i = 0; i < oldListings.length; ++i) {
-				oldListings[ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD] = false;
+				oldListings[i][ShopConstants.SHOP_AVAILABLE_THROUGH_CUSTOMIZATION_FIELD] = false;
 			}
 
 			wixData.bulkUpdate(ShopConstants.SHOP_DB, oldListings)
+				.then(result => {
+					console.log("Results of marking the listings as no longer available: ", result, oldListings);
+				})
 				.catch((error) => {
 					console.error("Error occurred when marking old customization shop listings as unavailable.", error);
 				});
@@ -1809,4 +1862,9 @@ export async function deactivateOldCustomizationShopListings() {
 		.catch((error) => {
 			console.error("Error occurred while retrieving customization shop listings that have not been touched in " + DAYS_BACK + " days.", error);
 		})
+}
+
+
+export function regexTest(waypointPath) {
+	return waypointPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH)[0];
 }

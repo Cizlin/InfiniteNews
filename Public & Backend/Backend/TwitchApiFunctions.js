@@ -60,6 +60,7 @@ export async function getDropList(returnIdsOnly = false) {
     })
     .then(jsonResponse => {
         let dropsList = [];
+        console.log(jsonResponse);
         for (let i = 0; i < jsonResponse.data.currentUser.dropCampaigns.length; ++i) {
             let drop = jsonResponse.data.currentUser.dropCampaigns[i];
             if (drop.game.id == "506416") { // Halo Infinite ID.
@@ -210,7 +211,9 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
                     start: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].startAt)),
                     end: new Date(Date.parse(dropJson.data.user.dropCampaign.timeBasedDrops[j].endAt)),
                     requiredMinutesWatched: dropJson.data.user.dropCampaign.timeBasedDrops[j].requiredMinutesWatched,
-                    rewards: []
+                    rewards: [],
+                    activeTwitterNotifsSent: false,
+                    activeDiscordNotifsSent: false
                 };
 
                 for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
@@ -245,7 +248,47 @@ export async function getExistingTwitchDrops(dropIds) {
         });
 }
 
-export async function refreshTwitchDrops(useAutomation = true, dropJsonArray = []) {
+function rewardGroupsAreEqual(rewardGroupArray1, rewardGroupArray2) {
+    console.log(rewardGroupArray1, rewardGroupArray2);
+    // We want to check the equivalence of the start, end, requiredMinutesWatched, and rewards fields.
+    if (rewardGroupArray1.length != rewardGroupArray2.length) {
+        return false; // There's a mismatch in the number of rewards in each group.
+    }
+
+    for (let i = 0; i < rewardGroupArray1.length; ++i) {
+        let matchingRewardGroupFound = false;
+
+        for (let j = 0; j < rewardGroupArray2.length; ++j) {
+            // Scan through the second reward group array to see if we find matching rewards arrays.
+            if (arraysAreEqual(rewardGroupArray1[i].rewards, rewardGroupArray2[j].rewards)) {
+                console.log("Arrays are equal.");
+                // The two reward arrays are equal. Now, check to see if the start, end, and requiredMinutesWatched match.
+                console.log(rewardGroupArray1[i].start.getTime(), rewardGroupArray2[j].start.getTime());
+                if (rewardGroupArray1[i].start.getTime() != rewardGroupArray2[j].start.getTime()
+                || rewardGroupArray1[i].end.getTime() != rewardGroupArray2[j].end.getTime()
+                || rewardGroupArray1[i].requiredMinutesWatched != rewardGroupArray2[j].requiredMinutesWatched) {
+                    // This is a mismatch, so we return false.
+                    return false;
+                }
+                else {
+                    // These are equal, so we found a match. We can move on to the next 
+                    matchingRewardGroupFound = true;
+                    break;
+                }
+            }
+        }
+
+        // Now that we're done searching, check to see if we found a match.
+        if (!matchingRewardGroupFound) {
+            return false;
+        }
+    }
+
+    // We managed to avoid returning false, so we must have exactly matching arrays. Return true.
+    return true;
+}
+
+export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray = []) {
     let apiTwitchDrops = await generateNewTwitchDropJsons(useAutomation, dropJsonArray);
     let apiDropIdArray = [];
     for (let i = 0; i < apiTwitchDrops.length; ++i) {
@@ -298,8 +341,24 @@ export async function refreshTwitchDrops(useAutomation = true, dropJsonArray = [
                     databaseTwitchDrops[matchingIndex].updatedFields.push("allowedChannels");
                 }
 
-                if (!arraysAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
-                    // The lists of rewards are not equivalent. Check for matching rewards.
+                if (!Array.isArray(databaseTwitchDrops[matchingIndex].rewardGroups)) {
+                    databaseTwitchDrops[matchingIndex].rewardGroups = apiTwitchDrops[i].rewardGroups;
+                    databaseTwitchDrops[matchingIndex].needsReview = true;
+                    sendAlert = true;
+                    databaseTwitchDrops[matchingIndex].updatedFields.push("rewardGroups");
+                    databaseTwitchDrops[matchingIndex].sendCorrection = (databaseTwitchDrops[matchingIndex].upcomingNotificationsSent) ? true : false;
+                }
+                else if (!rewardGroupsAreEqual(apiTwitchDrops[i].rewardGroups, databaseTwitchDrops[matchingIndex].rewardGroups)) {
+                    // The lists of rewards are not equivalent. We must port over the Twitter and Discord notification flags where possible.
+                    for (let k = 0; k < apiTwitchDrops[i].rewardGroups.length; ++k) {
+                        for (let j = 0; j < databaseTwitchDrops[matchingIndex].rewardGroups.length; ++j) {
+                            if (arraysAreEqual(apiTwitchDrops[i].rewardGroups[k].rewards, databaseTwitchDrops[matchingIndex].rewardGroups[j].rewards)) {
+                                apiTwitchDrops[i].rewardGroups[k].activeDiscordNotifsSent = databaseTwitchDrops[matchingIndex].rewardGroups[j].activeDiscordNotifsSent;
+                                apiTwitchDrops[i].rewardGroups[k].activeTwitterNotifsSent = databaseTwitchDrops[matchingIndex].rewardGroups[j].activeTwitterNotifsSent;
+                            }
+                        }
+                    }
+
                     databaseTwitchDrops[matchingIndex].rewardGroups = apiTwitchDrops[i].rewardGroups;
                     databaseTwitchDrops[matchingIndex].needsReview = true;
                     sendAlert = true;
@@ -323,6 +382,8 @@ export async function refreshTwitchDrops(useAutomation = true, dropJsonArray = [
             sendAlert = true;
         }
     }
+
+    console.log(databaseTwitchDrops);
 
     // Now, let's tie the drops to their rewards.
     for (let i = 0; i < databaseTwitchDrops.length; ++i) {
@@ -427,8 +488,10 @@ export async function refreshTwitchDrops(useAutomation = true, dropJsonArray = [
         // Loop through the Twitch drops to be sent to the DB to see if we need to send any notifications for them.
         if (!databaseTwitchDrops[i].notifsSent && databaseTwitchDrops[i].status.toUpperCase() === "ACTIVE") {
             // This drop is now active and we haven't sent notifications. We need to let folks know immediately.
+            let allNotifsSent = false;
+
             try {
-                await sendTwitterNotification(databaseTwitchDrops[i], false);
+                allNotifsSent = await sendTwitterNotification(databaseTwitchDrops[i], false);
             }
             catch (error) {
                 console.error(error + " occurred while sending Twitter notification. Continuing...");
@@ -436,14 +499,15 @@ export async function refreshTwitchDrops(useAutomation = true, dropJsonArray = [
             }
 
             try {
-                await sendDiscordAndPushNotification(databaseTwitchDrops[i], false);
+                let result = await sendDiscordAndPushNotification(databaseTwitchDrops[i], false);
+                allNotifsSent = result && allNotifsSent; // The Discord and Twitter notifications must both be fully sent for this to be true.
             }
             catch (error) {
                 console.error(error + " occurred while sending Discord notification. Continuing...");
                 continue;
             }
 
-            databaseTwitchDrops[i].notifsSent = true;
+            databaseTwitchDrops[i].notifsSent = allNotifsSent;
         }
         else if (databaseTwitchDrops[i].sendCorrection && databaseTwitchDrops[i].upcomingNotificationsSent
             && databaseTwitchDrops[i].status.toUpperCase() === "UPCOMING" && !useAutomation) { // Only want to send corrections when we have the fully updated information.
@@ -581,7 +645,22 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
     
     let parentId = null; // The parent ID for the next Tweet to send, ensuring we send a thread and not individual Tweets.
 
+    let allNotifsSent = true; // This becomes false if any notification for an active drop has not been sent (due to timeframe restrictions).
+
     for (let i = 0; i < dropRewards.length; ++i) {
+        // We only want to send notifications for this particular drop if it's a valid timeframe and we haven't sent the notifications yet.
+
+        let now = new Date(); // The current datetime.
+
+        if (dropRewards[i].activeTwitterNotifsSent && drop.status === "ACTIVE") { // If this field is defined and true, we don't need to send notifications for this group anymore.
+            continue;
+        }
+        else if (dropRewards[i].start > now && drop.status === "ACTIVE") {
+            // If the drop starts after the current time and this is an active drop.
+            allNotifsSent = false; // We aren't sending this yet, so we need to note it.
+            continue;
+        }
+
         // The array of Tweets needs to be recreated each time to avoid contaminating subsequent announcements.
         let tweetArray = [];
         let currentTweetIndex = 0;
@@ -839,27 +918,31 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
         // We now have the necessary arrays of tweets and images to send to Twitter. So we shall.
         for (let j = 0; j < tweetArray.length; ++j) {
             // Get the media to add to this Tweet.
-            let mediaIds = "";
+            let mediaIdSubArray = [];
             for (let k = 4 * j; k < mediaIdArray.length; ++k) {
-                mediaIds += mediaIdArray[k] + ",";
-                if (mediaIds.length == 4) { // Can't add more than four media IDs to a single tweet.
+                mediaIdSubArray.push(mediaIdArray[k]);
+                if (mediaIdSubArray.length >= 4) { // Can't add more than four media IDs to a single tweet.
                     break;
                 }
             }
 
-            console.log(tweetArray[j], mediaIds);
+            console.log("Tweet: ", tweetArray[j], "Media: ", mediaIdSubArray);
 
-            parentId = await twitter.sendTweet(tweetArray[j], parentId, mediaIds);
+            parentId = await twitter.sendTweet(tweetArray[j], parentId, mediaIdSubArray);
         }
 
+        dropRewards[i].activeTwitterNotifsSent = (drop.status === "ACTIVE"); // This should be true if the drop is active and false otherwise.
+
     }
+
+    return allNotifsSent;
 }
 
 /* This is the format of a typical Upcoming Discord Announcement.
 RETURNING UPCOMING TWITCH DROP: Gladiator's Edge Armor Coating for Mark VII - $(startTime) - $(endTime)
 Watch for 1 hour. Participating channels for this upcoming Twitch Drop will be posted in the Twitch Drops article shortly.
 https://www.haloinfinitenews.com/post/twitch-drops
-@PromoNotifs
+@TwitchDropNotifs
 */
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrection = false) {
@@ -914,7 +997,22 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
         );
     }
 
+    let allNotifsSent = true; // This becomes false if any notification for an active drop has not been sent (due to timeframe restrictions).
+
     for (let i = 0; i < dropRewards.length; ++i) {
+        // We only want to send notifications for this particular drop if it's a valid timeframe and we haven't sent the notifications yet.
+
+        let now = new Date(); // The current datetime.
+
+        if (dropRewards[i].activeDiscordNotifsSent && drop.status === "ACTIVE") { // If this field is defined and true, we don't need to send notifications for this group anymore.
+            continue;
+        }
+        else if (dropRewards[i].start > now && drop.status === "ACTIVE") {
+            // If the drop starts after the current time.
+            allNotifsSent = false; // We aren't sending this yet, so we need to note it.
+            continue;
+        }
+
         //#region Obtain information from reward references
         let nameArray = [];
 
@@ -1029,25 +1127,31 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             let startDate = Math.floor(dropRewards[i].start.getTime() / 1000); // We want the seconds since epoch. Make sure it's an integer.
             let endDate = Math.floor(dropRewards[i].end.getTime() / 1000);
             console.log(headerText, bodyText, startDate, endDate);
-            discord.sendPromotionNotificationWithStartEndTime(
+            await discord.sendPromotionNotificationWithStartEndTime(
                 headerText,
                 bodyText,
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
                 startDate,
                 endDate,
-                true // Is Twitch Drop.
+                true, // Is Twitch Drop.
+                containsNew // Contains a new reward, so notify the new drop users.
             );
         }
         else {
             console.log(headerText, bodyText);
-            discord.sendPromotionNotification(
+            await discord.sendPromotionNotification(
                 headerText,
                 bodyText,
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
-                true
+                true,
+                containsNew
             );
         }
+
+        dropRewards[i].activeDiscordNotifsSent = (drop.status === "ACTIVE");
     }
+
+    return allNotifsSent;
 }
 
 export async function sendUpcomingNotifications() {

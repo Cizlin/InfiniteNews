@@ -10,6 +10,7 @@ export const ARMOR_CORE_CUSTOMIZATION_SECTION = "Armor Cores";
 export const ARMOR_CUSTOMIZATION_SECTION = "Armor Hall";
 export const ARMOR_CORE_DB = "ArmorCores";
 export const ARMOR_CORE_WAYPOINT_ID = "ArmorCore";
+export const ARMOR_THEME_WAYPOINT_TYPE = "ArmorTheme";
 export const ARMOR_CORE_NAME_FIELD = "name";
 export const ARMOR_SOCKET_DB = "ArmorSockets";
 export const ARMOR_CUSTOMIZATION_DB = "adi4LightHalfMiddleTitles";

@@ -22,6 +22,8 @@ export const SHOP_PRICE_HISTORY_ARRAY_FIELD = "priceHistoryArray";
 export const SHOP_URL_FIELD = "link-shop-listings-itemName";
 export const SHOP_LISTINGS_URL_SUFFIX = "/shop-listings";
 
+export const SHOP_IMAGE_ETAG_FIELD = "imageETag";
+
 export const SHOP_NUMBER_OF_CHALLENGE_SWAPS_FIELD = "numberOfChallengeSwaps";
 export const SHOP_NUMBER_OF_XP_BOOSTS_FIELD = "numberOfXpBoosts";
 export const SHOP_NUMBER_OF_XP_GRANTS_FIELD = "numberOfXpGrants";
