@@ -60,7 +60,8 @@ export async function addCustomizationImageToMediaManager(requestHeaders, waypoi
 
 	let httpOptions = {
 		headers: requestHeaders,
-		timeout: 10000
+		timeout: 10000,
+		maxBodyLength: Infinity
 	};
 
 	// If no waypoint path was defined, we need to resolve the promise with the placeholder image URL.
@@ -238,7 +239,32 @@ export async function generateFolderDict() {
 			else {
 				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY, "value": folderDict });
 			}
-		})
+		});
+
+	// Save the specific categories as well.
+	for (let category in folderDict["/"][customizationImageFolderName + "/"]) {
+		wixData.query(KeyConstants.KEY_VALUE_DB)
+			.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + category)
+			.find()
+			.then((results) => {
+			if (results.items.length > 0) {
+				let item = results.items[0];
+				item.value = folderDict;
+				wixData.save(KeyConstants.KEY_VALUE_DB, item);
+			}
+			else {
+				let categorySpecificFolderDict = { 
+					"/": { 
+						[customizationImageFolderName + "/"]: {
+							[category]: folderDict["/"][customizationImageFolderName + "/"][category]
+						}
+					}
+				};
+
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + category, "value": categorySpecificFolderDict });
+			}
+		});
+	}
 }
 
 // Retrieves an item's image URL based on the customizationCategory, customizationType, customizationCore (if applicable), parentCustomizationType (for attachments) path, and mimeType.
