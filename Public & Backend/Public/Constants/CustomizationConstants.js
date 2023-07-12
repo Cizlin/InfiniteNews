@@ -240,7 +240,8 @@ export const CUSTOMIZATION_CATEGORY_SPECIFIC_VARS = {
 		"UrlCustomization": GeneralConstants.URL_ARMOR_ATTACHMENT_CUSTOMIZATION,
 		"UrlSocketParam": GeneralConstants.URL_ARMOR_ATTACHMENT_SOCKET_PARAM,
 		"DefaultSocketName": "All Armor Attachment Categories",
-		"SearchCategory": "Armor Attachments"
+		"SearchCategory": "Armor Attachments",
+		"ThemeType": ArmorConstants.ARMOR_THEME_WAYPOINT_TYPE
 	},
 
 	[WeaponConstants.WEAPON_KEY]: {
