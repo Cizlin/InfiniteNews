@@ -76,6 +76,7 @@ $w.onReady(async function () {
 						console.log("Showing video and hiding image.")
 						$item("#" + TYPE + "Image").collapse();
 						$item("#" + TYPE + "Image").hide();
+						$item("#" + TYPE + "EffectVideoPlayer").src = currentItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[TYPE_DICT[TYPE]].CustomizationEffectVideoField];
 						$item("#" + TYPE + "EffectVideoPlayer").expand();
 						$item("#" + TYPE + "EffectVideoPlayer").show();
 					}
