@@ -1706,6 +1706,7 @@ export async function refreshShopListings() {
 						item[ShopConstants.SHOP_ITEM_NAME_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_ITEM_NAME_FIELD];
 						item[ShopConstants.SHOP_COST_CREDITS_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD];
 						item[ShopConstants.SHOP_TIME_TYPE_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_TIME_TYPE_FIELD];
+						item[ShopConstants.SHOP_IS_HCS_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_IS_HCS_FIELD];
 					}
 					else { // If we didn't find the item, we need to add it. This is a bit involved since we also have to add references for each of its multi-references.
 						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD] = [];
@@ -1715,6 +1716,10 @@ export async function refreshShopListings() {
 						console.log(newShopListingsToUpdate[i]);
 
 						item = await addBundleToDb(newShopListingsToUpdate[i]); // We need to await this if we want to integrate with the Twitter API.
+
+						// Add this item to the list of shop listings in the DB.
+						items.push(structuredClone(item)); // Clone the item so we don't overwrite it later.
+						itemIds.push(item[ShopConstants.SHOP_WAYPOINT_ID_FIELD]);
 					}
 
 					updateItemArray.push(item);
