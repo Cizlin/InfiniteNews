@@ -249,7 +249,16 @@ export async function generateFolderDict() {
 			.then((results) => {
 			if (results.items.length > 0) {
 				let item = results.items[0];
-				item.value = folderDict;
+				
+				let categorySpecificFolderDict = { 
+					"/": { 
+						[customizationImageFolderName + "/"]: {
+							[category]: folderDict["/"][customizationImageFolderName + "/"][category]
+						}
+					}
+				};
+
+				item.value = categorySpecificFolderDict;
 				wixData.save(KeyConstants.KEY_VALUE_DB, item);
 			}
 			else {
