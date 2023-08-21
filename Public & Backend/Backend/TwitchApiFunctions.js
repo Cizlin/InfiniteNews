@@ -429,19 +429,18 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
 
                     let matchingRewards = await wixData.query("TwitchDropRewards")
                         .eq("waypointId", code)
-                        .contains("title", name) // Just in case something goofy happens with spacing. This also renders us immune to casing issues.
                         .find()
                         .then((results) => {
                             return results.items;
                         })
                         .catch((error) => {
-                            console.error("Error occurred when retrieving Twitch drop rewards based on name and code: " + name + ", " + code + ": " + error);
+                            console.error("Error occurred when retrieving Twitch drop rewards based on code: " + code + ": " + error);
                             return [];
                         });
                     
                     if (matchingRewards.length === 0) {
                         // The fetch didn't find anything matching both the name and code. We should just search based on the name, just in case the code is now being used for a different drop (unknown if this is an issue).
-                        console.log("Found no results based on both name and code. Searching only for name now.");
+                        console.log("Found no results based on code. Searching only for name now.");
                         matchingRewards = await wixData.query("TwitchDropRewards")
                             .contains("title", name)
                             .find()
