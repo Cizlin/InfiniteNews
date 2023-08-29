@@ -464,6 +464,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "event":
 							case "exclusive content!":
 							case "exclusive content":
+							case "last chance":
 								if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE]; // The Boost and Swap Pack is getting picked up by this.
 								}
