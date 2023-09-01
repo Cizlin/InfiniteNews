@@ -10,7 +10,8 @@ $w.onReady(function () {
 		let currentItem = itemData;
 
 		if (currentItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[WeaponConstants.WEAPON_KEY].CustomizationEffectVideoField]) {
-			console.log("Showing video and hiding image.")
+			console.log("Showing video and hiding image.");
+			$item("#effectVideoPlayer").src = currentItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[WeaponConstants.WEAPON_KEY].CustomizationEffectVideoField];
 			$item("#image").collapse();
 			$item("#image").hide();
 			$item("#effectVideoPlayer").expand();
