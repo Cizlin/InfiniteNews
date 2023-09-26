@@ -158,9 +158,17 @@ export async function generateFolderDict() {
 	// Now that we're in the Customization Images folder, we need to get the list of folders within it.
 	let customizationImagesFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 	let customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-	customizationImagesFileList.forEach((file) => {
-		folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-	});
+	let iterations = 0;
+	while (customizationImagesFileList.length > 0) {
+		customizationImagesFileList.forEach((file) => {
+			folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+		});
+
+		iterations++;
+
+		customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+			{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+	}
 
 	let customizationCategoryFolderName;
 
@@ -177,9 +185,17 @@ export async function generateFolderDict() {
 		// For each of these category folders, we need to get the folders within.
 		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-		customizationCategoryFileList.forEach((file) => {
-			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-		});
+		iterations = 0;
+		while (customizationCategoryFileList.length > 0)
+		{
+			customizationCategoryFileList.forEach((file) => {
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+			});
+
+			iterations++;
+			customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+		}
 
 		let customizationTypeFolderName;
 		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
@@ -191,9 +207,17 @@ export async function generateFolderDict() {
 			// Same for the type folders.
 			let customizationTypeFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 			let customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-			customizationTypeFileList.forEach((file) => {
-				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-			});
+			iterations = 0;
+			while (customizationTypeFileList.length > 0)
+			{
+				customizationTypeFileList.forEach((file) => {
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+				});
+
+				iterations++;
+				customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+					{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+			}
 
 			let customizationCoreFolderName;
 			for (let k = 0; k < customizationTypeFolderList.length; k++) {
@@ -206,9 +230,17 @@ export async function generateFolderDict() {
 				// And for attachments, the parent customization type...
 				let customizationCoreFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 				let customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-				customizationCoreFileList.forEach((file) => {
-					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-				});
+				iterations = 0;
+				while (customizationCoreFileList.length > 0)
+				{
+					customizationCoreFileList.forEach((file) => {
+						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+					});
+
+					iterations++;
+					customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+						{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+				}
 
 				for (let l = 0; l < customizationCoreFolderList.length; l++) {
 					let parentTypeElement = customizationCoreFolderList[l];
@@ -216,10 +248,17 @@ export async function generateFolderDict() {
 					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"] = { "_id": parentTypeElement.folderId }
 
 					let customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentTypeElement.folderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT })
-					customizationParentTypeFileList.forEach((file) => {
-						// Even larger line here. :(
-						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-					});
+					iterations = 0;
+					while (customizationParentTypeFileList.length > 0) {
+						customizationParentTypeFileList.forEach((file) => {
+							// Even larger line here. :(
+							folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+						});
+
+						iterations++;
+						customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+							{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+					}
 				}
 			}
 		}
@@ -536,9 +575,16 @@ export async function generateEmblemPaletteFolderDict() {
 	// Now that we're in the Customization Images folder, we need to get the list of folders within it.
 	let customizationImagesFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
 	let customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-	customizationImagesFileList.forEach((file) => {
-		folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-	});
+	let iterations = 0;
+	while (customizationImagesFileList.length > 0) {
+		customizationImagesFileList.forEach((file) => {
+			folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+		});
+
+		iterations++;
+		customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+			{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+	}
 
 	let customizationCategoryFolderName;
 
@@ -555,9 +601,16 @@ export async function generateEmblemPaletteFolderDict() {
 		// We need to get the Emblem Palette Configuration ID folders within. There's a ton of them, so we need to increase the limit to several hundred (might need to make this more future-proof later).
 		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT });
 		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-		customizationCategoryFileList.forEach((file) => {
-			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-		});
+		iterations = 0;
+		while (customizationCategoryFileList.length > 0) {
+			customizationCategoryFileList.forEach((file) => {
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+			});
+
+			iterations++;
+			customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+		}
 
 		let emblemConfigurationIdFolderName;
 		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
@@ -568,9 +621,16 @@ export async function generateEmblemPaletteFolderDict() {
 
 			// We can just list the files now.
 			let emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-			emblemConfigurationIdFileList.forEach((file) => {
-				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][emblemConfigurationIdFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-			});
+			iterations = 0;
+			while (emblemConfigurationIdFileList.length > 0) {
+				emblemConfigurationIdFileList.forEach((file) => {
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][emblemConfigurationIdFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+				});
+
+				iterations++;
+				emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+					{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+			}
 		}
 	}
 
