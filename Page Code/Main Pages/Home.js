@@ -130,7 +130,8 @@ $w.onReady(async function () {
 
 						if (i < referencedRewards.length - 1) {
 							// Add a comma-space separator in all but the last case.
-							rewardListText += ", ";
+							rewardListText += " and more!";
+							break;
 						}
 					}
 				}
@@ -142,7 +143,8 @@ $w.onReady(async function () {
 
 				if (i < referencedRewards.length - 1) {
 					// Add a comma-space separator in all but the last case.
-					rewardListText += ", ";
+					rewardListText += " and more!";
+					break;
 				}
 			}
 		}
@@ -154,25 +156,4 @@ $w.onReady(async function () {
 		$w("#twitchDropRewards").text = rewardListText;
 		$w("#twitchDropRewardImage").fitMode = "fit";
 	});
-
-	// Update the Featured Shop Bundle Listing
-	/*$w("#shopDatasetDaily").onReady(() => {
-		let shopBundle = $w("#shopDatasetDaily").getCurrentItem();
-		if (shopBundle) {
-			$w("#shopImageDaily").fitMode = "fit";
-			$w("#shopCreditCostDaily").text = "Credits: " + shopBundle[ShopConstants.SHOP_COST_CREDITS_FIELD];
-		}
-		else {
-			$w("#shopImageDaily").hide();
-			$w("#shopImageDaily").collapse();
-			$w("#shopBundleTypeDaily").hide();
-			$w("#shopBundleTypeDaily").collapse();
-			$w("#shopCreditCostDaily").hide();
-			$w("#shopCreditCostDaily").collapse();
-			$w("#shopButtonDaily").hide();
-			$w("#shopButtonDaily").collapse();
-		}
-	});*/
-
-
 });
