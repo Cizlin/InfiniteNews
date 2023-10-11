@@ -9,10 +9,14 @@ import { paginationKey } from 'public/Pagination.js';
 import * as GeneralFunctions from 'public/General.js';
 
 function loadRankPage(pageNumber) {
-	$w("#freePassRanksDataset").loadPage(pageNumber);
-	if ($w("#premiumPassRanksDataset").getTotalCount() > 0) {
-		$w("#premiumPassRanksDataset").loadPage(pageNumber);
-	}
+	$w("#freePassRanksDataset").onReady(() => {
+		$w("#freePassRanksDataset").loadPage(pageNumber);
+		$w("#premiumPassRanksDataset").onReady(() => {
+			if ($w("#premiumPassRanksDataset").getTotalCount() > 0) {
+				$w("#premiumPassRanksDataset").loadPage(pageNumber);
+			}
+		});
+	});
 }
 
 function setPassPaginationIndexFromSave() {
@@ -168,11 +172,11 @@ $w.onReady(function () {
 						await wixData.queryReferenced(itemDb, childItem._id, CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SourceTypeField"])
 							.then((results) => {
 								results.items.forEach((element, index) => {
-									if (index == 3) {
+									if (index == 2) {
 										sourceString += "etc., "; // We're truncating this since it's a lot to write for some consumables.
 										return;
 									}
-									else if (index > 3) { // Don't process any more sources. No more room.
+									else if (index > 2) { // Don't process any more sources. No more room.
 										return;
 									}
 
