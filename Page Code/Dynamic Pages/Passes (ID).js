@@ -226,6 +226,10 @@ $w.onReady(function () {
 						customizationTypeString = CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "Type"];
 					}
 
+					if (rankContainsMultipleItems) {
+						customizationTypeString = "Multiple items";
+					}
+
 					$item("#" + repeaterType + "ItemTypeText").text = customizationTypeString;
 
 					$item("#" + repeaterType + "ItemImage").fitMode = "fit";
