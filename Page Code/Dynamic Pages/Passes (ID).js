@@ -82,16 +82,25 @@ $w.onReady(function () {
 			$w("#" + repeaterType + "ItemRepeater").onItemReady(async ($item, itemData) => {
 				$item("#" + repeaterType + "EffectVideoPlayer").collapse();
 				$item("#" + repeaterType + "EffectVideoPlayer").hide();
+				$item("#" + repeaterType + "MultiplesText").hide();
 
 				//console.log(itemData);
 				// First, we need to figure out which child item category actually has items.
 				let categoryWithItems = "";
+				let rankContainsMultipleItems = (itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].length > 1);
 				if (itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].length > 0) { // We're just going to grab the first category and item for now.
 					categoryWithItems = itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD][0];
 					let queryResults = await wixData.queryReferenced(PassConstants.PASS_RANK_DB, itemData._id, categoryWithItems);
 					if (queryResults.items.length > 0) {
 						itemData[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
+						if (queryResults.items.length > 1) {
+							rankContainsMultipleItems = true;
+						}
 					}
+				}
+
+				if (rankContainsMultipleItems) {
+					$item("#" + repeaterType + "MultiplesText").show();
 				}
 
 				if (categoryWithItems == "") { // Some ranks won't have any items in them, particularly some free ranks in Battle Passes.
@@ -136,7 +145,7 @@ $w.onReady(function () {
 					let childItemArray = itemData[categoryWithItems];
 					let childItem = childItemArray[0]; // We're assuming that we only have one item returned. We'll worry about multiple items later.
 
-					$item("#" + repeaterType + "ItemButton").link = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "UrlField"]];
+					//$item("#" + repeaterType + "ItemButton").link = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "UrlField"]];
 					$item("#" + repeaterType + "ItemImage").src = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "ImageField"]];
 					$item("#" + repeaterType + "ItemNameText").text = itemData[PassConstants.PASS_RANK_RANK_NUM_FIELD] + ": " +
 						childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]];
