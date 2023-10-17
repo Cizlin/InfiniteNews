@@ -121,8 +121,10 @@ $w.onReady(function () {
 				weekNum = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_WEEK_ARRAY_FIELD][0]; // We want the most recent Week Num available.
 			}
 
-			if (seasonNum == 2001) {
-				$item("#ultimateChallengeSeasonAndWeek").text = "Winter Update, Week " + weekNum;
+			if (seasonNum > 1000) {
+				let seasonOperation = seasonNum % 10;
+				seasonNum = Math.floor(seasonNum / 1000);
+				$item("#ultimateChallengeSeasonAndWeek").text = "Season " + seasonNum + "." + seasonOperation + ", Week " + weekNum;
 			}
 			else {
 				$item("#ultimateChallengeSeasonAndWeek").text = "Season " + seasonNum + ", Week " + weekNum;
