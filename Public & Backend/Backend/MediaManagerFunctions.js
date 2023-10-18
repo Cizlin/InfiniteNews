@@ -178,7 +178,200 @@ export async function generateFolderDict() {
 		parentFolderId = element.folderId;
 		customizationCategoryFolderName = element.folderName;
 
-		if (customizationCategoryFolderName == GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER) {
+		if (customizationCategoryFolderName === GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER 
+		|| customizationCategoryFolderName === GeneralConstants.SHOP_ROOT_FOLDER
+		|| customizationCategoryFolderName === GeneralConstants.ARMOR_ROOT_FOLDER
+		|| customizationCategoryFolderName === GeneralConstants.WEAPON_ROOT_FOLDER
+		|| customizationCategoryFolderName === GeneralConstants.VEHICLE_ROOT_FOLDER) {
+			continue;
+		}
+
+		// For each of these category folders, we need to get the folders within.
+		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+		iterations = 0;
+		while (customizationCategoryFileList.length > 0)
+		{
+			customizationCategoryFileList.forEach((file) => {
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+			});
+
+			iterations++;
+			customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+		}
+
+		let customizationTypeFolderName;
+		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
+			let typeElement = customizationCategoryFolderList[j];
+			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][typeElement.folderName + "/"] = { "_id": typeElement.folderId }
+			parentFolderId = typeElement.folderId;
+			customizationTypeFolderName = typeElement.folderName;
+
+			// Same for the type folders.
+			let customizationTypeFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+			let customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+			iterations = 0;
+			while (customizationTypeFileList.length > 0)
+			{
+				customizationTypeFileList.forEach((file) => {
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+				});
+
+				iterations++;
+				customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+					{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+			}
+
+			let customizationCoreFolderName;
+			for (let k = 0; k < customizationTypeFolderList.length; k++) {
+				let coreElement = customizationTypeFolderList[k];
+				// Big line below. Terribly sorry.
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][coreElement.folderName + "/"] = { "_id": coreElement.folderId }
+				parentFolderId = coreElement.folderId;
+				customizationCoreFolderName = coreElement.folderName;
+
+				// And for attachments, the parent customization type...
+				let customizationCoreFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+				let customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+				iterations = 0;
+				while (customizationCoreFileList.length > 0)
+				{
+					customizationCoreFileList.forEach((file) => {
+						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+					});
+
+					iterations++;
+					customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+						{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+				}
+
+				for (let l = 0; l < customizationCoreFolderList.length; l++) {
+					let parentTypeElement = customizationCoreFolderList[l];
+					// This is actually insane at this point. Beware the giant AF line below!
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"] = { "_id": parentTypeElement.folderId }
+
+					let customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentTypeElement.folderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT })
+					iterations = 0;
+					while (customizationParentTypeFileList.length > 0) {
+						customizationParentTypeFileList.forEach((file) => {
+							// Even larger line here. :(
+							folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+						});
+
+						iterations++;
+						customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+							{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+					}
+				}
+			}
+		}
+	}
+
+	console.log("Folder dict generated: ", folderDict);
+
+	/*wixData.query(KeyConstants.KEY_VALUE_DB)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+		.find()
+		.then((results) => {
+			if (results.items.length > 0) {
+				let item = results.items[0];
+				item.value = folderDict;
+				wixData.save(KeyConstants.KEY_VALUE_DB, item);
+			}
+			else {
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY, "value": folderDict });
+			}
+		});*/
+
+	// Save the specific categories as well.
+	for (let category in folderDict["/"][customizationImageFolderName + "/"]) {
+		if (category === GeneralConstants.EMBLEM_PALETTE_ROOT_FOLDER + "/"
+		|| category === GeneralConstants.SHOP_ROOT_FOLDER + "/"
+		|| category === GeneralConstants.ARMOR_ROOT_FOLDER + "/"
+		|| category === GeneralConstants.WEAPON_ROOT_FOLDER + "/"
+		|| category === GeneralConstants.VEHICLE_ROOT_FOLDER + "/") {
+			continue;
+		}
+
+		wixData.query(KeyConstants.KEY_VALUE_DB)
+			.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + category)
+			.find()
+			.then((results) => {
+			if (results.items.length > 0) {
+				let item = results.items[0];
+				
+				let categorySpecificFolderDict = { 
+					"/": { 
+						[customizationImageFolderName + "/"]: {
+							[category]: folderDict["/"][customizationImageFolderName + "/"][category]
+						}
+					}
+				};
+
+				item.value = categorySpecificFolderDict;
+				wixData.save(KeyConstants.KEY_VALUE_DB, item);
+			}
+			else {
+				let categorySpecificFolderDict = { 
+					"/": { 
+						[customizationImageFolderName + "/"]: {
+							[category]: folderDict["/"][customizationImageFolderName + "/"][category]
+						}
+					}
+				};
+
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + category, "value": categorySpecificFolderDict });
+			}
+		});
+	}
+}
+
+export async function generateArmorFolderDict() {
+	// The folderDict will essentially be a hierarchical listing of the customization images folders. The ID of each folder is stored in _id, except for "/".
+	// We will also store the files in this dictionary with the user-readable filename as the key (with . replaced by , since JSON) and the file Name as the value. 
+	// Still need to fetch the file URL, but that should be quick. Speed. I am speed.
+
+	console.log("Starting folder dict generation.");
+	let folderDict = {
+		"/": {}
+	};
+
+	let rootFolderList = await mediaManager.listFolders();
+	let parentFolderId = "";
+	let customizationImageFolderName = "";
+	rootFolderList.forEach((element) => {
+		if (element.folderName == GeneralConstants.CUSTOMIZATION_ROOT_FOLDER) {
+			folderDict["/"][element.folderName + "/"] = { "_id": element.folderId }
+			parentFolderId = element.folderId;
+			customizationImageFolderName = element.folderName;
+		}
+	});
+
+	// Now that we're in the Customization Images folder, we need to get the list of folders within it.
+	let customizationImagesFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+	let customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+	let iterations = 0;
+	while (customizationImagesFileList.length > 0) {
+		customizationImagesFileList.forEach((file) => {
+			folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+		});
+
+		iterations++;
+
+		customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+			{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+	}
+
+	let customizationCategoryFolderName;
+
+	for (let i = 0; i < customizationImagesFolderList.length; i++) {
+		let element = customizationImagesFolderList[i];
+		folderDict["/"][customizationImageFolderName + "/"][element.folderName + "/"] = { "_id": element.folderId }
+		parentFolderId = element.folderId;
+		customizationCategoryFolderName = element.folderName;
+
+		if (customizationCategoryFolderName != GeneralConstants.ARMOR_ROOT_FOLDER) {
 			continue;
 		}
 
@@ -267,7 +460,7 @@ export async function generateFolderDict() {
 	console.log("Folder dict generated: ", folderDict);
 
 	wixData.query(KeyConstants.KEY_VALUE_DB)
-		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + GeneralConstants.ARMOR_ROOT_FOLDER + "/")
 		.find()
 		.then((results) => {
 			if (results.items.length > 0) {
@@ -276,43 +469,451 @@ export async function generateFolderDict() {
 				wixData.save(KeyConstants.KEY_VALUE_DB, item);
 			}
 			else {
-				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY, "value": folderDict });
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + GeneralConstants.ARMOR_ROOT_FOLDER + "/", "value": folderDict });
 			}
 		});
+}
 
-	// Save the specific categories as well.
-	for (let category in folderDict["/"][customizationImageFolderName + "/"]) {
-		wixData.query(KeyConstants.KEY_VALUE_DB)
-			.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + category)
-			.find()
-			.then((results) => {
+export async function generateWeaponFolderDict() {
+	// The folderDict will essentially be a hierarchical listing of the customization images folders. The ID of each folder is stored in _id, except for "/".
+	// We will also store the files in this dictionary with the user-readable filename as the key (with . replaced by , since JSON) and the file Name as the value. 
+	// Still need to fetch the file URL, but that should be quick. Speed. I am speed.
+
+	console.log("Starting folder dict generation.");
+	let folderDict = {
+		"/": {}
+	};
+
+	let rootFolderList = await mediaManager.listFolders();
+	let parentFolderId = "";
+	let customizationImageFolderName = "";
+	rootFolderList.forEach((element) => {
+		if (element.folderName == GeneralConstants.CUSTOMIZATION_ROOT_FOLDER) {
+			folderDict["/"][element.folderName + "/"] = { "_id": element.folderId }
+			parentFolderId = element.folderId;
+			customizationImageFolderName = element.folderName;
+		}
+	});
+
+	// Now that we're in the Customization Images folder, we need to get the list of folders within it.
+	let customizationImagesFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+	let customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+	let iterations = 0;
+	while (customizationImagesFileList.length > 0) {
+		customizationImagesFileList.forEach((file) => {
+			folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+		});
+
+		iterations++;
+
+		customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+			{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+	}
+
+	let customizationCategoryFolderName;
+
+	for (let i = 0; i < customizationImagesFolderList.length; i++) {
+		let element = customizationImagesFolderList[i];
+		folderDict["/"][customizationImageFolderName + "/"][element.folderName + "/"] = { "_id": element.folderId }
+		parentFolderId = element.folderId;
+		customizationCategoryFolderName = element.folderName;
+
+		if (customizationCategoryFolderName != GeneralConstants.WEAPON_ROOT_FOLDER) {
+			continue;
+		}
+
+		// For each of these category folders, we need to get the folders within.
+		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+		iterations = 0;
+		while (customizationCategoryFileList.length > 0)
+		{
+			customizationCategoryFileList.forEach((file) => {
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+			});
+
+			iterations++;
+			customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+		}
+
+		let customizationTypeFolderName;
+		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
+			let typeElement = customizationCategoryFolderList[j];
+			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][typeElement.folderName + "/"] = { "_id": typeElement.folderId }
+			parentFolderId = typeElement.folderId;
+			customizationTypeFolderName = typeElement.folderName;
+
+			// Same for the type folders.
+			let customizationTypeFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+			let customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+			iterations = 0;
+			while (customizationTypeFileList.length > 0)
+			{
+				customizationTypeFileList.forEach((file) => {
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+				});
+
+				iterations++;
+				customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+					{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+			}
+
+			let customizationCoreFolderName;
+			for (let k = 0; k < customizationTypeFolderList.length; k++) {
+				let coreElement = customizationTypeFolderList[k];
+				// Big line below. Terribly sorry.
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][coreElement.folderName + "/"] = { "_id": coreElement.folderId }
+				parentFolderId = coreElement.folderId;
+				customizationCoreFolderName = coreElement.folderName;
+
+				// And for attachments, the parent customization type...
+				let customizationCoreFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+				let customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+				iterations = 0;
+				while (customizationCoreFileList.length > 0)
+				{
+					customizationCoreFileList.forEach((file) => {
+						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+					});
+
+					iterations++;
+					customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+						{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+				}
+
+				for (let l = 0; l < customizationCoreFolderList.length; l++) {
+					let parentTypeElement = customizationCoreFolderList[l];
+					// This is actually insane at this point. Beware the giant AF line below!
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"] = { "_id": parentTypeElement.folderId }
+
+					let customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentTypeElement.folderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT })
+					iterations = 0;
+					while (customizationParentTypeFileList.length > 0) {
+						customizationParentTypeFileList.forEach((file) => {
+							// Even larger line here. :(
+							folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+						});
+
+						iterations++;
+						customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+							{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+					}
+				}
+			}
+		}
+	}
+
+	console.log("Folder dict generated: ", folderDict);
+
+	wixData.query(KeyConstants.KEY_VALUE_DB)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + GeneralConstants.WEAPON_ROOT_FOLDER + "/")
+		.find()
+		.then((results) => {
 			if (results.items.length > 0) {
 				let item = results.items[0];
-				
-				let categorySpecificFolderDict = { 
-					"/": { 
-						[customizationImageFolderName + "/"]: {
-							[category]: folderDict["/"][customizationImageFolderName + "/"][category]
-						}
-					}
-				};
-
-				item.value = categorySpecificFolderDict;
+				item.value = folderDict;
 				wixData.save(KeyConstants.KEY_VALUE_DB, item);
 			}
 			else {
-				let categorySpecificFolderDict = { 
-					"/": { 
-						[customizationImageFolderName + "/"]: {
-							[category]: folderDict["/"][customizationImageFolderName + "/"][category]
-						}
-					}
-				};
-
-				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + category, "value": categorySpecificFolderDict });
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + GeneralConstants.WEAPON_ROOT_FOLDER + "/", "value": folderDict });
 			}
 		});
+}
+
+export async function generateVehicleFolderDict() {
+	// The folderDict will essentially be a hierarchical listing of the customization images folders. The ID of each folder is stored in _id, except for "/".
+	// We will also store the files in this dictionary with the user-readable filename as the key (with . replaced by , since JSON) and the file Name as the value. 
+	// Still need to fetch the file URL, but that should be quick. Speed. I am speed.
+
+	console.log("Starting folder dict generation.");
+	let folderDict = {
+		"/": {}
+	};
+
+	let rootFolderList = await mediaManager.listFolders();
+	let parentFolderId = "";
+	let customizationImageFolderName = "";
+	rootFolderList.forEach((element) => {
+		if (element.folderName == GeneralConstants.CUSTOMIZATION_ROOT_FOLDER) {
+			folderDict["/"][element.folderName + "/"] = { "_id": element.folderId }
+			parentFolderId = element.folderId;
+			customizationImageFolderName = element.folderName;
+		}
+	});
+
+	// Now that we're in the Customization Images folder, we need to get the list of folders within it.
+	let customizationImagesFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+	let customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+	let iterations = 0;
+	while (customizationImagesFileList.length > 0) {
+		customizationImagesFileList.forEach((file) => {
+			folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+		});
+
+		iterations++;
+
+		customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+			{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
 	}
+
+	let customizationCategoryFolderName;
+
+	for (let i = 0; i < customizationImagesFolderList.length; i++) {
+		let element = customizationImagesFolderList[i];
+		folderDict["/"][customizationImageFolderName + "/"][element.folderName + "/"] = { "_id": element.folderId }
+		parentFolderId = element.folderId;
+		customizationCategoryFolderName = element.folderName;
+
+		if (customizationCategoryFolderName != GeneralConstants.VEHICLE_ROOT_FOLDER) {
+			continue;
+		}
+
+		// For each of these category folders, we need to get the folders within.
+		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+		iterations = 0;
+		while (customizationCategoryFileList.length > 0)
+		{
+			customizationCategoryFileList.forEach((file) => {
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+			});
+
+			iterations++;
+			customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+		}
+
+		let customizationTypeFolderName;
+		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
+			let typeElement = customizationCategoryFolderList[j];
+			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][typeElement.folderName + "/"] = { "_id": typeElement.folderId }
+			parentFolderId = typeElement.folderId;
+			customizationTypeFolderName = typeElement.folderName;
+
+			// Same for the type folders.
+			let customizationTypeFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+			let customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+			iterations = 0;
+			while (customizationTypeFileList.length > 0)
+			{
+				customizationTypeFileList.forEach((file) => {
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+				});
+
+				iterations++;
+				customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+					{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+			}
+
+			let customizationCoreFolderName;
+			for (let k = 0; k < customizationTypeFolderList.length; k++) {
+				let coreElement = customizationTypeFolderList[k];
+				// Big line below. Terribly sorry.
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][coreElement.folderName + "/"] = { "_id": coreElement.folderId }
+				parentFolderId = coreElement.folderId;
+				customizationCoreFolderName = coreElement.folderName;
+
+				// And for attachments, the parent customization type...
+				let customizationCoreFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+				let customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+				iterations = 0;
+				while (customizationCoreFileList.length > 0)
+				{
+					customizationCoreFileList.forEach((file) => {
+						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+					});
+
+					iterations++;
+					customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+						{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+				}
+
+				for (let l = 0; l < customizationCoreFolderList.length; l++) {
+					let parentTypeElement = customizationCoreFolderList[l];
+					// This is actually insane at this point. Beware the giant AF line below!
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"] = { "_id": parentTypeElement.folderId }
+
+					let customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentTypeElement.folderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT })
+					iterations = 0;
+					while (customizationParentTypeFileList.length > 0) {
+						customizationParentTypeFileList.forEach((file) => {
+							// Even larger line here. :(
+							folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+						});
+
+						iterations++;
+						customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+							{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+					}
+				}
+			}
+		}
+	}
+
+	console.log("Folder dict generated: ", folderDict);
+
+	wixData.query(KeyConstants.KEY_VALUE_DB)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + GeneralConstants.VEHICLE_ROOT_FOLDER + "/")
+		.find()
+		.then((results) => {
+			if (results.items.length > 0) {
+				let item = results.items[0];
+				item.value = folderDict;
+				wixData.save(KeyConstants.KEY_VALUE_DB, item);
+			}
+			else {
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + GeneralConstants.VEHICLE_ROOT_FOLDER + "/", "value": folderDict });
+			}
+		});
+}
+
+// We need to be more efficient, so we're going to generate the entire folder tree all at once, then use the paths in the tree to locate each image.
+export async function generateShopFolderDict() {
+	// The folderDict will essentially be a hierarchical listing of the customization images folders. The ID of each folder is stored in _id, except for "/".
+	// We will also store the files in this dictionary with the user-readable filename as the key (with . replaced by , since JSON) and the file Name as the value. 
+	// Still need to fetch the file URL, but that should be quick. Speed. I am speed.
+
+	console.log("Starting folder dict generation.");
+	let folderDict = {
+		"/": {}
+	};
+
+	let rootFolderList = await mediaManager.listFolders();
+	let parentFolderId = "";
+	let customizationImageFolderName = "";
+	rootFolderList.forEach((element) => {
+		if (element.folderName == GeneralConstants.CUSTOMIZATION_ROOT_FOLDER) {
+			folderDict["/"][element.folderName + "/"] = { "_id": element.folderId }
+			parentFolderId = element.folderId;
+			customizationImageFolderName = element.folderName;
+		}
+	});
+
+	// Now that we're in the Customization Images folder, we need to get the list of folders within it.
+	let customizationImagesFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+	let customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+	let iterations = 0;
+	while (customizationImagesFileList.length > 0) {
+		customizationImagesFileList.forEach((file) => {
+			folderDict["/"][customizationImageFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+		});
+
+		iterations++;
+
+		customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+			{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+	}
+
+	let customizationCategoryFolderName;
+
+	for (let i = 0; i < customizationImagesFolderList.length; i++) {
+		let element = customizationImagesFolderList[i];
+		folderDict["/"][customizationImageFolderName + "/"][element.folderName + "/"] = { "_id": element.folderId }
+		parentFolderId = element.folderId;
+		customizationCategoryFolderName = element.folderName;
+
+		if (customizationCategoryFolderName != GeneralConstants.SHOP_ROOT_FOLDER) {
+			continue;
+		}
+
+		// For each of these category folders, we need to get the folders within.
+		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+		iterations = 0;
+		while (customizationCategoryFileList.length > 0)
+		{
+			customizationCategoryFileList.forEach((file) => {
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+			});
+
+			iterations++;
+			customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+		}
+
+		let customizationTypeFolderName;
+		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
+			let typeElement = customizationCategoryFolderList[j];
+			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][typeElement.folderName + "/"] = { "_id": typeElement.folderId }
+			parentFolderId = typeElement.folderId;
+			customizationTypeFolderName = typeElement.folderName;
+
+			// Same for the type folders.
+			let customizationTypeFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+			let customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+			iterations = 0;
+			while (customizationTypeFileList.length > 0)
+			{
+				customizationTypeFileList.forEach((file) => {
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+				});
+
+				iterations++;
+				customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+					{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+			}
+
+			let customizationCoreFolderName;
+			for (let k = 0; k < customizationTypeFolderList.length; k++) {
+				let coreElement = customizationTypeFolderList[k];
+				// Big line below. Terribly sorry.
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][coreElement.folderName + "/"] = { "_id": coreElement.folderId }
+				parentFolderId = coreElement.folderId;
+				customizationCoreFolderName = coreElement.folderName;
+
+				// And for attachments, the parent customization type...
+				let customizationCoreFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId });
+				let customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+				iterations = 0;
+				while (customizationCoreFileList.length > 0)
+				{
+					customizationCoreFileList.forEach((file) => {
+						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+					});
+
+					iterations++;
+					customizationCoreFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+						{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+				}
+
+				for (let l = 0; l < customizationCoreFolderList.length; l++) {
+					let parentTypeElement = customizationCoreFolderList[l];
+					// This is actually insane at this point. Beware the giant AF line below!
+					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"] = { "_id": parentTypeElement.folderId }
+
+					let customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentTypeElement.folderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT })
+					iterations = 0;
+					while (customizationParentTypeFileList.length > 0) {
+						customizationParentTypeFileList.forEach((file) => {
+							// Even larger line here. :(
+							folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][customizationCoreFolderName + "/"][parentTypeElement.folderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+						});
+
+						iterations++;
+						customizationParentTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+							{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+					}
+				}
+			}
+		}
+	}
+
+	console.log("Folder dict generated: ", folderDict);
+
+	wixData.query(KeyConstants.KEY_VALUE_DB)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_Shop/")
+		.find()
+		.then((results) => {
+			if (results.items.length > 0) {
+				let item = results.items[0];
+				item.value = folderDict;
+				wixData.save(KeyConstants.KEY_VALUE_DB, item);
+			}
+			else {
+				wixData.save(KeyConstants.KEY_VALUE_DB, { "key": KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_Shop/", "value": folderDict });
+			}
+		});
 }
 
 // Retrieves an item's image URL based on the customizationCategory, customizationType, customizationCore (if applicable), parentCustomizationType (for attachments) path, and mimeType.
@@ -452,27 +1053,27 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 					else {
 						folderExists = false;
 					}
+				}
 
-					if (CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
-						let parentTypeFolder = "";
+				if (folderExists && CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) {
+					let parentTypeFolder = "";
 
-						// We just need to find the first type matching our provided customizationType.
-						const TYPE_PARENT_MEDIA_FOLDER = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketParentMediaFolderField;
+					// We just need to find the first type matching our provided customizationType.
+					const TYPE_PARENT_MEDIA_FOLDER = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketParentMediaFolderField;
 
-						customizationTypeArray.some((type) => {
-							if (customizationType == type.name) {
-								parentTypeFolder = type[TYPE_PARENT_MEDIA_FOLDER];
-								return true;
-							}
-						});
-
-						mediaPath = mediaPath + parentTypeFolder + "/";
-						if (folderExists && ((parentTypeFolder + "/") in subFolderDict)) {
-							subFolderDict = subFolderDict[parentTypeFolder + "/"];
+					customizationTypeArray.some((type) => {
+						if (customizationType == type.name) {
+							parentTypeFolder = type[TYPE_PARENT_MEDIA_FOLDER];
+							return true;
 						}
-						else {
-							folderExists = false;
-						}
+					});
+
+					mediaPath = mediaPath + parentTypeFolder + "/";
+					if (folderExists && ((parentTypeFolder + "/") in subFolderDict)) {
+						subFolderDict = subFolderDict[parentTypeFolder + "/"];
+					}
+					else {
+						folderExists = false;
 					}
 				}
 			}
