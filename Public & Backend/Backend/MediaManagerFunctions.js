@@ -1200,6 +1200,7 @@ export async function generateEmblemPaletteFolderDict() {
 		}
 
 		// We need to get the Emblem Palette Configuration ID folders within. There's a ton of them, so we need to increase the limit to several hundred (might need to make this more future-proof later).
+		const EMBLEM_PALETTE_FOLDER_ID = parentFolderId;
 		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT });
 		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
 		iterations = 0;
@@ -1214,24 +1215,31 @@ export async function generateEmblemPaletteFolderDict() {
 		}
 
 		let emblemConfigurationIdFolderName;
-		for (let j = 0; j < customizationCategoryFolderList.length; j++) {
-			let waypointId = customizationCategoryFolderList[j];
-			folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][waypointId.folderName + "/"] = { "_id": waypointId.folderId }
-			parentFolderId = waypointId.folderId;
-			emblemConfigurationIdFolderName = waypointId.folderName;
+		let folderIterations = 0;
+		while (customizationCategoryFolderList.length > 0) {
+			for (let j = 0; j < customizationCategoryFolderList.length; j++) {
+				let waypointId = customizationCategoryFolderList[j];
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][waypointId.folderName + "/"] = { "_id": waypointId.folderId }
+				parentFolderId = waypointId.folderId;
+				emblemConfigurationIdFolderName = waypointId.folderName;
 
-			// We can just list the files now.
-			let emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
-			iterations = 0;
-			while (emblemConfigurationIdFileList.length > 0) {
-				emblemConfigurationIdFileList.forEach((file) => {
-					folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][emblemConfigurationIdFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
-				});
+				// We can just list the files now.
+				let emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+				iterations = 0;
+				while (emblemConfigurationIdFileList.length > 0) {
+					emblemConfigurationIdFileList.forEach((file) => {
+						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][emblemConfigurationIdFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+					});
 
-				iterations++;
-				emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
-					{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+					iterations++;
+					emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+						{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
+				}
 			}
+
+			folderIterations++;
+			customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: EMBLEM_PALETTE_FOLDER_ID }, null, 
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT * folderIterations });
 		}
 	}
 
