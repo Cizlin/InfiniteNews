@@ -3,6 +3,9 @@
 // Extracting the Waypoint ID from a path.
 export const REGEX_WAYPOINT_ID_FROM_PATH = /\d[^.]+/;
 
+// Extracting the final characters from a Waypoint ID after the last -.
+export const REGEX_FINAL_CHARS_FROM_WAYPOINT_ID = /-(\w+)$/;
+
 // The base for all haloinfinitenews.com URLs.
 export const INFINITE_NEWS_URL_BASE = "https://www.haloinfinitenews.com";
 
@@ -37,11 +40,17 @@ export const URL_SPARTAN_ID_CUSTOMIZATION = "/spartan-id-customizations";
 export const URL_SPARTAN_ID_SOCKET_PARAM = "spartanIDSocket";
 
 // The limit to the number of files returned by the listFiles() function when assembling the file dictionary.
-export const FILE_DICT_RETURNED_FILES_LIMIT = 500;
+export const FILE_DICT_RETURNED_FILES_LIMIT = 100;
 
 // The limit to the number of folders returned by the listFolders() function when assembling the file dictionary.
-export const FILE_DICT_RETURNED_FOLDERS_LIMIT = 500;
+export const FILE_DICT_RETURNED_FOLDERS_LIMIT = 100;
 
 // The root folder for Customization Images.
 export const CUSTOMIZATION_ROOT_FOLDER = "Customization Images";
 export const EMBLEM_PALETTE_ROOT_FOLDER = "Emblem Palettes";
+export const SHOP_ROOT_FOLDER = "Shop";
+export const ARMOR_ROOT_FOLDER = "Armor Customization";
+export const WEAPON_ROOT_FOLDER = "Weapon Customization";
+export const VEHICLE_ROOT_FOLDER = "Vehicle Customization";
+export const BODY_AND_AI_ROOT_FOLDER = "Body & AI Customization";
+export const SPARTAN_ID_ROOT_FOLDER = "Spartan ID Customization";
