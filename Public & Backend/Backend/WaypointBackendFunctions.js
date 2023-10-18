@@ -231,6 +231,15 @@ export async function updatePassInDb(passDbJson, folderDict, headers) {
 
 }
 
+function seasonAtOrAfter5(seasonNumber) {
+	if (seasonNumber > 1000) {
+		return seasonNumber >= 5000; // If this is an operation during or after Season 5.
+	}
+	else {
+		return seasonNumber >= 5; // If this is a main season during or after Season 5.
+	}
+}
+
 // This function adds or updates each rank in the DB
 export async function processRank(
 	rank,
@@ -615,7 +624,12 @@ export async function processRank(
 										let matchingItemArray = [];
 										let matchingItemCategories = []; // The customization category for each item in the matching item array.
 
-										if (matchingItemFound[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] && itemType.includes("Emblem")) {
+										// Initialize the arrays with the item we've already found.
+										matchingItemArray.push(matchingItemFound);
+										matchingItemCategories.push(CUSTOMIZATION_CATEGORY);
+
+										// If this is a cross-compatible emblem and this pass is from season 5 or later.
+										if (matchingItemFound[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] && itemType.includes("Emblem") && seasonAtOrAfter5(seasonNumber)) {
 											// We need to fetch each related emblem.
 											const POSSIBLE_CATEGORIES = [
 												ArmorConstants.ARMOR_KEY,
@@ -629,9 +643,6 @@ export async function processRank(
 											if (matches.length > 0) {
 												waypointIdSuffix = matches[0];
 											}
-
-											matchingItemArray.push(matchingItemFound);
-											matchingItemCategories.push(CUSTOMIZATION_CATEGORY);
 
 											// Fetch each of the related emblems.
 											for (let q = 0; q < POSSIBLE_CATEGORIES.length; ++q) {
@@ -662,16 +673,14 @@ export async function processRank(
 												}
 											}
 										}
-										else if (matchingItemFound[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] && itemType.includes("Coating")) {
+										// If this is a cross-compatible coating and this pass is from season 5 or later.
+										else if (matchingItemFound[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] && itemType.includes("Coating") && seasonAtOrAfter5(seasonNumber)) {
 											// We need to fetch all related coatings. Thankfully these don't reside in other DBs, so this can be done with one quick query.
 											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
 											let waypointIdSuffix = "";
 											if (matches.length > 0) {
 												waypointIdSuffix = matches[0];
 											}
-
-											matchingItemArray.push(matchingItemFound);
-											matchingItemCategories.push(CUSTOMIZATION_CATEGORY);
 
 											let matchingItems = await wixData.query(CUSTOMIZATION_DB)
 												.contains(CUSTOMIZATION_WAYPOINT_ID_FIELD, waypointIdSuffix)
@@ -1373,7 +1382,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 				let possibleMultiCore = false;
 
 				foundType = true; // We found the type.
-				let waypointIdMatchArray = includedItemsArray[j].ItemPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH); // We'll be parsing this info from the path now.
+				let waypointIdMatchArray = includedItemsArray[j].InventoryItemPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH); // We'll be parsing this info from the path now.
 				let waypointId = "";
 				if (waypointIdMatchArray.length > 0) {
 					waypointId = waypointIdMatchArray[0]; 
@@ -1384,7 +1393,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 
 				let typeCategoryArray = [typeCategory];
 
-				if (includedItemsArray[j].ItemType.includes("Emblem")) {
+				if (includedItemsArray[j].Type.includes("Emblem")) {
 					// Emblems marked as cross compatible award all variants at once (Armor Emblem, Weapon Emblem, Vehicle Emblem, Nameplate).
 					// Related emblems share the tail end of their waypoint IDs.
 					let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
@@ -1407,7 +1416,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 					}
 				}	
 
-				if (includedItemsArray[j].ItemType.includes("Coating")) {
+				if (includedItemsArray[j].Type.includes("Coating")) {
 					// Coatings marked as cross compatible award all variants on all cores at once.
 					// Related coatings share the tail end of their waypoint IDs.
 					possibleMultiCore = true;
@@ -1436,7 +1445,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 					catch (error) {
 						console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
 						console.log("Querying API for Waypoint ID...");
-						let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
+						let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
 
 						if (possibleMultiCore) {
 							let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
