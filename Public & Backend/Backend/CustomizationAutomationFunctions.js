@@ -995,6 +995,17 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 			existingItem = returnedJsons[1];
 		}
 
+		const CUSTOMIZATION_CROSS_COMPATIBLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCrossCompatibleField;
+		if (!itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] || itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] != customizationDetails.CrossCompatible) {
+			itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] = customizationDetails.CrossCompatible;
+			
+			changed = true;
+			let returnedJsons = markItemAsChanged(itemJson, existingItem, CUSTOMIZATION_CROSS_COMPATIBLE_FIELD, customizationCategory);
+			itemJson = returnedJsons[0];
+			existingItem = returnedJsons[1];
+		}
+		
+
 		const CUSTOMIZATION_SOCKET_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSocketReferenceField;
 		if (itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] != customizationType._id) {
 			itemJson[CUSTOMIZATION_SOCKET_REFERENCE_FIELD] = customizationType._id;
@@ -1203,8 +1214,8 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 
 		const HIDDEN_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationHiddenField;
-		if (!customizationDetails.HideUntilOwned && existingItem[HIDDEN_FIELD]) {
-			itemJson[HIDDEN_FIELD] = customizationDetails.HideUntilOwned; // This addition will allow the automation to show items as they become visible.
+		if (customizationDetails.HideUntilOwned !== existingItem[HIDDEN_FIELD]) {
+			itemJson[HIDDEN_FIELD] = customizationDetails.HideUntilOwned;
 
 			changed = true;
 			let returnedJsons = markItemAsChanged(itemJson, existingItem, HIDDEN_FIELD, customizationCategory);
@@ -1284,6 +1295,9 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 		const API_LAST_UPDATED_DATETIME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationApiLastUpdatedDatetimeField;
 		itemJson[API_LAST_UPDATED_DATETIME_FIELD] = new Date();
+
+		const CUSTOMIZATION_CROSS_COMPATIBLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCrossCompatibleField;
+		itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] = customizationDetails.CrossCompatible;
 
 		// Add the item name and customization type.
 		const CUSTOMIZATION_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField;
@@ -1652,7 +1666,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 		}
 
 		const CORE_HIDDEN_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreHiddenField;
-		if (!customizationDetails.HideUntilOwned && existingItem[CORE_HIDDEN_FIELD]) {
+		if (customizationDetails.HideUntilOwned !== existingItem[CORE_HIDDEN_FIELD]) {
 			itemJson[CORE_HIDDEN_FIELD] = customizationDetails.HideUntilOwned; // This addition will allow the automation to show items as they become visible.
 
 			changed = true;
@@ -1797,7 +1811,8 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			"ChildItems": [kitChildItemArray],
 			"ChildAttachments": [kitChildAttachmentArray],
 			"DefaultOfCore": [coreForWhichThisIsDefaultItem],
-			"WaypointPath": [waypointPath]
+			"WaypointPath": [waypointPath],
+			"CrossCompatible": [isCrossCompatible]
 		}
 	*/
 
@@ -1805,6 +1820,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	let waypointCommonDataJson = waypointJson.CommonData;
 	itemJson.Title = waypointCommonDataJson.Title;
 	itemJson.Type = waypointCommonDataJson.Type;
+	itemJson.CrossCompatible = waypointCommonDataJson.IsCrossCompatible;
 
 	itemJson.MediaPath = waypointCommonDataJson.DisplayPath.Media.MediaUrl.Path;
 	itemJson.MimeType = waypointCommonDataJson.DisplayPath.MimeType;
@@ -1884,6 +1900,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		else {
 			itemJson.Cores = ["Any"]; // We've cleverly specified "Any" as the Waypoint ID for the Any option.
 		}
+
 		//console.info("Item: " + itemJson.Title, itemJson.Cores, waypointCommonDataJson.ParentPaths, waypointThemePathToCoreDict);
 	}
 
@@ -2271,9 +2288,6 @@ async function processItem(headers,
 	// Get the details for the core to pass into our site JSON generation function.
 	let itemDetails;
 
-	if (itemType === CustomizationConstants.ITEM_TYPES.attachment) {
-		//console.log("About to get Customization Details from Waypoint JSON for attachment.");
-	}
 	itemDetails = getCustomizationDetailsFromWaypointJson(
 		customizationCategory,
 		itemWaypointJson,
@@ -2671,8 +2685,14 @@ async function generateJsonsFromThemeList(
 
 					if (!type[TYPE_HAS_ATTACHMENTS_FIELD]) {
 						// Basically, if we aren't working with an attachment-supporting group.
-						// We grab the array of waypoint paths, then process each one (so many nested for loops...)
-						let customizationItemPathArray = themeWaypointJson[waypointTypeGroup].OptionPaths;
+						// We grab only the default path since customizable kits aren't something we support yet.
+						if (!themeWaypointJson[waypointTypeGroup].DefaultOptionPath || themeWaypointJson[waypointTypeGroup].DefaultOptionPath === "" )
+						{
+							continue;
+						}
+
+						let customizationItemPathArray = [themeWaypointJson[waypointTypeGroup].DefaultOptionPath];
+						//console.log("Paths to process for this kit: ", customizationItemPathArray);
 
 						await generateJsonsFromItemList(
 							-1, // limit (we want to add everything in a kit)
@@ -3132,7 +3152,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 async function updateDbsFromApi(headers, customizationCategory, waypointGroupsToProcess, generalDictsAndArrays, categorySpecificDictsAndArrays, groupsAreCrossCore = false, checkpointKey = null) {
 	let folderDict; // This will be passed to our image grabbing function.
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
-		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + CustomizationConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT[customizationCategory] + "/")
 		.find()
 
 	if (results.items.length > 0) {
@@ -3275,40 +3295,42 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
 
 			try {
-				for (let i = 0; i < coreWaypointJsonArray.length; i++) {
-					let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
-					let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
+				if (!groupsAreCrossCore) {
+					for (let i = 0; i < coreWaypointJsonArray.length; i++) {
+						let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
+						let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
 
-					console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
+						console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
-					if (await generateJsonsFromThemeList(
-						itemCountLimit,
-						itemCountOffset,
-						headers,
-						customizationCategory,
-						folderDict,
-						generalDictsAndArrays,
-						categorySpecificDictsAndArrays,
-						customizationItemDbArray,
-						customizationItemPathsProcessed,
-						themePathArray,
-						waypointGroupsToProcess,
-						coreWaypointId,
-						waypointThemePathToCoreDict
-					)) {
-						itemsRemainingToProcess = true;
-					}
+						if (await generateJsonsFromThemeList(
+							itemCountLimit,
+							itemCountOffset,
+							headers,
+							customizationCategory,
+							folderDict,
+							generalDictsAndArrays,
+							categorySpecificDictsAndArrays,
+							customizationItemDbArray,
+							customizationItemPathsProcessed,
+							themePathArray,
+							waypointGroupsToProcess,
+							coreWaypointId,
+							waypointThemePathToCoreDict
+						)) {
+							itemsRemainingToProcess = true;
+						}
 
-					await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
-					customizationItemDbArray = []; // Reset the items after each save.
+						await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+						customizationItemDbArray = []; // Reset the items after each save.
 
-					if (groupsAreCrossCore) {
-						console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
-						break; // We don't need to process cross-core items for every single core.
+						if (groupsAreCrossCore) {
+							console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
+							break; // We don't need to process cross-core items for every single core.
+						}
 					}
 				}
 
-				if (!waypointGroupsToProcess.includes("Kits")) {
+				if (!waypointGroupsToProcess.includes(CustomizationConstants.KIT_PROCESSING_KEY)) {
 					console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Remaining Items", "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 					// Add the remaining items.
@@ -3431,7 +3453,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 export async function importManufacturers(headers) {
 	let folderDict; // This will be passed to our image grabbing function. 
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
-		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + CustomizationConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT[CustomizationConstants.MANUFACTURER_KEY] + "/")
 		.find();
 
 	if (results.items.length > 0) {
@@ -3837,7 +3859,7 @@ export async function armorImportFull(headers = null, manufacturerImportComplete
 			let processingGroups = [
 				{ groups: ["Coatings"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_COATINGS_KEY },
 				{ groups: ["Emblems"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_EMBLEMS_KEY },
-				{ groups: ["Helmets"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_HELMETS_KEY },
+				{ groups: ["Helmets"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_HELMETS_KEY },
 				{ groups: ["LeftShoulderPads", "Gloves", "ChestAttachments"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_LSHOULDER_CHEST_GLOVES_KEY },
 				{ groups: ["RightShoulderPads", "KneePads", "WristAttachments", "HipAttachments"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_RSHOULDER_KNEE_HIP_WRISTS_KEY },
 				{ groups: ["Visors", "ArmorFx", "MythicFx"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_VISOR_ARMORFX_MYTHICFX_KEY },
