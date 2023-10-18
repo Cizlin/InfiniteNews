@@ -19,6 +19,11 @@ import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js'
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 
+import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
+import * as WeaponConstants from 'public/Constants/WeaponConstants.js';
+import * as VehicleConstants from 'public/Constants/VehicleConstants.js';
+import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
+
 // Import helper functions.
 import * as GeneralBackendFunctions from 'backend/GeneralBackendFunctions.jsw';
 import * as ShopFunctions from 'backend/ShopAutomationFunctions.jsw';
@@ -591,99 +596,192 @@ export async function processRank(
 							const CUSTOMIZATION_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationWaypointIdField;
 							const CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD =
 								CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSourceTypeField;
+							const CUSTOMIZATION_CROSS_COMPATIBLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationCrossCompatibleField;
+							
 
 							await wixData.query(CUSTOMIZATION_DB)
 								.eq(CUSTOMIZATION_WAYPOINT_ID_FIELD, itemWaypointId)
 								.include(CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)
 								.find()
-								.then((results) => {
+								.then(async (results) => {
 									if (results.items.length > 0) {
 										if (results.items.length > 1) {
 											throw "Error: Found too many items for given ID. Uniqueness was assumed. Found " + results.items.length + " items";
 										}
 										// We found our core. Time to update the source if necessary and mark the item according to its availability.
-										let matchingItem = results.items[0]; // There should only be one item at this point.
+										let matchingItemFound = results.items[0]; // There should only be one item at this point.
 										let itemChanged = false; // If this is true, we want to make changes to the item itself.
 
-										const PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD =
-											CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT[CUSTOMIZATION_CATEGORY];
+										let matchingItemArray = [];
+										let matchingItemCategories = []; // The customization category for each item in the matching item array.
 
-										rankDbJson[PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD].push(matchingItem._id);
+										if (matchingItemFound[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] && itemType.includes("Emblem")) {
+											// We need to fetch each related emblem.
+											const POSSIBLE_CATEGORIES = [
+												ArmorConstants.ARMOR_KEY,
+												WeaponConstants.WEAPON_KEY,
+												VehicleConstants.VEHICLE_KEY,
+												SpartanIdConstants.SPARTAN_ID_KEY
+											];
 
-										// Note that we have this type of customization item in this rank.
-										if (!rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].includes(PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD)) {
-											rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].push(PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD);
+											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+											let waypointIdSuffix = "";
+											if (matches.length > 0) {
+												waypointIdSuffix = matches[0];
+											}
+
+											matchingItemArray.push(matchingItemFound);
+											matchingItemCategories.push(CUSTOMIZATION_CATEGORY);
+
+											// Fetch each of the related emblems.
+											for (let q = 0; q < POSSIBLE_CATEGORIES.length; ++q) {
+												if (!matchingItemCategories.includes(POSSIBLE_CATEGORIES[q])) {
+													const CURRENT_CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[POSSIBLE_CATEGORIES[q]].CustomizationDb;
+													const CURRENT_CUSTOMIZATION_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[POSSIBLE_CATEGORIES[q]].CustomizationWaypointIdField;
+													const CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD =
+														CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[POSSIBLE_CATEGORIES[q]].CustomizationSourceTypeField;
+
+													matchingItemCategories.push(POSSIBLE_CATEGORIES[q]);
+
+													let currentMatchingItem = await wixData.query(CURRENT_CUSTOMIZATION_DB)
+														.contains(CURRENT_CUSTOMIZATION_WAYPOINT_ID_FIELD, waypointIdSuffix)
+														.include(CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)
+														.find()
+														.then((results) => {
+															if (results.items.length > 1) {
+																throw "Error: Found too many items for given ID suffix " + waypointIdSuffix + ". Uniqueness was assumed. Found " + results.items.length + " items";
+															}
+															else if (results.items.length == 0) {
+																throw "Error: Found no items for given ID suffix " + waypointIdSuffix + " in the " + CURRENT_CUSTOMIZATION_DB + " DB.";
+															}
+
+															return results.items[0];
+														});
+
+													matchingItemArray.push(currentMatchingItem);
+												}
+											}
 										}
+										else if (matchingItemFound[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] && itemType.includes("Coating")) {
+											// We need to fetch all related coatings. Thankfully these don't reside in other DBs, so this can be done with one quick query.
+											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+											let waypointIdSuffix = "";
+											if (matches.length > 0) {
+												waypointIdSuffix = matches[0];
+											}
 
-										const CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD =
-											CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationCurrentlyAvailableField;
+											matchingItemArray.push(matchingItemFound);
+											matchingItemCategories.push(CUSTOMIZATION_CATEGORY);
 
-										if (matchingItem[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] != currentlyAvailable) {
-											matchingItem[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] = currentlyAvailable;
-											itemChanged = true;
-										}
-
-										const CUSTOMIZATION_SOURCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationSourceField
-
-										let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
-											passName.trim() + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
-
-										// If the source text needs to be updated, let's do it.
-										if (matchingItem[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
-											matchingItem[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
-											itemChanged = true;
-										}
-										else if (!matchingItem[CUSTOMIZATION_SOURCE_FIELD].includes(sourceText)) {
-											matchingItem[CUSTOMIZATION_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
-											itemChanged = true;
-										}
-
-										// If this is an Event Pass, use the Event Pass source ID. If it isn't, but is premium, use Battle Pass (Paid). Otherwise, use Battle Pass (Free).
-										let sourceIdToUse = ((isEvent) ? CustomizationConstants.SOURCE_TYPE_EVENT_PASS_ID
-											: ((isPremium) ? CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_PAID_ID : CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_FREE_ID));
-
-										// We only want to add a source type reference if it isn't already there. It won't hurt if it is, but it will change the Updated Datetime of the item.
-										let sourceTypeReferenceIncludesDesiredId = false;
-
-										for (let i = 0; i < matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length; ++i) {
-											if (matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][i]._id == sourceIdToUse) {
-												sourceTypeReferenceIncludesDesiredId = true;
-												break;
+											let matchingItems = await wixData.query(CUSTOMIZATION_DB)
+												.contains(CUSTOMIZATION_WAYPOINT_ID_FIELD, waypointIdSuffix)
+												.include(CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD)
+												.find()
+												.then((results) => {
+													if (results.items.length > 0) {
+														return results.items;
+													}
+													else if (results.items.length == 0) {
+														throw "Error: Found no items for given ID suffix " + waypointIdSuffix + " in the " + CUSTOMIZATION_DB + " DB.";
+													}
+												});
+											
+											for (let q = 0; q < matchingItems.length; ++q) {
+												if (matchingItems[q]._id !== matchingItemFound._id) {
+													matchingItemArray.push(matchingItems[q]);
+													matchingItemCategories.push(CUSTOMIZATION_CATEGORY);
+												}
 											}
 										}
 
-										// We also need to update or replace the sourcetype. Thankfully, we included this field.
-										if (matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 &&
-											matchingItem[CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == CustomizationConstants.SOURCE_TYPE_PENDING_ID) {
-											// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
-											wixData.replaceReferences(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, matchingItem._id, [sourceIdToUse])
-												.then(() => {
-													console.log("Added source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
-												})
-												.catch((error) => {
-													console.error("Error", error, "occurred while adding source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
-													throw error;
-												});
-										}
-										else if (!sourceTypeReferenceIncludesDesiredId) {
-											// We just want to insert the source type in this case.
-											wixData.insertReference(CUSTOMIZATION_DB, CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, matchingItem._id, [sourceIdToUse])
-												.then(() => {
-													console.log("Added source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
-												})
-												.catch((error) => {
-													console.error("Error", error, "occurred while adding source type reference for item " + matchingItem._id + " in DB " + CUSTOMIZATION_DB);
-													throw error;
-												});
-										}
+										for (let q = 0; q < matchingItemArray.length; ++q) {
+											let matchingItem = matchingItemArray[q];
+											let matchingCategory = matchingItemCategories[q];
 
-										if (itemChanged) {
-											// Update the customizationItem.
-											wixData.update(CUSTOMIZATION_DB, matchingItem)
-												.catch((error) => {
-													console.error(error + " occurred while saving Customization Item changes to " + CUSTOMIZATION_DB + " with ID " + itemWaypointId);
-													throw error;
-												});
+											const CURRENT_CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[matchingCategory].CustomizationDb;
+											const CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD 
+												= CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[matchingCategory].CustomizationSourceTypeField;
+
+											const PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD =
+												CustomizationConstants.CUSTOMIZATION_CATEGORY_TO_PASS_RANK_REFERENCE_FIELD_DICT[matchingCategory];
+
+											rankDbJson[PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD].push(matchingItem._id);
+
+											// Note that we have this type of customization item in this rank.
+											if (!rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].includes(PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD)) {
+												rankDbJson[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].push(PASS_RANK_CUSTOMIZATION_REFERENCE_FIELD);
+											}
+
+											const CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD =
+												CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[matchingCategory].CustomizationCurrentlyAvailableField;
+
+											if (matchingItem[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] != currentlyAvailable) {
+												matchingItem[CUSTOMIZATION_CURRENTLY_AVAILABLE_FIELD] = currentlyAvailable;
+												itemChanged = true;
+											}
+
+											const CUSTOMIZATION_SOURCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[matchingCategory].CustomizationSourceField
+
+											let sourceText = "Reach Level " + rankDbJson.rank + " in the Season " + seasonNumber + " " + ((isEvent) ? "Event" : "Battle") + " Pass <i>" +
+												passName.trim() + "</i>" + ((isEvent) ? "" : (" " + ((isPremium) ? "(Paid)" : "(Free)")));
+
+											// If the source text needs to be updated, let's do it.
+											if (matchingItem[CUSTOMIZATION_SOURCE_FIELD].includes("Pending")) {
+												matchingItem[CUSTOMIZATION_SOURCE_FIELD] = sourceText;
+												itemChanged = true;
+											}
+											else if (!matchingItem[CUSTOMIZATION_SOURCE_FIELD].includes(sourceText)) {
+												matchingItem[CUSTOMIZATION_SOURCE_FIELD] += "<p class=\"font_8\">" + sourceText + "</p>";
+												itemChanged = true;
+											}
+
+											// If this is an Event Pass, use the Event Pass source ID. If it isn't, but is premium, use Battle Pass (Paid). Otherwise, use Battle Pass (Free).
+											let sourceIdToUse = ((isEvent) ? CustomizationConstants.SOURCE_TYPE_EVENT_PASS_ID
+												: ((isPremium) ? CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_PAID_ID : CustomizationConstants.SOURCE_TYPE_BATTLE_PASS_FREE_ID));
+
+											// We only want to add a source type reference if it isn't already there. It won't hurt if it is, but it will change the Updated Datetime of the item.
+											let sourceTypeReferenceIncludesDesiredId = false;
+
+											for (let i = 0; i < matchingItem[CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length; ++i) {
+												if (matchingItem[CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][i]._id == sourceIdToUse) {
+													sourceTypeReferenceIncludesDesiredId = true;
+													break;
+												}
+											}
+
+											// We also need to update or replace the sourcetype. Thankfully, we included this field.
+											if (matchingItem[CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD].length == 1 &&
+												matchingItem[CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD][0]._id == CustomizationConstants.SOURCE_TYPE_PENDING_ID) {
+												// If we have exactly one source type and it's Pending, we want to get rid of it and do a replace.
+												wixData.replaceReferences(CURRENT_CUSTOMIZATION_DB, CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, matchingItem._id, [sourceIdToUse])
+													.then(() => {
+														console.log("Added source type reference for item " + matchingItem._id + " in DB " + CURRENT_CUSTOMIZATION_DB);
+													})
+													.catch((error) => {
+														console.error("Error", error, "occurred while adding source type reference for item " + matchingItem._id + " in DB " + CURRENT_CUSTOMIZATION_DB);
+														throw error;
+													});
+											}
+											else if (!sourceTypeReferenceIncludesDesiredId) {
+												// We just want to insert the source type in this case.
+												wixData.insertReference(CURRENT_CUSTOMIZATION_DB, CURRENT_CUSTOMIZATION_SOURCE_TYPE_REFERENCE_FIELD, matchingItem._id, [sourceIdToUse])
+													.then(() => {
+														console.log("Added source type reference for item " + matchingItem._id + " in DB " + CURRENT_CUSTOMIZATION_DB);
+													})
+													.catch((error) => {
+														console.error("Error", error, "occurred while adding source type reference for item " + matchingItem._id + " in DB " + CURRENT_CUSTOMIZATION_DB);
+														throw error;
+													});
+											}
+
+											if (itemChanged) {
+												// Update the customizationItem.
+												wixData.update(CURRENT_CUSTOMIZATION_DB, matchingItem)
+													.catch((error) => {
+														console.error(error + " occurred while saving Customization Item changes to " + CUSTOMIZATION_DB + " with ID " + itemWaypointId);
+														throw error;
+													});
+											}
 										}
 									}
 									else {
@@ -854,7 +952,7 @@ export async function importPasses() {
 
 	let folderDict;
 	let results = await wixData.query(KeyConstants.KEY_VALUE_DB) // This might still be a bit inefficient. Consider moving query out and passing folderDict as arg.
-		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY)
+		.eq("key", KeyConstants.KEY_VALUE_CUSTOMIZATION_FOLDERS_KEY + "_" + CustomizationConstants.CUSTOMIZATION_CATEGORY_FOLDER_DICT[PassConstants.PASS_KEY] + "/")
 		.find();
 
 	if (results.items.length > 0) {
@@ -1272,7 +1370,108 @@ export async function getCurrentCapstoneChallengeDbJson() {
 		let foundType = false; // Should become true if the type is found.
 		for (let typeCategory in typeDict) {
 			if (typeDict[typeCategory].includes(includedItemsArray[j].Type)) { // If the ItemType belongs to this typeCategory.
-				foundType = true;
+				let possibleMultiCore = false;
+
+				foundType = true; // We found the type.
+				let waypointIdMatchArray = includedItemsArray[j].ItemPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH); // We'll be parsing this info from the path now.
+				let waypointId = "";
+				if (waypointIdMatchArray.length > 0) {
+					waypointId = waypointIdMatchArray[0]; 
+					//console.log(waypointId);
+				}
+
+				let exactWaypointId = waypointId;
+
+				let typeCategoryArray = [typeCategory];
+
+				if (includedItemsArray[j].ItemType.includes("Emblem")) {
+					// Emblems marked as cross compatible award all variants at once (Armor Emblem, Weapon Emblem, Vehicle Emblem, Nameplate).
+					// Related emblems share the tail end of their waypoint IDs.
+					let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+					if (matches.length > 0) {
+						waypointId = matches[0];
+					}
+
+					let possibleTypeCategories = [
+						ArmorConstants.ARMOR_KEY,
+						WeaponConstants.WEAPON_KEY,
+						VehicleConstants.VEHICLE_KEY,
+						SpartanIdConstants.SPARTAN_ID_KEY
+					];
+
+					for (let q = 0; q < possibleTypeCategories.length; ++q) {
+						if (!typeCategoryArray.includes(possibleTypeCategories[q])) {
+							typeCategoryArray.push(possibleTypeCategories[q]);
+						}
+					}
+				}	
+
+				if (includedItemsArray[j].ItemType.includes("Coating")) {
+					// Coatings marked as cross compatible award all variants on all cores at once.
+					// Related coatings share the tail end of their waypoint IDs.
+					possibleMultiCore = true;
+
+					let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+					if (matches.length > 0) {
+						waypointId = matches[0];
+					}
+				}							
+
+				for (let q = 0; q < typeCategoryArray.length; ++q) {
+					let currentTypeCategory = typeCategoryArray[q];
+					const CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[currentTypeCategory].CapstoneChallengeReferenceField;
+					
+					let itemId = "";
+					let itemIdArray = []; // This will only be used if possibleMultiCore is set.
+					try {
+						if (possibleMultiCore) {
+							itemIdArray = await ShopFunctions.getItemId(currentTypeCategory, waypointId, possibleMultiCore, exactWaypointId);
+						}
+						else {
+							itemId = await ShopFunctions.getItemId(currentTypeCategory, waypointId);
+						}
+					}
+					catch (error) {
+						console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
+						console.log("Querying API for Waypoint ID...");
+						let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
+
+						if (possibleMultiCore) {
+							let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+							if (matches.length > 0) {
+								waypointId = matches[0];
+							}
+
+							itemIdArray = await ShopFunctions.getItemId(currentTypeCategory, waypointId, possibleMultiCore, itemJson.CommonData.Id);
+						}
+						else {
+							itemId = await ShopFunctions.getItemId(currentTypeCategory, itemJson.CommonData.Id);
+							
+							let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+							if (matches.length > 0) {
+								waypointId = matches[0];
+							}
+						}
+					}
+
+					if (possibleMultiCore) {
+						for (let q = 0; q < itemIdArray.length; ++q) {
+							if (!challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].includes(itemIdArray[q])) {
+								challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(itemIdArray[q]);
+							}
+						}
+					}
+					else {
+						if (!challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].includes(itemId)) {
+							challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(itemId);
+						}
+					}
+
+				/*foundType = true;
 				let waypointIdMatchArray = includedItemsArray[j].InventoryItemPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH); // We'll be parsing this info from the path now.
 				let waypointId = "";
 				if (waypointIdMatchArray.length > 0) {
@@ -1292,10 +1491,11 @@ export async function getCurrentCapstoneChallengeDbJson() {
 					itemId = await ShopFunctions.getItemId(typeCategory, itemJson.CommonData.Id);
 				}
 				
-				challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(itemId);
+				challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(itemId);*/
 
-				if (!challengeDbJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].includes(CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD)) {
-					challengeDbJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].push(CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD);
+					if (!challengeDbJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].includes(CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD)) {
+						challengeDbJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].push(CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD);
+					}
 				}
 
 				break;
