@@ -996,7 +996,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 		}
 
 		const CUSTOMIZATION_CROSS_COMPATIBLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCrossCompatibleField;
-		if (!itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] || itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] != customizationDetails.CrossCompatible) {
+		if (itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] != customizationDetails.CrossCompatible) {
 			itemJson[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] = customizationDetails.CrossCompatible;
 			
 			changed = true;
@@ -2686,12 +2686,15 @@ async function generateJsonsFromThemeList(
 					if (!type[TYPE_HAS_ATTACHMENTS_FIELD]) {
 						// Basically, if we aren't working with an attachment-supporting group.
 						// We grab only the default path since customizable kits aren't something we support yet.
-						if (!themeWaypointJson[waypointTypeGroup].DefaultOptionPath || themeWaypointJson[waypointTypeGroup].DefaultOptionPath === "" )
+						if ((!themeWaypointJson[waypointTypeGroup].DefaultOptionPath || themeWaypointJson[waypointTypeGroup].DefaultOptionPath === "")
+							&& (!themeWaypointJson[waypointTypeGroup].AvailableLocations || themeWaypointJson[waypointTypeGroup].AvailableLocations.length === 0 || !themeWaypointJson[waypointTypeGroup].AvailableLocations[0].DefaultOption.Path))
 						{
+							// The second line is specifically for emblems.
 							continue;
 						}
 
-						let customizationItemPathArray = [themeWaypointJson[waypointTypeGroup].DefaultOptionPath];
+						// Handle the case for emblems.
+						let customizationItemPathArray = [(themeWaypointJson[waypointTypeGroup].DefaultOptionPath) ? themeWaypointJson[waypointTypeGroup].DefaultOptionPath : themeWaypointJson[waypointTypeGroup].AvailableLocations[0].DefaultOption.Path];
 						//console.log("Paths to process for this kit: ", customizationItemPathArray);
 
 						await generateJsonsFromItemList(
@@ -3859,7 +3862,7 @@ export async function armorImportFull(headers = null, manufacturerImportComplete
 			let processingGroups = [
 				{ groups: ["Coatings"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_COATINGS_KEY },
 				{ groups: ["Emblems"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_EMBLEMS_KEY },
-				{ groups: ["Helmets"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_HELMETS_KEY },
+				{ groups: ["Helmets"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_HELMETS_KEY }, // This is technically cross-core, but we have to pull the armor attachments from each core specifically.
 				{ groups: ["LeftShoulderPads", "Gloves", "ChestAttachments"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_LSHOULDER_CHEST_GLOVES_KEY },
 				{ groups: ["RightShoulderPads", "KneePads", "WristAttachments", "HipAttachments"], crossCore: false, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_RSHOULDER_KNEE_HIP_WRISTS_KEY },
 				{ groups: ["Visors", "ArmorFx", "MythicFx"], crossCore: true, checkpointKey: KeyConstants.KEY_VALUE_CUSTOMIZATION_ARMOR_VISOR_ARMORFX_MYTHICFX_KEY },
