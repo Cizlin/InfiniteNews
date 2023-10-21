@@ -813,12 +813,14 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	// We need to get the Kit items multi-reference field separately through a queryReferenced command because query doesn't return it.
 	let originalKitItemIds = [];
 	let originalKitAttachmentIds = [];
+	let originalCustomizableTypes = [];
 	if (existingItem && CustomizationConstants.HAS_KITS_ARRAY.includes(customizationCategory)) {
 		const IS_KIT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsKitField;
 
 		if (customizationType[IS_KIT_FIELD]) {
 			const CUSTOMIZATION_KIT_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitItemReferenceField;
 			const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
+			const CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitCustomizableTypesReferenceField;
 
 			let retry = true;
 			let retryCount = 0;
@@ -878,6 +880,32 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 				existingItem[CUSTOMIZATION_KIT_ATTACHMENT_REFERENCE_FIELD] = originalKitAttachmentIds;
 			}
+
+			retry = true;
+			retryCount = 0;
+
+			while (retry && retryCount < maxRetries) {
+				await wixData.queryReferenced(CUSTOMIZATION_DB, existingItem._id, CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD)
+					.then((results) => {
+						retry = false;
+
+						if (results.items.length > 0) {
+							// Push each ID onto the array.
+							results.items.forEach((item) => {
+								originalCustomizableTypes.push(item._id);
+							});
+						}
+					})
+					.catch((error) => {
+						console.error(error + " occurred. Try " + (++retryCount) + " of " + maxRetries + "...");
+					});
+			}
+
+			if (retry) {
+				return -1;
+			}
+
+			existingItem[CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD] = originalCustomizableTypes;
 		}
 	}
 
@@ -1151,6 +1179,17 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 					itemJson = returnedJsons[0];
 					existingItem = returnedJsons[1];
 				}
+
+				if (!arrayCompare(originalCustomizableTypes, customizationDetails.CustomizableTypes)) {
+					const CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitCustomizableTypesReferenceField;
+					itemJson[CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD] = customizationDetails.CustomizableTypes;
+
+					// Update the needs review item and add a log to the changelog.
+					changed = true;
+					let returnedJsons = markItemAsChanged(itemJson, existingItem, CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD, customizationCategory);
+					itemJson = returnedJsons[0];
+					existingItem = returnedJsons[1];
+				}
 			}
 		}
 
@@ -1389,6 +1428,10 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 					itemJson[CUSTOMIZATION_KIT_ATTACHMENT_REFERENCE_FIELD] = kitAttachmentIdArray;
 				}
+
+				const CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitCustomizableTypesReferenceField;
+				
+				itemJson[CUSTOMIZATION_KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD] = customizationDetails.CustomizableTypes;
 			}
 		}
 
@@ -1774,6 +1817,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 // isKitItem: Only true if the item belongs to a Kit.
 // kitChildItemArray: Array of Kit Items, for addition to the Kit item itself.
 // kitChildAttachmentArray: Array of Kit Attachments, for addition to the Kit item itself.
+// kitCustomizableTypesArray: Array of customizable types for Kits, for addition to the Kit item itself.
 export function getCustomizationDetailsFromWaypointJson(customizationCategory, waypointJson, options = {}) {
 	// options can contain (defaults shown)
 	/* categorySpecificDictsAndArrays = null,	// Required for all non-core item additions.
@@ -1783,7 +1827,8 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	 * parentWaypointType = null,				// Required for attachments.
 	 * isKitItem = false,						// Required for Kit Items.
 	 * kitChildItemArray = [],					// Required for Kits.
-	 * kitChildAttachmentArray = []				// Required for Kits with attachments.
+	 * kitChildAttachmentArray = [],			// Required for Kits with attachments.
+	 * kitCustomizableTypesArray = [],			// Required for Kits with customizable types.
 	 * parentThemePath = ""						// Required for items with nothing in ParentPaths or ParentPath.
 	 * isDefault = false						// Required for items with cores.
 	 * waypointPath = ""						// Required in all cases.
@@ -1810,6 +1855,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			"IsKitItem": [isKitItem], // Only true if the item was added as part of a Kit.
 			"ChildItems": [kitChildItemArray],
 			"ChildAttachments": [kitChildAttachmentArray],
+			"CustomizableTypes": [kitCustomizableTypesArray],
 			"DefaultOfCore": [coreForWhichThisIsDefaultItem],
 			"WaypointPath": [waypointPath],
 			"CrossCompatible": [isCrossCompatible]
@@ -1949,6 +1995,13 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 		itemJson.ChildAttachments = [];
 	}
 
+	if ("kitCustomizableTypesArray" in options) {
+		itemJson.CustomizableTypes = options.kitCustomizableTypesArray;
+	}
+	else {
+		itemJson.CustomizableTypes = [];
+	}
+
 	if ("isDefault" in options && options.isDefault &&
 		"waypointThemePathToCoreDict" in options && "parentThemePath" in options && options.parentThemePath && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict) {
 		itemJson.DefaultOfCore = options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()];
@@ -2062,6 +2115,7 @@ export async function fetchEmblemPaletteDbIds(emblemPalettePathArray) {
 // customizationWaypointIdArray: Array of Waypoint IDs, only really needed for Kit items.
 // kitChildItemArray: Array of Kit Items, for addition to the Kit item itself.
 // kitChildAttachmentArray: Array of Kit Attachments, for addition to the Kit item itself.
+// kitCustomizableTypesArray: Array of types that can be customized in the Kit.
 // forceCheck: If true, the item will have all its quantities compared regardless of whether the ETag matches.
 // parentThemePath: The path to the parent theme of the item.
 async function processItem(headers,
@@ -2085,6 +2139,7 @@ async function processItem(headers,
 	 * customizationWaypointIdArray = [],	// Required for kit items.
 	 * kitChildItemArray = [],				// Required for kits.
 	 * kitChildAttachmentArray = [],		// Required for kits.
+	 * kitCustomizableTypesArray = [],		// Required for kits.
 	 * forceCheck = false,					// Required for kits and items with attachments.
 	 * parentThemePath = "",				// Required for items without anything in ParentPaths or ParentTheme.
 	 * isDefault = false,					// Required for items with cores.
@@ -2300,6 +2355,7 @@ async function processItem(headers,
 			"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 			"kitChildItemArray": ("kitChildItemArray" in options) ? options.kitChildItemArray : [],
 			"kitChildAttachmentArray": ("kitChildAttachmentArray" in options) ? options.kitChildAttachmentArray : [],
+			"kitCustomizableTypesArray": ("kitCustomizableTypesArray" in options) ? options.kitCustomizableTypesArray : [],
 			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
 			"isDefault": ("isDefault" in options) ? options.isDefault : false,
 			"waypointPath": ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()
@@ -2658,6 +2714,7 @@ async function generateJsonsFromThemeList(
 			if (themeWaypointJson.IsKit) { // Either we have a Kit or the default theme. If it's a kit, we just treat it like any other item.
 				let customizationIdArray = []; // This is an array of Waypoint IDs specifically meant for the kitPathToItemArrayDict.
 				let customizationAttachmentsIdArray = []; // This is similar to the previous array but contains attachment IDs.
+				let customizableTypesArray = []; // This is a list of customization types that can be modified within the Kit.
 
 				if (categorySpecificDictsAndArrays.length != 3) { // Ensure we can get the type array.
 					console.error("categorySpecificDictsAndArrays does not have expected length of 3 in generateJsonsFromThemeList().");
@@ -2685,12 +2742,18 @@ async function generateJsonsFromThemeList(
 
 					if (!type[TYPE_HAS_ATTACHMENTS_FIELD]) {
 						// Basically, if we aren't working with an attachment-supporting group.
-						// We grab only the default path since customizable kits aren't something we support yet.
+						// We grab only the default path since that's what's tied to the Kit.
+
+						if (themeWaypointJson[waypointTypeGroup].OptionPaths.length > 1) {
+							// If there is more than one item listed, we don't want to process any but still want to note that this is a customizable option for the kit.
+							customizableTypesArray.push(type._id);
+						}
+
 						if ((!themeWaypointJson[waypointTypeGroup].DefaultOptionPath || themeWaypointJson[waypointTypeGroup].DefaultOptionPath === "")
 							&& (!themeWaypointJson[waypointTypeGroup].AvailableLocations || themeWaypointJson[waypointTypeGroup].AvailableLocations.length === 0 || !themeWaypointJson[waypointTypeGroup].AvailableLocations[0].DefaultOption.Path))
 						{
 							// The second line is specifically for emblems.
-							continue;
+							continue;	
 						}
 
 						// Handle the case for emblems.
@@ -2718,6 +2781,26 @@ async function generateJsonsFromThemeList(
 					}
 					else {
 						let itemAndAttachmentsArray = themeWaypointJson[waypointTypeGroup]["Options"];
+						const TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldAttachmentParentField;
+
+						if (itemAndAttachmentsArray.length > 1) {
+							customizableTypesArray.push(type);
+
+							let lowerCaseDefaultPath = themeWaypointJson[waypointTypeGroup].DefaultOptionPath.toLowerCase();
+							for (let q = 0; q < itemAndAttachmentsArray.length; ++q) {
+								if (itemAndAttachmentsArray[q][type[TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD]].toLowerCase() == lowerCaseDefaultPath) {
+									// If the two paths match, then we only want to handle this item and nothing else. Overwrite the other items and then proceed.
+									itemAndAttachmentsArray = [itemAndAttachmentsArray[q]];
+									break;
+								}
+							}
+
+							if (itemAndAttachmentsArray.length > 1) {
+								// We didn't find the default path in this list, which likely means there wasn't a default. We can just continue in this case.
+								continue;
+							}
+						}
+
 						await generateJsonsFromItemAndAttachmentList(
 							headers,
 							customizationCategory,
@@ -2742,7 +2825,8 @@ async function generateJsonsFromThemeList(
 				// Now that we've got all the item IDs for the Kit in arrays, let's add them to the dictionary.
 				kitPathToItemArrayDict[kitPath] = {
 					attachments: customizationAttachmentsIdArray,
-					items: customizationIdArray
+					items: customizationIdArray,
+					customizableTypes: customizableTypesArray
 				};
 				//console.info("Kit " + themeWaypointJson.CommonData.Title + " has Dict ", kitPathToItemArrayDict);
 			}
@@ -2778,6 +2862,7 @@ async function generateJsonsFromThemeList(
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 							"kitChildItemArray": kitPathToItemArrayDict[themePathArray[l]].items,
 							"kitChildAttachmentArray": kitPathToItemArrayDict[themePathArray[l]].attachments,
+							"kitCustomizableTypesArray": kitPathToItemArrayDict[themePathArray[l]].customizableTypes,
 							"parentThemePath": themePathArray[l]
 						}
 					);
@@ -2970,6 +3055,7 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 	const ATTACHMENT_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationAttachmentReferenceField;
 	const KIT_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitItemReferenceField;
 	const KIT_ATTACHMENT_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitAttachmentReferenceField;
+	const KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitCustomizableTypesReferenceField;
 	const EMBLEM_PALETTE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].EmblemPaletteReferenceField;
 	const SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationSourceTypeField;
 	const DEFAULT_OF_CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDefaultOfCoreReferenceField;
@@ -3077,6 +3163,26 @@ async function saveItemsToDbFromList(customizationCategory, customizationItemDbA
 									});
 							}
 						}
+
+						if (KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD in customizationItemDbJson &&
+							customizationItemDbJson[KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD].length > 0) {
+
+							let retry = true;
+							let retryCount = 0;
+
+							while (retry && retryCount < maxRetries) {
+								await wixData.replaceReferences(CUSTOMIZATION_DB, KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD, item._id, customizationItemDbJson[KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD], options)
+									.then(() => {
+										retry = false;
+										//console.info("Customizable type references added for ", 
+										//	customizationItemDbJson[CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationNameField]);
+									})
+									.catch((error) => {
+										console.error("Error ", error, " occurred. Try " + (++retryCount) + " of " + maxRetries + ". Was replacing Kit customizable type references for ",
+											customizationItemDbJson._id, " in ", CUSTOMIZATION_DB, " with ", customizationItemDbJson[KIT_CUSTOMIZABLE_TYPES_REFERENCE_FIELD]);
+									});
+							}
+						}						
 					}
 
 					if ((customizationItemDbJson[SOURCE_TYPE_REFERENCE_FIELD] &&
