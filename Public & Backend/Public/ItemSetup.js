@@ -21,7 +21,6 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 	    $w("#releaseImage").fitMode = "fit";
     }
     //#endregion
-
 	
 	$w("#dynamicDatasetItem").onReady( () => {
         //#region Getting current item
@@ -267,8 +266,10 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 			console.warn("This is likely because #emblemPaletteContainer does not exist on this page.");
 		}
 
+		let customizableTypesText = "";
 		// Populate the Kit Items repeater with the desired data or hide it if no data is available.
 		try {
+
 			$w("#kitItemDataset").onReady(async () => { 
 				// If there are no Kit Items for the Kit (or other item), hide the Kit Item list and header.
 				if (!($w("#kitItemRepeater").data.length > 0)) {
@@ -306,6 +307,33 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 								console.error("Error occurred while querying " + customizationDB + ": " + error);
 							});
 					});
+
+					const CUSTOMIZABLE_TYPES_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationKitCustomizableTypesReferenceField;
+					const SOCKET_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketNameField;
+
+					wixData.queryReferenced(customizationDB, currentItem._id, CUSTOMIZABLE_TYPES_REFERENCE_FIELD)
+						.then((results) => {
+							if (results.items.length > 0) {
+								customizableTypesText = "The following sockets can be modified while this Kit is equipped: ";
+								for (let i = 0; i < results.items.length - 1; ++i) {
+									customizableTypesText += results.items[i][SOCKET_NAME_FIELD] + ", ";
+								}
+
+								customizableTypesText += results.items[results.items.length - 1][SOCKET_NAME_FIELD] + ".";
+							}
+							else {
+								customizableTypesText = "This Kit cannot be modified";
+							}
+
+							$w("#kitItemWarning").text = customizableTypesText;
+
+							try {
+								$w("#kitAttachmentWarning").text = customizableTypesText;
+							}
+							catch (error) {
+								console.warn(error, "occurred when trying to set Kit Attachment Warning text. May just mean that the text isn't available on this page.");
+							}
+						});
 				}
 			});
 		}
@@ -316,7 +344,7 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 
 		// Populate the Kit Attachments repeater with the desired data or hide it if no data is available.
 		try {
-			$w("#kitAttachmentDataset").onReady(async () => { 
+			$w("#kitAttachmentDataset").onReady(async () => {
 				// If there are no Kit Items for the Kit (or other item), hide the Kit Item list and header.
 				if (!($w("#kitAttachmentRepeater").data.length > 0)) {
 					//$w("#attachmentsHeader").hide();
