@@ -224,9 +224,12 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
                 };
 
                 for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
+                    let idSplitArray = dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id.split('_');
+                    let code = idSplitArray[idSplitArray.length - 1];
+
                     rewardGroup.rewards.push({
                         name: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name,
-                        code: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id
+                        code: code
                     });
 
                     let dropGameName = gameIdToGameName[dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.game.id];
