@@ -509,6 +509,7 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
     }
 
     for (let i = 0; i < databaseTwitchDrops.length; ++i) {
+        console.log("Reward References: ", databaseTwitchDrops[i].rewardReferences);
         // Loop through the Twitch drops to be sent to the DB to see if we need to send any notifications for them.
         if (!databaseTwitchDrops[i].notifsSent && databaseTwitchDrops[i].status.toUpperCase() === "ACTIVE") {
             // This drop is now active and we haven't sent notifications. We need to let folks know immediately.
@@ -604,16 +605,6 @@ function arraysAreEqual(arr1, arr2) {
     }
 }
 
-/* This is the format of a typical Upcoming Twitter Announcement. It also has images attached to it.
-RETURNING UPCOMING TWITCH DROP
-Trophy Backdrop
-Apr 15, 2023, 3:00 PM PDT - Apr 15, 2023, 10:00 P.M. PDT  
-
-Channel 
-https://twitch.tv/magickmoonshot
-
-Watch for 1 hour
-*/
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = false) {
     let dropRewards = drop.rewardGroups;
@@ -707,7 +698,7 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
                 // Get a collection of matching rewards based on the title.
                 for (let k = 0; k < dropRewardNotificationArray.length; ++k) {
-                    if (dropRewardNotificationArray[k].title === dropRewards[i].rewards[j].name) {
+                    if (dropRewardNotificationArray[k].waypointId === dropRewards[i].rewards[j].code) {
                         rewardArray.push(dropRewardNotificationArray[k]); // The indices of this object are guaranteed to align with the rewardGroups array.
                     }
                 }
@@ -1056,7 +1047,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
                 // Get a collection of matching rewards based on the title.
                 for (let k = 0; k < dropRewardNotificationArray.length; ++k) {
-                    if (dropRewardNotificationArray[k].title === dropRewards[i].rewards[j].name) {
+                    if (dropRewardNotificationArray[k].waypointId === dropRewards[i].rewards[j].code) {
                         rewardArray.push(dropRewardNotificationArray[k]); // The indices of this object are guaranteed to align with the rewardGroups array.
                     }
                 }
