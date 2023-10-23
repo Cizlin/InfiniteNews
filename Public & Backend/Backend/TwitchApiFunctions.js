@@ -1220,3 +1220,36 @@ export async function sendUpcomingNotifications() {
             console.error(error + " occurred while updating Twitch Drops after sending notifications.");
         });
 }
+
+export function markExpiredDrops() {
+    wixData.query("TwitchDrops")
+        .eq("status", "ACTIVE")
+        .find()
+        .then((results) => {
+            console.log("Currently ACTIVE Drops:", results.items);
+
+            let now = new Date();
+
+            let resultsToUpdate = [];
+
+            results.items.forEach(item => {
+                if (item.campaignEnd < now) {
+                    item.status = "EXPIRED";
+                    resultsToUpdate.push(item);
+                }
+            });
+
+            console.log("Expired Drops:", resultsToUpdate);
+
+            wixData.bulkUpdate("TwitchDrops", resultsToUpdate)
+                .then((results) => {
+                    console.log("Results aftering updating Twitch Drops to Expired:", results);
+                })
+                .catch((error) => {
+                    console.error(error + " occurred while updating Twitch Drops to Expired.");
+                })
+        })
+        .catch((error) => {
+            console.error(error + " occurred while trying to retrieve ACTIVE Twitch Drops.");
+        })
+}
