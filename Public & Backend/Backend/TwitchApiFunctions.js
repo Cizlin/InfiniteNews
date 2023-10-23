@@ -157,7 +157,7 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
             minimalJson.campaignEnd = new Date(Date.parse(dropJson.endAt)); //new Date(Date.parse(dropJson.data.user.dropCampaign.endAt));
             minimalJson.campaignName = dropJson.name; //dropJson.data.user.dropCampaign.name;
 
-            minimalJson.status = dropJson.status; //dropJson.data.user.dropCampaign.status;
+            minimalJson.status = (minimalJson.campaignEnd < new Date()) ? "EXPIRED" : dropJson.status; //dropJson.data.user.dropCampaign.status;
 
             minimalJson.game = gameIdToGameName[dropJson.game.id];
 
