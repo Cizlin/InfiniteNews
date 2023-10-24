@@ -9,10 +9,14 @@ import { paginationKey } from 'public/Pagination.js';
 import * as GeneralFunctions from 'public/General.js';
 
 function loadRankPage(pageNumber) {
-	$w("#freePassRanksDataset").loadPage(pageNumber);
-	if ($w("#premiumPassRanksDataset").getTotalCount() > 0) {
-		$w("#premiumPassRanksDataset").loadPage(pageNumber);
-	}
+	$w("#freePassRanksDataset").onReady(() => {
+		$w("#freePassRanksDataset").loadPage(pageNumber);
+		$w("#premiumPassRanksDataset").onReady(() => {
+			if ($w("#premiumPassRanksDataset").getTotalCount() > 0) {
+				$w("#premiumPassRanksDataset").loadPage(pageNumber);
+			}
+		});
+	});
 }
 
 function setPassPaginationIndexFromSave() {
@@ -82,16 +86,25 @@ $w.onReady(function () {
 			$w("#" + repeaterType + "ItemRepeater").onItemReady(async ($item, itemData) => {
 				$item("#" + repeaterType + "EffectVideoPlayer").collapse();
 				$item("#" + repeaterType + "EffectVideoPlayer").hide();
+				$item("#" + repeaterType + "MultiplesText").hide();
 
 				//console.log(itemData);
 				// First, we need to figure out which child item category actually has items.
 				let categoryWithItems = "";
+				let rankContainsMultipleItems = (itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].length > 1);
 				if (itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD].length > 0) { // We're just going to grab the first category and item for now.
 					categoryWithItems = itemData[PassConstants.PASS_RANK_FIELDS_WITH_ITEMS_FIELD][0];
 					let queryResults = await wixData.queryReferenced(PassConstants.PASS_RANK_DB, itemData._id, categoryWithItems);
 					if (queryResults.items.length > 0) {
 						itemData[categoryWithItems] = queryResults.items; // Save the child items we just got to our rank item.
+						if (queryResults.items.length > 1) {
+							rankContainsMultipleItems = true;
+						}
 					}
+				}
+
+				if (rankContainsMultipleItems) {
+					$item("#" + repeaterType + "MultiplesText").show();
 				}
 
 				if (categoryWithItems == "") { // Some ranks won't have any items in them, particularly some free ranks in Battle Passes.
@@ -136,7 +149,7 @@ $w.onReady(function () {
 					let childItemArray = itemData[categoryWithItems];
 					let childItem = childItemArray[0]; // We're assuming that we only have one item returned. We'll worry about multiple items later.
 
-					$item("#" + repeaterType + "ItemButton").link = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "UrlField"]];
+					//$item("#" + repeaterType + "ItemButton").link = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "UrlField"]];
 					$item("#" + repeaterType + "ItemImage").src = childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "ImageField"]];
 					$item("#" + repeaterType + "ItemNameText").text = itemData[PassConstants.PASS_RANK_RANK_NUM_FIELD] + ": " +
 						childItem[CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "NameField"]];
@@ -159,11 +172,11 @@ $w.onReady(function () {
 						await wixData.queryReferenced(itemDb, childItem._id, CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "SourceTypeField"])
 							.then((results) => {
 								results.items.forEach((element, index) => {
-									if (index == 3) {
+									if (index == 2) {
 										sourceString += "etc., "; // We're truncating this since it's a lot to write for some consumables.
 										return;
 									}
-									else if (index > 3) { // Don't process any more sources. No more room.
+									else if (index > 2) { // Don't process any more sources. No more room.
 										return;
 									}
 
@@ -211,6 +224,10 @@ $w.onReady(function () {
 					}
 					else { // If we're working with a core
 						customizationTypeString = CATEGORY_SPECIFIC_VARS[CATEGORY_KEYWORD + "Type"];
+					}
+
+					if (rankContainsMultipleItems) {
+						customizationTypeString = "Multiple items";
 					}
 
 					$item("#" + repeaterType + "ItemTypeText").text = customizationTypeString;

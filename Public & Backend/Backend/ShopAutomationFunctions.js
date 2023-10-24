@@ -23,6 +23,11 @@ import * as ConsumablesConstants from 'public/Constants/ConsumablesConstants.js'
 import * as CapstoneChallengeConstants from 'public/Constants/CapstoneChallengeConstants.js';
 import * as GeneralConstants from 'public/Constants/GeneralConstants.js';
 
+import * as ArmorConstants from 'public/Constants/ArmorConstants.js';
+import * as WeaponConstants from 'public/Constants/WeaponConstants.js';
+import * as VehicleConstants from 'public/Constants/VehicleConstants.js';
+import * as SpartanIdConstants from 'public/Constants/SpartanIdConstants.js';
+
 // Import helper functions.
 import * as ApiFunctions from 'backend/ApiFunctions.jsw';
 import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
@@ -310,12 +315,16 @@ export async function getCustomizationOffersShopListFromWaypoint(headers) {
 }
 
 // Retrieves an item ID based on the JSON returned from Waypoint and some other efficiency arguments.
-export async function getItemId(customizationCategory, waypointId) {
+export async function getItemId(customizationCategory, waypointId, possibleMultiCore = false, exactWaypointId = "") { // If the item might be multi-core, we can check any match to see if crossCompatible is set.
+	// If the item could be multi-core, we need to set the exact waypoint ID so we can find it as a backup when the item isn't multi-core.
 	// It's time to select the item!
 	let existingItem = {};
 
 	const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 	const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationWaypointIdField;
+	const CROSS_COMPATIBLE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCrossCompatibleField;
+
+	let multipleItems = [];
 
 	await wixData.query(CUSTOMIZATION_DB)
 		.contains(WAYPOINT_ID_FIELD, waypointId) // This is so we don't have any issues with case.
@@ -324,16 +333,40 @@ export async function getItemId(customizationCategory, waypointId) {
 			if (results.items.length == 1) { // This is the expected case for now. If cross-core occurs in the future, this will affect some things.
 				existingItem = results.items[0];
 			}
-			else if (results.items.length > 1) { // This is unexpected.
-				throw "Multiple items returned despite assumed uniqueness. Tried querying based on " + waypointId;
+			else if (results.items.length > 1) { 
+				if (!possibleMultiCore) {
+					throw "Multiple items returned despite assumed uniqueness. Tried querying based on " + waypointId;
+				}
+				else if (results.items[0][CROSS_COMPATIBLE_FIELD]) {
+					for (let i = 0; i < results.items.length; ++i) {
+						multipleItems.push(results.items[i]._id);
+					}
+				}
+				else {
+					// This isn't a multi-core coating, so we need to only include the coatings specified in the bundle/challenge/etc.
+					existingItem = null;
+
+					for (let i = 0; i < results.items.length; ++i) {
+						if (results.items[i][WAYPOINT_ID_FIELD] == exactWaypointId) {
+							existingItem = results.items[i];
+							break;
+						}
+					}
+				}
 			}
 			else {
 				existingItem = null;
 			}
 		});
 
-	if (existingItem) {
-		return existingItem._id;
+	if (existingItem && !possibleMultiCore) {
+		return existingItem._id; // Only one match to be found.
+	}
+	else if (multipleItems.length > 0 && possibleMultiCore) {
+		return multipleItems; // Multiple matches were found and desired.
+	}
+	else if (existingItem && possibleMultiCore) {
+		return [existingItem._id]; // Multiple matches were desired, but only one was found.
 	}
 	else {
 		throw "Error retrieving DB ID for waypoint ID " + waypointId + " from " + CUSTOMIZATION_DB;
@@ -464,6 +497,8 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 							case "event":
 							case "exclusive content!":
 							case "exclusive content":
+							case "timed exclusive":
+							case "last chance":
 								if (shopWaypointJson.Title.trim() === "Boost and Swap Pack") {
 									mainShopSiteJson[ShopConstants.SHOP_TIME_TYPE_FIELD] = [ShopConstants.SHOP_INDEFINITE]; // The Boost and Swap Pack is getting picked up by this.
 								}
@@ -629,6 +664,8 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 						let foundType = false; // Should become true if the type is found.
 						for (let typeCategory in typeDict) {
 							if (typeDict[typeCategory].includes(includedItemsArray[j].ItemType)) { // If the ItemType belongs to this typeCategory.
+								let possibleMultiCore = false;
+
 								foundType = true; // We found the type.
 								let waypointIdMatchArray = includedItemsArray[j].ItemPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH); // We'll be parsing this info from the path now.
 								let waypointId = "";
@@ -637,22 +674,101 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 									//console.log(waypointId);
 								}
 
-								const SHOP_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].ShopReferenceField;
-								let itemId = "";
-								try {
-									itemId = await getItemId(typeCategory, waypointId);
-								}
-								catch (error) {
-									console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
-									console.log("Querying API for Waypoint ID...");
-									let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
-									itemId = await getItemId(typeCategory, itemJson.CommonData.Id);
-								}
+								let exactWaypointId = waypointId;
 
-								mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].push(itemId);
+								let typeCategoryArray = [typeCategory];
 
-								if (!mainShopSiteJson[ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].includes(SHOP_ITEM_REFERENCE_FIELD)) {
-									mainShopSiteJson[ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].push(SHOP_ITEM_REFERENCE_FIELD);
+								if (includedItemsArray[j].ItemType.includes("Emblem")) {
+									// Emblems marked as cross compatible award all variants at once (Armor Emblem, Weapon Emblem, Vehicle Emblem, Nameplate).
+									// Related emblems share the tail end of their waypoint IDs.
+									let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+									if (matches.length > 0) {
+										waypointId = matches[0];
+									}
+
+									let possibleTypeCategories = [
+										ArmorConstants.ARMOR_KEY,
+										WeaponConstants.WEAPON_KEY,
+										VehicleConstants.VEHICLE_KEY,
+										SpartanIdConstants.SPARTAN_ID_KEY
+									];
+
+									for (let q = 0; q < possibleTypeCategories.length; ++q) {
+										if (!typeCategoryArray.includes(possibleTypeCategories[q])) {
+											typeCategoryArray.push(possibleTypeCategories[q]);
+										}
+									}
+								}	
+
+								if (includedItemsArray[j].ItemType.includes("Coating")) {
+									// Coatings marked as cross compatible award all variants on all cores at once.
+									// Related coatings share the tail end of their waypoint IDs.
+									possibleMultiCore = true;
+
+									let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+									if (matches.length > 0) {
+										waypointId = matches[0];
+									}
+								}							
+
+								for (let q = 0; q < typeCategoryArray.length; ++q) {
+									let currentTypeCategory = typeCategoryArray[q];
+									const SHOP_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[currentTypeCategory].ShopReferenceField;
+									
+									let itemId = "";
+									let itemIdArray = []; // This will only be used if possibleMultiCore is set.
+									try {
+										if (possibleMultiCore) {
+											itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, exactWaypointId);
+											//console.log(itemIdArray, "Contents of item Id Array");
+										}
+										else {
+											itemId = await getItemId(currentTypeCategory, waypointId);
+										}
+									}
+									catch (error) {
+										console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
+										console.log("Querying API for Waypoint ID...");
+										let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
+
+										if (possibleMultiCore) {
+											let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+											if (matches.length > 0) {
+												waypointId = matches[0];
+											}
+
+											itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, itemJson.CommonData.Id);
+										}
+										else {
+											itemId = await getItemId(currentTypeCategory, itemJson.CommonData.Id);
+											
+											let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+											if (matches.length > 0) {
+												waypointId = matches[0];
+											}
+										}
+									}
+
+									if (possibleMultiCore) {
+										for (let q = 0; q < itemIdArray.length; ++q) {
+											if (!mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].includes(itemIdArray[q])) {
+												mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].push(itemIdArray[q]);
+											}
+										}
+									}
+									else {
+										if (!mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].includes(itemId)) {
+											mainShopSiteJson[SHOP_ITEM_REFERENCE_FIELD].push(itemId);
+										}
+									}
+
+									if (!mainShopSiteJson[ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].includes(SHOP_ITEM_REFERENCE_FIELD)) {
+										mainShopSiteJson[ShopConstants.SHOP_FIELDS_WITH_ITEMS_FIELD].push(SHOP_ITEM_REFERENCE_FIELD);
+									}
 								}
 
 								break;
@@ -1706,6 +1822,7 @@ export async function refreshShopListings() {
 						item[ShopConstants.SHOP_ITEM_NAME_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_ITEM_NAME_FIELD];
 						item[ShopConstants.SHOP_COST_CREDITS_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD];
 						item[ShopConstants.SHOP_TIME_TYPE_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_TIME_TYPE_FIELD];
+						item[ShopConstants.SHOP_IS_HCS_FIELD] = newShopListingsToUpdate[i][ShopConstants.SHOP_IS_HCS_FIELD];
 					}
 					else { // If we didn't find the item, we need to add it. This is a bit involved since we also have to add references for each of its multi-references.
 						newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD] = [];
@@ -1715,6 +1832,10 @@ export async function refreshShopListings() {
 						console.log(newShopListingsToUpdate[i]);
 
 						item = await addBundleToDb(newShopListingsToUpdate[i]); // We need to await this if we want to integrate with the Twitter API.
+
+						// Add this item to the list of shop listings in the DB.
+						items.push(structuredClone(item)); // Clone the item so we don't overwrite it later.
+						itemIds.push(item[ShopConstants.SHOP_WAYPOINT_ID_FIELD]);
 					}
 
 					updateItemArray.push(item);

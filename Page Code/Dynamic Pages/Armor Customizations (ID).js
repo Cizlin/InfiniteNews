@@ -18,6 +18,7 @@ $w.onReady(function () {
 		let currentItem = $w("#dynamicDatasetItem").getCurrentItem(); // Get the current item to add the attachment customization type.
 
 		if (currentItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationEffectVideoField]) {
+			$w("#effectVideoPlayer").src = currentItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationEffectVideoField];
 			$w("#itemImage").collapse();
 			$w("#itemImage").hide();
 			$w("#effectVideoPlayer").expand();

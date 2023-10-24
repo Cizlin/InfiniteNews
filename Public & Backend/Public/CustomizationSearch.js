@@ -132,6 +132,10 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
                     if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
                         break;
                     }
+
+                    if (!results.hasNext()) {
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -202,6 +206,10 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
                     if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
                         break;
                     }
+
+                    if (!results.hasNext()) {
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -257,6 +265,10 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
                     }                    
 
                     if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
+
+                    if (!results.hasNext()) {
                         break;
                     }
                 }
@@ -324,6 +336,10 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
                     if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
                         break;
                     }
+
+                    if (!results.hasNext()) {
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -381,6 +397,10 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
                     if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
                         break;
                     }
+
+                    if (!results.hasNext()) {
+                        break;
+                    }
                 }
                 
                 // Data is now available to be displayed.
@@ -436,6 +456,10 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
                     }                
 
                     if (quickSearch) { // We don't need to spend a lot of time querying if it's a quick search.
+                        break;
+                    }
+
+                    if (!results.hasNext()) {
                         break;
                     }
                 }
@@ -507,3 +531,4 @@ export async function nameSearch(nameSearchValue, categoriesToQuery, searchStatu
 
     return consolidatedSearchResults;
 }
+
