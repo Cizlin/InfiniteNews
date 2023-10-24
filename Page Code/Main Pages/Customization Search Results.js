@@ -9,8 +9,11 @@ const RESULTS_PER_PAGE = 20;
 
 function updateRepeaterItems() {
 	$w("#listRepeater").forEachItem(($item, itemData) => {
+		let descriptionArrayLength = itemData.description.split("\n").length;
+		let descriptionText = itemData.description.split("\n", 5).join("\n");
+		
 		$item("#resultName").text = itemData.name;
-		$item("#resultDescription").text = "\n" + itemData.description;
+		$item("#resultDescription").text = "\n" + descriptionText + ((descriptionArrayLength > 5) ? "\n..." : "");
 		$item("#resultButton").link = itemData.url;
 		if (itemData.hasVideo) {
 			$item("#resultImage").hide();

@@ -37,6 +37,14 @@ $w.onReady(function () {
 
 		if (ultimateChallenge[categoryWithItems].length > 0) {
 			let childItem = ultimateChallenge[categoryWithItems][0];
+
+			let challengeHasMultipleRewards = false;
+
+			if (ultimateChallenge[categoryWithItems].length > 1 || ultimateChallenge[categoryWithItems][0].length > 1)
+			{
+				// If we have multiple categories or multiple items in a category.
+				challengeHasMultipleRewards = true;
+			}
 			
 			// We need to retrieve the customization type. Soon will do this for all items including attachments.
 			const SOCKET_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].SocketDb;
@@ -53,10 +61,11 @@ $w.onReady(function () {
 			const CUSTOMIZATION_IMAGE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationImageField;
 			const CUSTOMIZATION_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationNameField;
 
-			$item("#ultimateChallengeButton").link = childItem[CUSTOMIZATION_URL_FIELD];
+			//$item("#ultimateChallengeButton").link = childItem[CUSTOMIZATION_URL_FIELD];
 			$item("#ultimateChallengeImage").src = childItem[CUSTOMIZATION_IMAGE_FIELD];
 			$item("#ultimateChallengeImage").fitMode = "fit";
-			$item("#ultimateChallengeRewardText").text = childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType;
+			$item("#ultimateChallengeRewardText").text = (challengeHasMultipleRewards) ? "Multiple rewards. Click here to see all." 
+				: (childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType);
 
 			if ("CustomizationEffectVideoField" in CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY] &&
 				childItem[CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationEffectVideoField]) {
@@ -112,8 +121,10 @@ $w.onReady(function () {
 				weekNum = ultimateChallenge[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_AVAILABLE_WEEK_ARRAY_FIELD][0]; // We want the most recent Week Num available.
 			}
 
-			if (seasonNum == 2001) {
-				$item("#ultimateChallengeSeasonAndWeek").text = "Winter Update, Week " + weekNum;
+			if (seasonNum > 1000) {
+				let seasonOperation = seasonNum % 10;
+				seasonNum = Math.floor(seasonNum / 1000);
+				$item("#ultimateChallengeSeasonAndWeek").text = "Season " + seasonNum + "." + seasonOperation + ", Week " + weekNum;
 			}
 			else {
 				$item("#ultimateChallengeSeasonAndWeek").text = "Season " + seasonNum + ", Week " + weekNum;

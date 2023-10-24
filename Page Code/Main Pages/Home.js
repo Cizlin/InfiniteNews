@@ -16,6 +16,7 @@ $w.onReady(async function () {
 	$w("#effectVideoPlayer").hide();
 
 	$w("#blog1").hide();
+	$w("#twitchDropUnavailable").hide();
 	
 	$w("#ultimateChallengeDataset").onReady(async () => {
 		let ultimateChallenge = $w("#ultimateChallengeDataset").getCurrentItem();
@@ -56,7 +57,7 @@ $w.onReady(async function () {
 			const CUSTOMIZATION_IMAGE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationImageField;
 			const CUSTOMIZATION_NAME_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[CUSTOMIZATION_CATEGORY].CustomizationNameField;
 
-			$w("#ultimateChallengeButton").link = childItem[CUSTOMIZATION_URL_FIELD];
+			//$w("#ultimateChallengeButton").link = childItem[CUSTOMIZATION_URL_FIELD];
 			$w("#ultimateChallengeImage").src = childItem[CUSTOMIZATION_IMAGE_FIELD];
 			$w("#ultimateChallengeImage").fitMode = "fit";
 			$w("#ultimateChallengeRewardText").text = childItem[CUSTOMIZATION_NAME_FIELD] + " " + childItemCustomizationType;
@@ -103,6 +104,8 @@ $w.onReady(async function () {
 			$w("#twitchDropCampaignEnd").hide();
 			$w("#twitchDropRewards").hide();
 			$w("#twitchDropButton").hide();
+			$w("#twitchDropRewardImage").hide();
+			$w("#twitchDropUnavailable").show();
 			return;
 		}
 		// We need to manually associate these images based on the references.
@@ -130,7 +133,8 @@ $w.onReady(async function () {
 
 						if (i < referencedRewards.length - 1) {
 							// Add a comma-space separator in all but the last case.
-							rewardListText += ", ";
+							rewardListText += " and more!";
+							break;
 						}
 					}
 				}
@@ -142,7 +146,8 @@ $w.onReady(async function () {
 
 				if (i < referencedRewards.length - 1) {
 					// Add a comma-space separator in all but the last case.
-					rewardListText += ", ";
+					rewardListText += " and more!";
+					break;
 				}
 			}
 		}
@@ -154,25 +159,4 @@ $w.onReady(async function () {
 		$w("#twitchDropRewards").text = rewardListText;
 		$w("#twitchDropRewardImage").fitMode = "fit";
 	});
-
-	// Update the Featured Shop Bundle Listing
-	/*$w("#shopDatasetDaily").onReady(() => {
-		let shopBundle = $w("#shopDatasetDaily").getCurrentItem();
-		if (shopBundle) {
-			$w("#shopImageDaily").fitMode = "fit";
-			$w("#shopCreditCostDaily").text = "Credits: " + shopBundle[ShopConstants.SHOP_COST_CREDITS_FIELD];
-		}
-		else {
-			$w("#shopImageDaily").hide();
-			$w("#shopImageDaily").collapse();
-			$w("#shopBundleTypeDaily").hide();
-			$w("#shopBundleTypeDaily").collapse();
-			$w("#shopCreditCostDaily").hide();
-			$w("#shopCreditCostDaily").collapse();
-			$w("#shopButtonDaily").hide();
-			$w("#shopButtonDaily").collapse();
-		}
-	});*/
-
-
 });

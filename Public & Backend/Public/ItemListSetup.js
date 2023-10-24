@@ -1112,8 +1112,8 @@ export async function initialItemListSetup(customizationCategory) {
 								rewardListText += itemData.rewardGroups[i].rewards[j].name;
 
 								if (i < referencedRewards.length - 1) {
-									// Add a comma-space separator in all but the last case.
-									rewardListText += ", ";
+									// Add a newline separator in all but the last case.
+									rewardListText += "\n";
 								}
 							}
 						}
@@ -1124,8 +1124,8 @@ export async function initialItemListSetup(customizationCategory) {
 						rewardListText += referencedRewards[i].notificationText;
 
 						if (i < referencedRewards.length - 1) {
-							// Add a comma-space separator in all but the last case.
-							rewardListText += ", ";
+							// Add a newline separator in all but the last case.
+							rewardListText += "\n";
 						}
 					}
 				}

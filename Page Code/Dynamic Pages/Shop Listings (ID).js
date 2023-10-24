@@ -92,6 +92,7 @@ $w.onReady(function () {
 							currentItem[CATEGORY_SPECIFIC_VARS.CustomizationEffectVideoField]) {
 
 							console.log("Showing video and hiding image.")
+							$item("#" + TYPE + "EffectVideoPlayer").src = currentItem[CATEGORY_SPECIFIC_VARS.CustomizationEffectVideoField];
 							$item("#" + TYPE + "Image").collapse();
 							$item("#" + TYPE + "Image").hide();
 							$item("#" + TYPE + "EffectVideoPlayer").expand();

@@ -157,7 +157,7 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
             minimalJson.campaignEnd = new Date(Date.parse(dropJson.endAt)); //new Date(Date.parse(dropJson.data.user.dropCampaign.endAt));
             minimalJson.campaignName = dropJson.name; //dropJson.data.user.dropCampaign.name;
 
-            minimalJson.status = dropJson.status; //dropJson.data.user.dropCampaign.status;
+            minimalJson.status = (minimalJson.campaignEnd < new Date()) ? "EXPIRED" : dropJson.status; //dropJson.data.user.dropCampaign.status;
 
             minimalJson.game = gameIdToGameName[dropJson.game.id];
 
@@ -209,7 +209,7 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
             minimalJson.campaignEnd = new Date(Date.parse(dropJson.data.user.dropCampaign.endAt));
             minimalJson.campaignName = dropJson.data.user.dropCampaign.name;
 
-            minimalJson.status = dropJson.data.user.dropCampaign.status;
+            minimalJson.status = (minimalJson.campaignEnd < new Date()) ? "EXPIRED" : dropJson.data.user.dropCampaign.status;
 
             minimalJson.rewardGroups = [];
 
@@ -224,9 +224,12 @@ export async function generateNewTwitchDropJsons(useAutomation = true, providedD
                 };
 
                 for (let k = 0; k < dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges.length; ++k) {
+                    let idSplitArray = dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id.split('_');
+                    let code = idSplitArray[idSplitArray.length - 1];
+
                     rewardGroup.rewards.push({
                         name: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.name,
-                        code: dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.id
+                        code: code
                     });
 
                     let dropGameName = gameIdToGameName[dropJson.data.user.dropCampaign.timeBasedDrops[j].benefitEdges[k].benefit.game.id];
@@ -429,19 +432,18 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
 
                     let matchingRewards = await wixData.query("TwitchDropRewards")
                         .eq("waypointId", code)
-                        .contains("title", name) // Just in case something goofy happens with spacing. This also renders us immune to casing issues.
                         .find()
                         .then((results) => {
                             return results.items;
                         })
                         .catch((error) => {
-                            console.error("Error occurred when retrieving Twitch drop rewards based on name and code: " + name + ", " + code + ": " + error);
+                            console.error("Error occurred when retrieving Twitch drop rewards based on code: " + code + ": " + error);
                             return [];
                         });
                     
                     if (matchingRewards.length === 0) {
                         // The fetch didn't find anything matching both the name and code. We should just search based on the name, just in case the code is now being used for a different drop (unknown if this is an issue).
-                        console.log("Found no results based on both name and code. Searching only for name now.");
+                        console.log("Found no results based on code. Searching only for name now.");
                         matchingRewards = await wixData.query("TwitchDropRewards")
                             .contains("title", name)
                             .find()
@@ -507,6 +509,7 @@ export async function refreshAllTwitchDrops(useAutomation = true, dropJsonArray 
     }
 
     for (let i = 0; i < databaseTwitchDrops.length; ++i) {
+        console.log("Reward References: ", databaseTwitchDrops[i].rewardReferences);
         // Loop through the Twitch drops to be sent to the DB to see if we need to send any notifications for them.
         if (!databaseTwitchDrops[i].notifsSent && databaseTwitchDrops[i].status.toUpperCase() === "ACTIVE") {
             // This drop is now active and we haven't sent notifications. We need to let folks know immediately.
@@ -602,16 +605,6 @@ function arraysAreEqual(arr1, arr2) {
     }
 }
 
-/* This is the format of a typical Upcoming Twitter Announcement. It also has images attached to it.
-RETURNING UPCOMING TWITCH DROP
-Trophy Backdrop
-Apr 15, 2023, 3:00 PM PDT - Apr 15, 2023, 10:00 P.M. PDT  
-
-Channel 
-https://twitch.tv/magickmoonshot
-
-Watch for 1 hour
-*/
 // If isUpcoming is false, we treat it as an active notification (drop is live).
 async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = false) {
     let dropRewards = drop.rewardGroups;
@@ -705,7 +698,7 @@ async function sendTwitterNotification(drop, isUpcoming = true, isCorrection = f
             for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
                 // Get a collection of matching rewards based on the title.
                 for (let k = 0; k < dropRewardNotificationArray.length; ++k) {
-                    if (dropRewardNotificationArray[k].title === dropRewards[i].rewards[j].name) {
+                    if (dropRewardNotificationArray[k].waypointId === dropRewards[i].rewards[j].code) {
                         rewardArray.push(dropRewardNotificationArray[k]); // The indices of this object are guaranteed to align with the rewardGroups array.
                     }
                 }
@@ -1054,7 +1047,7 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             for (let j = 0; j < dropRewards[i].rewards.length; ++j) {
                 // Get a collection of matching rewards based on the title.
                 for (let k = 0; k < dropRewardNotificationArray.length; ++k) {
-                    if (dropRewardNotificationArray[k].title === dropRewards[i].rewards[j].name) {
+                    if (dropRewardNotificationArray[k].waypointId === dropRewards[i].rewards[j].code) {
                         rewardArray.push(dropRewardNotificationArray[k]); // The indices of this object are guaranteed to align with the rewardGroups array.
                     }
                 }
@@ -1226,4 +1219,37 @@ export async function sendUpcomingNotifications() {
         .catch((error) => {
             console.error(error + " occurred while updating Twitch Drops after sending notifications.");
         });
+}
+
+export function markExpiredDrops() {
+    wixData.query("TwitchDrops")
+        .eq("status", "ACTIVE")
+        .find()
+        .then((results) => {
+            console.log("Currently ACTIVE Drops:", results.items);
+
+            let now = new Date();
+
+            let resultsToUpdate = [];
+
+            results.items.forEach(item => {
+                if (item.campaignEnd < now) {
+                    item.status = "EXPIRED";
+                    resultsToUpdate.push(item);
+                }
+            });
+
+            console.log("Expired Drops:", resultsToUpdate);
+
+            wixData.bulkUpdate("TwitchDrops", resultsToUpdate)
+                .then((results) => {
+                    console.log("Results aftering updating Twitch Drops to Expired:", results);
+                })
+                .catch((error) => {
+                    console.error(error + " occurred while updating Twitch Drops to Expired.");
+                })
+        })
+        .catch((error) => {
+            console.error(error + " occurred while trying to retrieve ACTIVE Twitch Drops.");
+        })
 }
