@@ -13,7 +13,7 @@ function updateRepeaterItems() {
 		let descriptionArrayLength = itemData.description.split("\n").length;
 		let descriptionText = itemData.description.split("\n", 5).join("\n") + ((descriptionArrayLength > 5) ? "\n..." : "");
 
-		if (descriptionText.length > 150) {
+		if (descriptionText.length > 153) {
 			descriptionText = descriptionText.substr(0, 150) + "...";
 		}
 		
