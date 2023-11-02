@@ -6,6 +6,7 @@ import {paginationKey, setPaginationIndexFromSave} from 'public/Pagination.js';
 import {STACK_KEY, STACK_LIMIT, Stack} from 'public/Stack.js';
 
 import * as CustomizationSearchFunctions from 'public/CustomizationSearch.js';
+import * as GeneralFunctions from 'public/General.js';
 
 let previousPageURL;
 
@@ -169,8 +170,9 @@ $w.onReady(function () {
 		$w("#globalAutocompleteRepeater").show();
 	});
 
-	$w("#customizationSearchBar").onBlur(() => {
+	$w("#customizationSearchBar").onBlur(async () => {
 		// We clicked away from the search input. Hide the repeater.
+        await GeneralFunctions.sleep(100);
 		$w("#globalAutocompleteRepeater").hide();
 	});
     
