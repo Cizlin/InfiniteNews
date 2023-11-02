@@ -3,6 +3,7 @@
 
 import wixLocation from 'wix-location';
 import * as CustomizationSearchFunctions from 'public/CustomizationSearch.js';
+import * as GeneralFunctions from 'public/General.js';
 
 let searchResults = [];
 const RESULTS_PER_PAGE = 20;
@@ -10,10 +11,14 @@ const RESULTS_PER_PAGE = 20;
 function updateRepeaterItems() {
 	$w("#listRepeater").forEachItem(($item, itemData) => {
 		let descriptionArrayLength = itemData.description.split("\n").length;
-		let descriptionText = itemData.description.split("\n", 5).join("\n");
+		let descriptionText = itemData.description.split("\n", 5).join("\n") + ((descriptionArrayLength > 5) ? "\n..." : "");
+
+		if (descriptionText.length > 150) {
+			descriptionText = descriptionText.substr(0, 150) + "...";
+		}
 		
 		$item("#resultName").text = itemData.name;
-		$item("#resultDescription").text = "\n" + descriptionText + ((descriptionArrayLength > 5) ? "\n..." : "");
+		$item("#resultDescription").text = "\n" + descriptionText;
 		$item("#resultButton").link = itemData.url;
 		if (itemData.hasVideo) {
 			$item("#resultImage").hide();
@@ -300,8 +305,9 @@ $w.onReady(async function () {
 		$w("#autocompleteRepeater").show();
 	});
 
-	$w("#customizationSearchInput").onBlur(() => {
+	$w("#customizationSearchInput").onBlur(async () => {
 		// We clicked away from the search input. Hide the repeater.
+		await GeneralFunctions.sleep(100); // Sleep before hiding so that users can click on the suggestions.
 		$w("#autocompleteRepeater").hide();
 	});
 
