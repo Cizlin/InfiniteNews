@@ -1915,8 +1915,16 @@ export async function refreshCustomizationShopListings() {
 							newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]); 
 							newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
 						}
+						else if (newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD] != newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD][0]) {
+							// If the current cost doesn't match the last available cost, then we need to add a new record.
+							let currentDate = new Date();
+
+							newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(currentDate);
+							newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
+						}
 						else {
-							newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD] = item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]; // This isn't newly available.
+							newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD] = item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD];
+							// This isn't newly available, and the price hasn't changed.
 						}
 
 						newShopListingsToUpdate[i][ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD] = item[ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD]; // This listing may be available through the normal shop, too.
