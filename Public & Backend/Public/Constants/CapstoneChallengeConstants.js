@@ -5,6 +5,7 @@ export const CAPSTONE_CHALLENGE_DB = "CapstoneChallenges";
 export const CAPSTONE_CHALLENGE_SECTION = "CapstoneChallenges";
 export const CAPSTONE_CHALLENGE_KEY = "CapstoneChallenge";
 export const CAPSTONE_CHALLENGE_SOURCE_TEXT = "Capstone Challenge";
+export const CAPSTONE_CHALLENGE_URL_FIELD = "link-capstone-challenges-title";
 
 export const CAPSTONE_CHALLENGE_CURRENTLY_AVAILABLE_FIELD = "currentlyAvailable";
 export const CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD = "fieldsWithItems";
