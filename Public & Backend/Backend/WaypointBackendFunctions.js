@@ -35,6 +35,29 @@ import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 
 // We have a few tasks here. For one, we need to add all the Ranks to the PassRanks DB. While we do that, we need to update the sourcetype and source for each item within the ranks.
 
+export async function getNumCores(categoryKey) {
+	const CORE_DB = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[categoryKey].CoreDb;
+	const CORE_CURRENTLY_AVAILABLE_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[categoryKey].CoreCurrentlyAvailableField;
+
+	return await wixData.query(CORE_DB)
+		.eq(CORE_CURRENTLY_AVAILABLE_FIELD, true)
+		.find()
+		.then((results) => {
+			return results.items.length;
+		})
+		.catch((error) => {
+			console.error(error + " occurred while counting the number of cores for " + categoryKey + "; returning backup default");
+
+			const NUM_CORES_DEFAULT = {
+				[ArmorConstants.ARMOR_KEY]: 8,
+				[WeaponConstants.WEAPON_KEY]: 9,
+				[VehicleConstants.VEHICLE_KEY]: 7
+			};
+
+			return NUM_CORES_DEFAULT[categoryKey];
+		});
+}
+
 async function getItemData(headers, path) {
 	let itemJson = await ApiFunctions.getCustomizationItem(headers, path);
 	if (!itemJson.CommonData.Title) {
@@ -1768,12 +1791,62 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 
 		console.log(updateItemArray[i].childItemInfo);
 
+		const NUM_ARMOR_CORES = await getNumCores(ArmorConstants.ARMOR_KEY);
+		const NUM_WEAPON_CORES = await getNumCores(WeaponConstants.WEAPON_KEY);
+		const NUM_VEHICLE_CORES = await getNumCores(VehicleConstants.VEHICLE_KEY);
+
+		let emblemNamesToSkip = [];
+		let armorCoatingNamesToSkip = [];
+		let weaponCoatingNamesToSkip = [];
+		let vehicleCoatingNamesToSkip = [];
+
 		for (let j = 0; j < updateItemArray[i].childItemInfo.length; ++j) {
-			let rewardInfoDict = updateItemArray[i].childItemInfo[j];
-			let subTweetText = "Reward: " + rewardInfoDict.itemName + " " + rewardInfoDict.itemType + ((rewardInfoDict.itemCore != "") ? (" (" + rewardInfoDict.itemCore + ")") : "") + "\n" + rewardInfoDict.itemUrl;
-			console.log(subTweetText);
-			parentId = await TwitterFunctions.sendTweet(subTweetText, parentId);
-			await DiscordFunctions.sendDiscordMessage("weekly-reset", subTweetText);
+			let childItem = updateItemArray[i].childItemInfo[j];
+			let childItemText = "Reward: " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n" + childItem.itemUrl;
+			// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
+			if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
+				if (emblemNamesToSkip.includes(childItem.itemName)) { // We already noted this Emblem Set. Let's proceed.
+					continue;
+				}
+
+				let matchingEmblemsFound = 0; // Count the number of matching emblems in the list.
+				updateItemArray[i].childItemInfo.forEach((item) => {
+					if (item.itemName == childItem.itemName && (item.itemType.includes("Nameplate") || item.itemType.includes("Emblem"))) {
+						++matchingEmblemsFound;
+					}
+				});
+
+				if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
+					childItemText = "Reward: " + childItem.itemName + " Emblem Set\n" + updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_URL_FIELD];
+					emblemNamesToSkip.push(childItem.itemName);
+				}
+			}
+
+			// We also want to abbreviate sets of coatings into a single aggregate.
+			if (childItem.itemType.includes("Coating")) {
+				if (childItem.itemType.includes("Armor Coating") && armorCoatingNamesToSkip.includes(childItem.itemName)
+				|| childItem.itemType.includes("Weapon Coating") && weaponCoatingNamesToSkip.includes(childItem.itemName)
+				|| childItem.itemType.includes("Vehicle Coating") && vehicleCoatingNamesToSkip.includes(childItem.itemName)) { // We already noted this Coating. Let's proceed.
+					continue;
+				}
+
+				let matchingCoatingsFound = 0; // Count the number of matching coatings in the list.
+				updateItemArray[i].childItemInfo.forEach((item) => {
+					if (item.itemName == childItem.itemName && item.itemType == childItem.itemType) {
+						++matchingCoatingsFound;
+					}
+				});
+
+				if (childItem.itemType.includes("Armor Coating") && matchingCoatingsFound >= NUM_ARMOR_CORES
+				|| childItem.itemType.includes("Weapon Coating") && matchingCoatingsFound >= NUM_WEAPON_CORES
+				|| childItem.itemType.includes("Vehicle Coating") && matchingCoatingsFound >= NUM_VEHICLE_CORES) { // If we found an instance of the coating on all available cores.
+					childItemText = "Reward: " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n" + updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_URL_FIELD];
+				}
+			}
+			
+			console.log(childItemText);
+			parentId = await TwitterFunctions.sendTweet(childItemText, parentId);
+			await DiscordFunctions.sendDiscordMessage("weekly-reset", childItemText);
 		}
 	}
 }
