@@ -171,17 +171,21 @@ export async function getMainShopListFromWaypoint(headers) {
 		remakeHeaders = retry; // If we retry, remake the headers first.
 	}
 
-	let refinedOfferings = [];
+	/*let refinedOfferings = [];
 
 	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
-		/*if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
+		if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
 			continue;
-		}*/
+		}
 
 		refinedOfferings.push(waypointJson.Offerings[i]);
 	}
 
-	waypointJson.Offerings = refinedOfferings;
+	waypointJson.Offerings = refinedOfferings;*/
+
+	if (waypointJson.Offerings.length <= 0) {
+		throw "No offerings returned for HCS Shop; aborting to avoid data poisoning.";
+	}
 
 	return waypointJson;
 }
@@ -234,17 +238,21 @@ export async function getHcsShopListFromWaypoint(headers) {
 		remakeHeaders = retry;
 	}
 
-	let refinedOfferings = [];
+	/*let refinedOfferings = [];
 
 	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
-		/*if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
+		if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
 			continue;
-		}*/
+		}
 
 		refinedOfferings.push(waypointJson.Offerings[i]);
 	}
 
-	waypointJson.Offerings = refinedOfferings;
+	waypointJson.Offerings = refinedOfferings;*/
+
+	if (waypointJson.Offerings.length <= 0) {
+		throw "No offerings returned for HCS Shop; aborting to avoid data poisoning.";
+	}
 
 	return waypointJson;
 }
