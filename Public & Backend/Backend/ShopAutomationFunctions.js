@@ -1555,6 +1555,10 @@ export async function generateSocialNotifications(updateItemArray) {
 		}
 	}
 
+	const NUM_ARMOR_CORES = await WaypointFunctions.getNumCores(ArmorConstants.ARMOR_KEY);
+	const NUM_WEAPON_CORES = await WaypointFunctions.getNumCores(WeaponConstants.WEAPON_KEY);
+	const NUM_VEHICLE_CORES = await WaypointFunctions.getNumCores(VehicleConstants.VEHICLE_KEY);
+
 	if (mainItemListingArray.length > 0) {
 		console.log(tweetTextArray[0]);
 		let parentId = await sendTweet(tweetTextArray[0]);
@@ -1581,6 +1585,9 @@ export async function generateSocialNotifications(updateItemArray) {
 			let currentSubTweetIndex = 0;
 
 			let emblemNamesToSkip = [];
+			let armorCoatingNamesToSkip = [];
+			let weaponCoatingNamesToSkip = [];
+			let vehicleCoatingNamesToSkip = [];
 
 			for (let j = 0; j < mainItemArray[i].childItemInfo.length; ++j) {
 				let childItem = mainItemArray[i].childItemInfo[j];
@@ -1602,6 +1609,28 @@ export async function generateSocialNotifications(updateItemArray) {
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
 						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
+					}
+				}
+
+				// We also want to abbreviate sets of coatings into a single aggregate.
+				if (childItem.itemType.includes("Coating")) {
+					if (childItem.itemType.includes("Armor Coating") && armorCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Weapon Coating") && weaponCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Vehicle Coating") && vehicleCoatingNamesToSkip.includes(childItem.itemName)) { // We already noted this Coating. Let's proceed.
+						continue;
+					}
+
+					let matchingCoatingsFound = 0; // Count the number of matching coatings in the list.
+					mainItemArray[i].childItemInfo.forEach((item) => {
+						if (item.itemName == childItem.itemName && item.itemType == childItem.itemType) {
+							++matchingCoatingsFound;
+						}
+					});
+
+					if (childItem.itemType.includes("Armor Coating") && matchingCoatingsFound >= NUM_ARMOR_CORES
+					|| childItem.itemType.includes("Weapon Coating") && matchingCoatingsFound >= NUM_WEAPON_CORES
+					|| childItem.itemType.includes("Vehicle Coating") && matchingCoatingsFound >= NUM_VEHICLE_CORES) { // If we found an instance of the coating on all available cores.
+						childItemText = "- " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n";
 					}
 				}
 
@@ -1661,6 +1690,9 @@ export async function generateSocialNotifications(updateItemArray) {
 			let currentSubTweetIndex = 0;
 
 			let emblemNamesToSkip = [];
+			let armorCoatingNamesToSkip = [];
+			let weaponCoatingNamesToSkip = [];
+			let vehicleCoatingNamesToSkip = [];
 
 			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
 				let childItem = hcsItemArray[i].childItemInfo[j];
@@ -1682,6 +1714,28 @@ export async function generateSocialNotifications(updateItemArray) {
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
 						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
+					}
+				}
+
+				// We also want to abbreviate sets of coatings into a single aggregate.
+				if (childItem.itemType.includes("Coating")) {
+					if (childItem.itemType.includes("Armor Coating") && armorCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Weapon Coating") && weaponCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Vehicle Coating") && vehicleCoatingNamesToSkip.includes(childItem.itemName)) { // We already noted this Coating. Let's proceed.
+						continue;
+					}
+
+					let matchingCoatingsFound = 0; // Count the number of matching coatings in the list.
+					hcsItemArray[i].childItemInfo.forEach((item) => {
+						if (item.itemName == childItem.itemName && item.itemType == childItem.itemType) {
+							++matchingCoatingsFound;
+						}
+					});
+
+					if (childItem.itemType.includes("Armor Coating") && matchingCoatingsFound >= NUM_ARMOR_CORES
+					|| childItem.itemType.includes("Weapon Coating") && matchingCoatingsFound >= NUM_WEAPON_CORES
+					|| childItem.itemType.includes("Vehicle Coating") && matchingCoatingsFound >= NUM_VEHICLE_CORES) { // If we found an instance of the coating on all available cores.
+						childItemText = "- " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n";
 					}
 				}
 
