@@ -1841,6 +1841,9 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 				|| childItem.itemType.includes("Weapon Coating") && matchingCoatingsFound >= NUM_WEAPON_CORES
 				|| childItem.itemType.includes("Vehicle Coating") && matchingCoatingsFound >= NUM_VEHICLE_CORES) { // If we found an instance of the coating on all available cores.
 					childItemText = "Reward: " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n" + updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_URL_FIELD];
+					if (childItem.itemType.includes("Armor Coating")) { armorCoatingNamesToSkip.push(childItem.itemName); }
+					if (childItem.itemType.includes("Weapon Coating")) { weaponCoatingNamesToSkip.push(childItem.itemName); }
+					if (childItem.itemType.includes("Vehicle Coating")) { vehicleCoatingNamesToSkip.push(childItem.itemName); }
 				}
 			}
 			
