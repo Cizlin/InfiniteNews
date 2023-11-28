@@ -1817,7 +1817,7 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 				});
 
 				if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
-					childItemText = "Reward: " + childItem.itemName + " Emblem Set\n" + updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_URL_FIELD];
+					childItemText = "Reward: " + childItem.itemName + " Emblem Set\n" + GeneralConstants.INFINITE_NEWS_URL_BASE + updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_URL_FIELD];
 					emblemNamesToSkip.push(childItem.itemName);
 				}
 			}
@@ -1840,7 +1840,9 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 				if (childItem.itemType.includes("Armor Coating") && matchingCoatingsFound >= NUM_ARMOR_CORES
 				|| childItem.itemType.includes("Weapon Coating") && matchingCoatingsFound >= NUM_WEAPON_CORES
 				|| childItem.itemType.includes("Vehicle Coating") && matchingCoatingsFound >= NUM_VEHICLE_CORES) { // If we found an instance of the coating on all available cores.
-					childItemText = "Reward: " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n" + updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_URL_FIELD];
+					childItemText = "Reward: " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n" + GeneralConstants.INFINITE_NEWS_URL_BASE 
+						+ updateItemArray[i][CapstoneChallengeConstants.CAPSTONE_CHALLENGE_URL_FIELD];
+					
 					if (childItem.itemType.includes("Armor Coating")) { armorCoatingNamesToSkip.push(childItem.itemName); }
 					if (childItem.itemType.includes("Weapon Coating")) { weaponCoatingNamesToSkip.push(childItem.itemName); }
 					if (childItem.itemType.includes("Vehicle Coating")) { vehicleCoatingNamesToSkip.push(childItem.itemName); }
