@@ -1692,9 +1692,12 @@ export async function addItemIdArrayToCapstoneChallenge(challengeId, fieldName, 
 
 						let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
 
-						// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
-						if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
+						// We only care about the parent core if there's at least one core the item works with and the core isn't the "Any" shortcut.
+						if (parentCores.length >= 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
 							itemCore = parentCores[0][CORE_NAME_FIELD];
+							for (let q = 1; q < parentCores.length; ++q) {
+								itemCore += ", " + parentCores[q][CORE_NAME_FIELD];
+							}
 						}
 					}
 
