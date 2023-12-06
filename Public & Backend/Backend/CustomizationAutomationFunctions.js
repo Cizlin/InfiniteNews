@@ -1073,7 +1073,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 				customizationDetails.MimeType,
 				customizationCategory,
 				siteCustomizationType,
-				coreWaypointIdToNameDict[customizationDetails.Cores[0]],
+				(customizationDetails.Cores.length > 1) ? "Multi" : coreWaypointIdToNameDict[customizationDetails.Cores[0]],
 				parentSiteType,
 				categorySpecificDictsAndArrays);
 
@@ -1373,7 +1373,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 				customizationDetails.MimeType,
 				customizationCategory,
 				siteCustomizationType,
-				coreWaypointIdToNameDict[customizationDetails.Cores[0]],
+				(customizationDetails.Cores.length > 1) ? "Multi" : coreWaypointIdToNameDict[customizationDetails.Cores[0]],
 				parentSiteType,
 				categorySpecificDictsAndArrays);
 
@@ -1818,6 +1818,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 // kitChildItemArray: Array of Kit Items, for addition to the Kit item itself.
 // kitChildAttachmentArray: Array of Kit Attachments, for addition to the Kit item itself.
 // kitCustomizableTypesArray: Array of customizable types for Kits, for addition to the Kit item itself.
+// parentCoreArray: The list of parent core waypoint IDs for the item.
 export function getCustomizationDetailsFromWaypointJson(customizationCategory, waypointJson, options = {}) {
 	// options can contain (defaults shown)
 	/* categorySpecificDictsAndArrays = null,	// Required for all non-core item additions.
@@ -1832,6 +1833,7 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 	 * parentThemePath = ""						// Required for items with nothing in ParentPaths or ParentPath.
 	 * isDefault = false						// Required for items with cores.
 	 * waypointPath = ""						// Required in all cases.
+	 * parentCoreArray = []						// Required for core-specific items.
 	 */
 
 	// We want to create this JSON structure:
@@ -1906,42 +1908,49 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 
 		// If it isn't cross-core, we need to get the list of cores to which the item applies.
 		if (!itemIsCrossCore) {
-			// Ensure the waypointThemePathToCoreDict was passed in.
-			if (!("waypointThemePathToCoreDict" in options)) {
-				console.error("Could not find waypointThemePathToCoreDict in options:", options, "Exiting...");
-				throw "getCustomizationDetailsFromWaypointJson: waypointThemePathToCoreDict necessary, but missing";
+			// Check if there's anything in the parentCoreArray.
+			if ("parentCoreArray" in options && options.parentCoreArray.length > 0) {
+				// Use what's here.
+				itemJson.Cores = options.parentCoreArray;
 			}
+			else {
+				// Ensure the waypointThemePathToCoreDict was passed in.
+				if (!("waypointThemePathToCoreDict" in options)) {
+					console.error("Could not find waypointThemePathToCoreDict in options:", options, "Exiting...");
+					throw "getCustomizationDetailsFromWaypointJson: waypointThemePathToCoreDict necessary, but missing";
+				}
 
-			// We don't need to add the Cores field when working with a Core item or a non-core customization category.
-			// If the item isn't cross-core, we can't use the "Any" shortcut.
-			itemJson.Cores = [];
-			if (waypointCommonDataJson.ParentPaths.length > 0) { // First check the ParentPaths array.
-				waypointCommonDataJson.ParentPaths.forEach((themePathItem) => {
-					if (themePathItem.Path.toLowerCase() in options.waypointThemePathToCoreDict 
-					&& !itemJson.Cores.includes(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()])
-					&& themePathItem.Type.toLowerCase() === CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].ThemeType.toLowerCase()) { 
-						// Poorly configured items may use the wrong theme type so skip these ones.
-						itemJson.Cores.push(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()]);
-					}
-				});
-			}
+				// We don't need to add the Cores field when working with a Core item or a non-core customization category.
+				// If the item isn't cross-core, we can't use the "Any" shortcut.
+				itemJson.Cores = [];
+				if (waypointCommonDataJson.ParentPaths.length > 0) { // First check the ParentPaths array.
+					waypointCommonDataJson.ParentPaths.forEach((themePathItem) => {
+						if (themePathItem.Path.toLowerCase() in options.waypointThemePathToCoreDict 
+						&& !itemJson.Cores.includes(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()])
+						&& themePathItem.Type.toLowerCase() === CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].ThemeType.toLowerCase()) { 
+							// Poorly configured items may use the wrong theme type so skip these ones.
+							itemJson.Cores.push(options.waypointThemePathToCoreDict[themePathItem.Path.toLowerCase()]);
+						}
+					});
+				}
 
-			// Sometimes ParentTheme is used instead or in addition.
-			if ("ParentTheme" in waypointCommonDataJson && waypointCommonDataJson.ParentTheme.toLowerCase() in options.waypointThemePathToCoreDict &&
-				!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()])) {
+				// Sometimes ParentTheme is used instead or in addition.
+				if ("ParentTheme" in waypointCommonDataJson && waypointCommonDataJson.ParentTheme.toLowerCase() in options.waypointThemePathToCoreDict &&
+					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()])) {
 
-				itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()]);
-			}
-			
-			// Other times we need to use the core we followed to get to this as well.
-			if ("parentThemePath" in options && options.parentThemePath && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict &&
-				!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()])) {
+					itemJson.Cores.push(options.waypointThemePathToCoreDict[waypointCommonDataJson.ParentTheme.toLowerCase()]);
+				}
+				
+				// Other times we need to use the core we followed to get to this as well.
+				if ("parentThemePath" in options && options.parentThemePath && options.parentThemePath.toLowerCase() in options.waypointThemePathToCoreDict &&
+					!itemJson.Cores.includes(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()])) {
 
-				itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
-			}
-			if (itemJson.Cores.length <= 0) {
-				console.warn("Item " + itemJson.Title + " does not have any valid parent cores. Applying the None core to this item...")
-				itemJson.Cores.push("None");
+					itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
+				}
+				if (itemJson.Cores.length <= 0) {
+					console.warn("Item " + itemJson.Title + " does not have any valid parent cores. Applying the None core to this item...")
+					itemJson.Cores.push("None");
+				}
 			}
 		}
 		else {
@@ -2119,6 +2128,8 @@ export async function fetchEmblemPaletteDbIds(emblemPalettePathArray) {
 // kitCustomizableTypesArray: Array of types that can be customized in the Kit.
 // forceCheck: If true, the item will have all its quantities compared regardless of whether the ETag matches.
 // parentThemePath: The path to the parent theme of the item.
+// isDefault: If true, this item is a default item of  one or more cores.
+// itemPathToCoreDict: A dictionary of item paths that contains a list of core waypoint IDs as values. Used to link parent cores.
 async function processItem(headers,
 	customizationCategory,
 	folderDict,
@@ -2144,6 +2155,7 @@ async function processItem(headers,
 	 * forceCheck = false,					// Required for kits and items with attachments.
 	 * parentThemePath = "",				// Required for items without anything in ParentPaths or ParentTheme.
 	 * isDefault = false,					// Required for items with cores.
+	 * itemPathToCoreDict = {}				// Required for core-specific items.
 	 */
 
 	// This helps us avoid processing duplicate items.
@@ -2277,6 +2289,17 @@ async function processItem(headers,
 		}
 	}
 
+	let parentCoreArray = [];
+
+	if ("itemPathToCoreDict" in options) {
+		if (itemWaypointPath.toLowerCase() in options.itemPathToCoreDict) {
+			parentCoreArray = options.itemPathToCoreDict[itemWaypointPath.toLowerCase()];
+		}
+		else {
+			parentCoreArray = ["None"];
+		}
+	}
+
 	if (itemType == CustomizationConstants.ITEM_TYPES.kit) {
 		if ("coreWaypointId" in options && options.coreWaypointId != "") {
 			if (!("waypointThemePathToCoreDict" in options)) {
@@ -2359,7 +2382,8 @@ async function processItem(headers,
 			"kitCustomizableTypesArray": ("kitCustomizableTypesArray" in options) ? options.kitCustomizableTypesArray : [],
 			"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
 			"isDefault": ("isDefault" in options) ? options.isDefault : false,
-			"waypointPath": ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()
+			"waypointPath": ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase(),
+			"parentCoreArray": parentCoreArray
 		}
 	);
 
@@ -2424,6 +2448,9 @@ async function processItem(headers,
 // waypointThemePathToCoreDict: A dictionary that takes theme Waypoint paths and converts them to core names.
 // isKitItem: Only true if the item belongs to a Kit.
 // customizationWaypointIdArray: Array of Waypoint IDs, only really needed for Kit items.
+// parentThemePath: The path to the theme that contained this item.
+// defaultPath: The path of the default item for the core, in the provided list.
+// itemPathToCoreDict: A dictionary of item paths that contains a list of core waypoint IDs as values. Used to link parent cores.
 async function generateJsonsFromItemList(
 	limit,
 	offset,
@@ -2443,6 +2470,7 @@ async function generateJsonsFromItemList(
 	 * customizationWaypointIdArray = []	// Required for kit items and kits.
 	 * parentThemePath = ""					// Required for items with nothing in ParentTheme or ParentPaths.
 	 * defaultPath = ""						// Required for items with cores.
+	 * itemPathToCoreDict = {}				// Required for core-specific items.
 	 */
 
 	for (let k = offset; k < customizationItemPathArray.length; ++k) {
@@ -2466,7 +2494,8 @@ async function generateJsonsFromItemList(
 					"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
 					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-					"isDefault": ("defaultPath" in options && options.defaultPath) ? (options.defaultPath.toLowerCase() == itemPath.toLowerCase()) : false
+					"isDefault": ("defaultPath" in options && options.defaultPath) ? (options.defaultPath.toLowerCase() == itemPath.toLowerCase()) : false,
+					"itemPathToCoreDict": ("itemPathToCoreDict" in options && options.itemPathToCoreDict) ? options.itemPathToCoreDict : {}
 				}
 			);
 
@@ -2680,7 +2709,8 @@ async function generateJsonsFromThemeList(
 	themePathArray,
 	waypointGroupsToProcess,
 	coreWaypointId = "",
-	waypointThemePathToCoreDict = {}) {
+	waypointThemePathToCoreDict = {},
+	itemPathToCoreDict = {}) {
 
 	let itemsLeftToProcess = false;
 
@@ -2776,7 +2806,8 @@ async function generateJsonsFromThemeList(
 								"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 								"isKitItem": true,
 								"customizationWaypointIdArray": customizationIdArray,
-								"parentThemePath": themePathArray[l]
+								"parentThemePath": themePathArray[l],
+								"itemPathToCoreDict": itemPathToCoreDict
 							}
 						);
 					}
@@ -2817,7 +2848,7 @@ async function generateJsonsFromThemeList(
 								"isKitItem": true,
 								"customizationWaypointIdArray": customizationIdArray,
 								"customizationWaypointAttachmentIdArray": customizationAttachmentsIdArray,
-								"parentThemePath": themePathArray[l]
+								"parentThemePath": themePathArray[l],
 							}
 						);
 					}
@@ -2942,7 +2973,8 @@ async function generateJsonsFromThemeList(
 						{
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 							"parentThemePath": (themePathArray[j] === "remainingItems") ? "" : themePathArray[j],
-							"defaultPath": defaultPath
+							"defaultPath": defaultPath,
+							"itemPathToCoreDict": itemPathToCoreDict
 						}
 					)) {
 						itemsLeftToProcess = true;
@@ -3308,97 +3340,126 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			});
 	}
 
-	while (itemsRemainingToProcess) {
-		itemsRemainingToProcess = false; // This may later become true, in which case we need to continue processing.
-		let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
+	if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+		let coreList = !(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) ? await getCoreList(headers, customizationCategory) : [];
+		let coreWaypointJsonArray = [];
+		let coreDbJsonArray = [];
+		let waypointThemePathToCoreDict = {};
+		let itemPathToCoreDict = {}; // The keys are lowercase item paths and the values are a list of core Waypoint IDs.
 
-		if (CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
-			let coreList = !(CustomizationConstants.IS_ATTACHMENTS_ARRAY.includes(customizationCategory)) ? await getCoreList(headers, customizationCategory) : [];
-			let coreWaypointJsonArray = [];
-			let coreDbJsonArray = [];
-			let waypointThemePathToCoreDict = {};
-			if (waypointGroupsToProcess.includes(CustomizationConstants.CORE_PROCESSING_KEY)) {
-				// We want to do two things with this iteration: get each JSON for insertion/update into the core DB, and create the waypointThemePathToCoreDict.
-				// The keys will be the Waypoint Paths to each child theme, and the values will be the corresponding core name.
-				try {
-					let corePathsProcessed = {};
+		if (waypointGroupsToProcess.includes(CustomizationConstants.CORE_PROCESSING_KEY)) {
+			// We want to do two things with this iteration: get each JSON for insertion/update into the core DB, and create the waypointThemePathToCoreDict.
+			// The keys will be the Waypoint Paths to each child theme, and the values will be the corresponding core name.
+			try {
+				let corePathsProcessed = {};
 
-					for (let i = 0; i < coreList.length; i++) {
-						try {
+				for (let i = 0; i < coreList.length; i++) {
+					try {
 
-							let coreSiteJson = await processItem(
-								headers,
-								customizationCategory,
-								folderDict,
-								generalDictsAndArrays,
-								categorySpecificDictsAndArrays,
-								coreList[i],
-								CustomizationConstants.ITEM_TYPES.core,
-								corePathsProcessed,
-								{
-									"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
-									"coreWaypointJsonArray": coreWaypointJsonArray
-								}
-							);
-
-							if (coreSiteJson == 1) {
-								//console.info("Skipping " + coreList[i]);
-								continue;
+						let coreSiteJson = await processItem(
+							headers,
+							customizationCategory,
+							folderDict,
+							generalDictsAndArrays,
+							categorySpecificDictsAndArrays,
+							coreList[i],
+							CustomizationConstants.ITEM_TYPES.core,
+							corePathsProcessed,
+							{
+								"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
+								"coreWaypointJsonArray": coreWaypointJsonArray
 							}
-							else if (coreSiteJson != -1) {
-								coreDbJsonArray.push(coreSiteJson);
-							}
-							else {
-								throw "Error occurred while getting the DB-ready core item JSON.";
-							}
-						}
-						catch (error) {
-							console.error("Error ", error, " encountered when trying to add ", coreList[i], "; continuing...");
+						);
+
+						if (coreSiteJson == 1) {
+							//console.info("Skipping " + coreList[i]);
 							continue;
+						}
+						else if (coreSiteJson != -1) {
+							coreDbJsonArray.push(coreSiteJson);
+						}
+						else {
+							throw "Error occurred while getting the DB-ready core item JSON.";
+						}
+					}
+					catch (error) {
+						console.error("Error ", error, " encountered when trying to add ", coreList[i], "; continuing...");
+						continue;
+					}
+				}
+			}
+			catch (error) {
+				console.error(error);
+				// Because we're dealing with modifications to the DB, if we get a major error of any kind, we need to GTFO.
+				return -1;
+			}
+
+			console.info("After obtaining all Core JSONs: ", coreDbJsonArray);
+
+			// It's time to save the Core entries to the Core DB.
+			const CORE_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
+			await wixData.bulkSave(CORE_DB, coreDbJsonArray)
+				.then((results) => {
+					console.info("After Core DB Save: " + results.inserted + " inserted, " + results.updated + " updated, " + results.skipped + " skipped.");
+					console.info("Inserted IDs: " + results.insertedItemIds);
+					console.info("Updated IDs: " + results.updatedItemIds);
+					if (results.errors.length > 0) {
+						console.error("Errors: " + results.errors);
+					}
+				})
+				.catch((error) => {
+					console.error(error);
+				});
+
+			return 0; // We only want to process Cores, so we get out when we're done.
+		}
+		else { // If we don't want to add the cores, we just need to get the array of core JSONs.
+			const SOCKET_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
+			const SOCKET_IS_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsCrossCoreField;
+			for (let i = 0; i < coreList.length; i++) {
+				try {
+					let coreWaypointJson = await ApiFunctions.getCustomizationItem(headers, coreList[i]);
+					coreWaypointJsonArray.push(coreWaypointJson);
+					for (let j = 0; j < coreWaypointJson.Themes.OptionPaths.length; ++j) {
+						let waypointThemePath = coreWaypointJson.Themes.OptionPaths[j];
+						waypointThemePathToCoreDict[waypointThemePath.toLowerCase()] = coreWaypointJson.CommonData.Id;
+
+						// We want to add all core-specific customization items to this dictionary with the full list of cores they can apply to.
+						let themeJson = await ApiFunctions.getCustomizationItem(headers, waypointThemePath);
+						for (let key in themeJson) {
+							if ("OptionPaths" in themeJson[key]) {
+								for (let k = 0; k < categorySpecificDictsAndArrays[0].length; ++k) {
+									if (key === categorySpecificDictsAndArrays[0][k][SOCKET_WAYPOINT_FIELD_FIELD]) {
+										if (!categorySpecificDictsAndArrays[0][k][SOCKET_IS_CROSS_CORE_FIELD]) {
+											for (let q = 0; q < themeJson[key].OptionPaths.length; ++q) {
+												if (!(themeJson.OptionPaths[q].toLowerCase() in itemPathToCoreDict)) {
+													itemPathToCoreDict[themeJson.OptionPaths[q].toLowerCase()] = [coreWaypointJson.CommonData.Id];
+												}
+												else {
+													if (!itemPathToCoreDict[themeJson.OptionPaths[q].toLowerCase()].includes(coreWaypointJson.CommonData.Id)) {
+														itemPathToCoreDict[themeJson.OptionPaths[q].toLowerCase()].add(coreWaypointJson.CommonData.Id);
+													}
+												}
+											}
+										}
+									}
+								}
+							}
 						}
 					}
 				}
 				catch (error) {
-					console.error(error);
-					// Because we're dealing with modifications to the DB, if we get a major error of any kind, we need to GTFO.
+					console.error("Error occurred while retrieving core list: " + error);
 					return -1;
 				}
-
-				console.info("After obtaining all Core JSONs: ", coreDbJsonArray);
-
-				// It's time to save the Core entries to the Core DB.
-				const CORE_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreDb;
-				await wixData.bulkSave(CORE_DB, coreDbJsonArray)
-					.then((results) => {
-						console.info("After Core DB Save: " + results.inserted + " inserted, " + results.updated + " updated, " + results.skipped + " skipped.");
-						console.info("Inserted IDs: " + results.insertedItemIds);
-						console.info("Updated IDs: " + results.updatedItemIds);
-						if (results.errors.length > 0) {
-							console.error("Errors: " + results.errors);
-						}
-					})
-					.catch((error) => {
-						console.error(error);
-					});
-
-				return 0; // We only want to process Cores, so we get out when we're done.
 			}
-			else { // If we don't want to add the cores, we just need to get the array of core JSONs.
-				for (let i = 0; i < coreList.length; i++) {
-					try {
-						let coreWaypointJson = await ApiFunctions.getCustomizationItem(headers, coreList[i]);
-						coreWaypointJsonArray.push(coreWaypointJson);
-						coreWaypointJson.Themes.OptionPaths.forEach((waypointThemePath) => {
-							waypointThemePathToCoreDict[waypointThemePath.toLowerCase()] = coreWaypointJson.CommonData.Id;
-						});
-					}
-					catch (error) {
-						console.error("Error occurred while retrieving core list: " + error);
-						return -1;
-					}
-				}
-			}
+		}
+	
+		console.log("Item Path to Core Dict has been generated: ", itemPathToCoreDict);
 
+		while (itemsRemainingToProcess) {
+			itemsRemainingToProcess = false; // This may later become true, in which case we need to continue processing.
+			let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
 			// Okay, so now we've gotten all the Cores added. Next, we need to grab each theme, listed in the Themes.OptionPaths array for each core, and check if it's a Kit. 
 			// If it is, we have to do some special stuff. Otherwise, we pull its constituent parts out and treat each of those as an item. 
 			// There's an easy way to check this with the IsKit field.
@@ -3425,7 +3486,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 							themePathArray,
 							waypointGroupsToProcess,
 							coreWaypointId,
-							waypointThemePathToCoreDict
+							waypointThemePathToCoreDict,
+							itemPathToCoreDict
 						)) {
 							itemsRemainingToProcess = true;
 						}
@@ -3433,10 +3495,10 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 						customizationItemDbArray = []; // Reset the items after each save.
 
-						if (groupsAreCrossCore) {
+						/*if (groupsAreCrossCore) {
 							console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
 							break; // We don't need to process cross-core items for every single core.
-						}
+						}*/
 					}
 				}
 
@@ -3457,7 +3519,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						["remainingItems"],
 						waypointGroupsToProcess,
 						null,
-						waypointThemePathToCoreDict
+						waypointThemePathToCoreDict,
+						itemPathToCoreDict
 					)) {
 						itemsRemainingToProcess = true;
 					}
@@ -3471,10 +3534,48 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				// Because we're dealing with modifications to the DB, if we get an error of any kind, we need to GTFO.
 				return -1;
 			}
+
+			if (checkpointKey) {
+				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+					.eq("key", checkpointKey)
+					.find()
+					.then((results) => {
+						if (results.items.length == 0) {
+							// Return a default object because there isn't one in the DB.
+							return { 
+								"key": checkpointKey,
+								"value": {
+									"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+								}
+							}
+						}
+						else {
+							results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
+							return results.items[0];
+						}
+					})
+					.catch((error) => {
+						console.error("Error occurred when determining existing offset.", error);
+					});
+
+				wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+					.catch((error) => {
+						console.error(error, "occurred when updating current offset value");
+					});
+
+				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);	
+
+				itemCountOffset += itemCountLimit;
+			}
 		}
-		else if (customizationCategory != SpartanIdConstants.SPARTAN_ID_KEY) { // For right now, this case only applies to Body & AI, but it could also apply to other customization categories in the future.
-			let themePathArray = await getThemeList(headers, customizationCategory);
+	}
+
+	else if (customizationCategory != SpartanIdConstants.SPARTAN_ID_KEY) { // For right now, this case only applies to Body & AI, but it could also apply to other customization categories in the future.
+		let themePathArray = await getThemeList(headers, customizationCategory);
+		while (itemsRemainingToProcess) {
+			itemsRemainingToProcess = false; // This may later become true, in which case we need to continue processing.
 			let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
+			let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
 			console.log("Starting Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 			//console.info(themePathArray);
@@ -3498,11 +3599,49 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+
+			// Save the offset using our checkpointKey.
+			if (checkpointKey) {
+				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+					.eq("key", checkpointKey)
+					.find()
+					.then((results) => {
+						if (results.items.length == 0) {
+							// Return a default object because there isn't one in the DB.
+							return { 
+								"key": checkpointKey,
+								"value": {
+									"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+								}
+							}
+						}
+						else {
+							results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
+							return results.items[0];
+						}
+					})
+					.catch((error) => {
+						console.error("Error occurred when determining existing offset.", error);
+					});
+
+				wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+					.catch((error) => {
+						console.error(error, "occurred when updating current offset value");
+					});
+
+				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);		
+				
+				itemCountOffset += itemCountLimit;
+			}
 		}
-		else { // This applies for theme-less customization categories (i.e. Spartan ID).
-			let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
-			console.log("Starting Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
-			let customizationItemPathsProcessed = {};
+	}
+	else { // This applies for theme-less customization categories (i.e. Spartan ID).
+		let customizationItemPathArray = await getSpartanIdPathList(headers, categorySpecificDictsAndArrays, waypointGroupsToProcess);
+		console.log("Starting Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
+		while (itemsRemainingToProcess) {
+			itemsRemainingToProcess = false; // This may later become true, in which case we need to continue processing.
+			let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
+			let customizationItemDbArray = []; // This will store each item JSON to be added or updated in the DB.
 
 			itemsRemainingToProcess = await generateJsonsFromItemList(
 				itemCountLimit,
@@ -3520,41 +3659,40 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 			
 			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
-		}
-
-		itemCountOffset += itemCountLimit;
-
-		// Save the offset using our checkpointKey.
-		if (checkpointKey) {
-			let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
-				.eq("key", checkpointKey)
-				.find()
-				.then((results) => {
-					if (results.items.length == 0) {
-						// Return a default object because there isn't one in the DB.
-						return { 
-							"key": checkpointKey,
-							"value": {
-								"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+					
+			if (checkpointKey) {
+				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
+					.eq("key", checkpointKey)
+					.find()
+					.then((results) => {
+						if (results.items.length == 0) {
+							// Return a default object because there isn't one in the DB.
+							return { 
+								"key": checkpointKey,
+								"value": {
+									"offset": (itemsRemainingToProcess) ? itemCountOffset : 0
+								}
 							}
 						}
-					}
-					else {
-						results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
-						return results.items[0];
-					}
-				})
-				.catch((error) => {
-					console.error("Error occurred when determining existing offset.", error);
-				});
+						else {
+							results.items[0].value.offset = (itemsRemainingToProcess) ? itemCountOffset : 0;
+							return results.items[0];
+						}
+					})
+					.catch((error) => {
+						console.error("Error occurred when determining existing offset.", error);
+					});
 
-			wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
-				.catch((error) => {
-					console.error(error, "occurred when updating current offset value");
-				});
+				wixData.save(KeyConstants.KEY_VALUE_DB, currentOffsetObject)
+					.catch((error) => {
+						console.error(error, "occurred when updating current offset value");
+					});
 
-			console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
-		}		
+				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
+				
+				itemCountOffset += itemCountLimit;
+			}
+		}
 	}
 
 	return 0;
