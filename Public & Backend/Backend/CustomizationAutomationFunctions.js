@@ -4305,33 +4305,28 @@ export async function importEmblemPaletteImagesFull() {
 	await importEmblemPalettes(headers, generalDictsAndArrays, true, 4, 10);
 }
 
-/*export async function deleteAllETags(customizationCategory) {
+export async function deleteAllETags(customizationCategory) {
 	const CUSTOMIZATION_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 	const ETAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
 
-	await wixData.query(CUSTOMIZATION_DB)
-		.ne(ETAG_FIELD, "")
-		.find()
-		.then(async (results) => {
-			for (let i = 0; i < results.items.length; ++i) {
-				results.items[i][ETAG_FIELD] = ""; // Clear the ETag.
-			}
-
-			let i = 1;
-			console.log("Removing ETags from group " + i);
-
-			wixData.bulkUpdate(CUSTOMIZATION_DB, results.items);
-
-			while (results.hasNext()) {
-				i++;
-				results = await results.next();
+	let resultsReturned = true;
+	let i = 1;
+	while (resultsReturned) {
+		await wixData.query(CUSTOMIZATION_DB)
+			.ne(ETAG_FIELD, "")
+			.find()
+			.then(async (results) => {
+				if (results.items.length <= 0) {
+					resultsReturned = false;
+				}
+				
 				for (let i = 0; i < results.items.length; ++i) {
 					results.items[i][ETAG_FIELD] = ""; // Clear the ETag.
 				}
-				
 				console.log("Removing ETags from group " + i);
 
 				wixData.bulkUpdate(CUSTOMIZATION_DB, results.items);
-			}
-		});
-}*/
+				++i;
+			});
+	}
+}
