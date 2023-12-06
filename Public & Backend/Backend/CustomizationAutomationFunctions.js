@@ -3416,6 +3416,9 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		else { // If we don't want to add the cores, we just need to get the array of core JSONs.
 			const SOCKET_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
 			const SOCKET_IS_CROSS_CORE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsCrossCoreField;
+			const SOCKET_IS_KIT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsKitField;
+
+			const CATEGORY_ARRAY = categorySpecificDictsAndArrays[0];
 			for (let i = 0; i < coreList.length; i++) {
 				try {
 					let coreWaypointJson = await ApiFunctions.getCustomizationItem(headers, coreList[i]);
@@ -3426,21 +3429,16 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 
 						// We want to add all core-specific customization items to this dictionary with the full list of cores they can apply to.
 						let themeJson = await ApiFunctions.getCustomizationItem(headers, waypointThemePath);
-						for (let key in themeJson) {
-							if ("OptionPaths" in themeJson[key]) {
-								for (let k = 0; k < categorySpecificDictsAndArrays[0].length; ++k) {
-									if (key === categorySpecificDictsAndArrays[0][k][SOCKET_WAYPOINT_FIELD_FIELD]) {
-										if (!categorySpecificDictsAndArrays[0][k][SOCKET_IS_CROSS_CORE_FIELD]) {
-											for (let q = 0; q < themeJson[key].OptionPaths.length; ++q) {
-												if (!(themeJson.OptionPaths[q].toLowerCase() in itemPathToCoreDict)) {
-													itemPathToCoreDict[themeJson.OptionPaths[q].toLowerCase()] = [coreWaypointJson.CommonData.Id];
-												}
-												else {
-													if (!itemPathToCoreDict[themeJson.OptionPaths[q].toLowerCase()].includes(coreWaypointJson.CommonData.Id)) {
-														itemPathToCoreDict[themeJson.OptionPaths[q].toLowerCase()].add(coreWaypointJson.CommonData.Id);
-													}
-												}
-											}
+						for (let k = 0; k < CATEGORY_ARRAY.length; ++k) {
+							if (!CATEGORY_ARRAY[k][SOCKET_IS_CROSS_CORE_FIELD] && !CATEGORY_ARRAY[k][SOCKET_IS_KIT_FIELD]) { // Kits themselves are represented uniquely and are specifically tied to particular cores.
+								for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths.length; ++q) {
+									let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths[q].toLowerCase();
+									if (!(itemPath in itemPathToCoreDict)) {
+										itemPathToCoreDict[itemPath] = [coreWaypointJson.CommonData.Id];
+									}
+									else {
+										if (!itemPathToCoreDict[itemPath].includes(coreWaypointJson.CommonData.Id)) {
+											itemPathToCoreDict[itemPath].push(coreWaypointJson.CommonData.Id);
 										}
 									}
 								}
