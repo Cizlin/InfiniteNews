@@ -1940,7 +1940,8 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 				itemJson.Cores.push(options.waypointThemePathToCoreDict[options.parentThemePath.toLowerCase()]);
 			}
 			if (itemJson.Cores.length <= 0) {
-				throw "Item " + itemJson.Title + " does not have any valid parent cores. Skipping for now...";
+				console.warn("Item " + itemJson.Title + " does not have any valid parent cores. Applying the None core to this item...")
+				itemJson.Cores.push("None");
 			}
 		}
 		else {
