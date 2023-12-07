@@ -1954,9 +1954,14 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			}
 		}
 		else {
-			itemJson.Cores = ["Any"]; // We've cleverly specified "Any" as the Waypoint ID for the Any option.
+			if ("parentCoreArray" in options && options.parentCoreArray.length === 1 && options.parentCoreArray[0] === "None") {
+				// Check to see if this cross-core item isn't applicable on any cores.
+				itemJson.Cores = options.parentCoreArray;
+			}
+			else {
+				itemJson.Cores = ["Any"]; // We've cleverly specified "Any" as the Waypoint ID for the Any option.
+			}
 		}
-
 		//console.info("Item: " + itemJson.Title, itemJson.Cores, waypointCommonDataJson.ParentPaths, waypointThemePathToCoreDict);
 	}
 
@@ -2242,14 +2247,18 @@ async function processItem(headers,
 								await wixData.queryReferenced(CUSTOMIZATION_DB, results.items[0], CORE_REFERENCE_FIELD)
 									.then((results) => {
 										if (results.items.length === 1 && results.items[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
-											abort = true; // This means the item is cross-core and we don't need to worry about this.
+											abort = true; // This means the item is cross-core. The only time we need to worry about this is if the parent core array only contains "None".
+											if (parentCoreArray.length === 1 && parentCoreArray[0] === "None") {
+												console.log("Cross-core item " + itemWaypointPath + " is not applicable on any core. Processing...");
+												abort = false;
+											}
 										}
 										else if (results.items.length === parentCoreArray.length) {
 											abort = true;
 											// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
 											for (let i = 0; i < results.items.length; ++i) {
 												if (!parentCoreArray.includes(results.items[i][CORE_WAYPOINT_ID_FIELD])) {
-													console.log("Item " + itemWaypointPath + " has different parent cores from DB. Continuing...");
+													console.log("Item " + itemWaypointPath + " has different parent cores from DB. Processing...");
 													abort = false;
 													break;
 												}
@@ -2303,7 +2312,11 @@ async function processItem(headers,
 								await wixData.queryReferenced(CUSTOMIZATION_DB, results.items[0], CORE_REFERENCE_FIELD)
 									.then((results) => {
 										if (results.items.length === 1 && results.items[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
-											abort = true; // This means the item is cross-core and we don't need to worry about this.
+											abort = true; // This means the item is cross-core. The only time we need to worry about this is if the parent core array only contains "None".
+											if (parentCoreArray.length === 1 && parentCoreArray[0] === "None") {
+												console.log("Cross-core item " + itemWaypointPath + " is not applicable on any core. Processing...");
+												abort = false;
+											}
 										}
 										else if (results.items.length === parentCoreArray.length) {
 											abort = true;
