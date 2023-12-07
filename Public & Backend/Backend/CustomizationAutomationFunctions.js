@@ -2227,7 +2227,7 @@ async function processItem(headers,
 		await wixData.query(CUSTOMIZATION_DB)
 			.contains(WAYPOINT_ID_FIELD, waypointIdMatches[0])
 			.find()
-			.then((results) => {
+			.then(async (results) => {
 				if (results.items.length > 0) {
 					idFound = true;
 					// If the ETags match, we need to abort.
@@ -2235,7 +2235,31 @@ async function processItem(headers,
 						etagFound = true;
 						if (results.items[0][ETAG_FIELD] === generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()]) {
 							//console.log("Aborting processing for " + results.items[0][WAYPOINT_ID_FIELD] + " due to matching ETag. Item type is " + itemType);
-							abort = true;
+							if (CustomizationConstants.ITEM_TYPES.item === itemType && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+								// Only items with core references have to worry about this.
+								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+								const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreWaypointIdField;
+								await wixData.queryReferenced(CUSTOMIZATION_DB, results.items[0], CORE_REFERENCE_FIELD)
+									.then((results) => {
+										if (results.items.length === 1 && results.items[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
+											abort = true; // This means the item is cross-core and we don't need to worry about this.
+										}
+										else if (results.items.length === parentCoreArray.length) {
+											abort = true;
+											// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
+											for (let i = 0; i < results.items.length; ++i) {
+												if (!parentCoreArray.includes(results.items[i][CORE_WAYPOINT_ID_FIELD])) {
+													console.log("Item " + itemWaypointPath + " has different parent cores from DB. Continuing...");
+													abort = false;
+													break;
+												}
+											}
+										}
+									})
+							}
+							else {
+								abort = true; // This is the easy case.
+							}
 						}
 					}
 					else {
@@ -2278,11 +2302,15 @@ async function processItem(headers,
 								const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreWaypointIdField;
 								await wixData.queryReferenced(CUSTOMIZATION_DB, results.items[0], CORE_REFERENCE_FIELD)
 									.then((results) => {
-										if (results.items.length === parentCoreArray.length) {
+										if (results.items.length === 1 && results.items[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
+											abort = true; // This means the item is cross-core and we don't need to worry about this.
+										}
+										else if (results.items.length === parentCoreArray.length) {
 											abort = true;
 											// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
 											for (let i = 0; i < results.items.length; ++i) {
 												if (!parentCoreArray.includes(results.items[i][CORE_WAYPOINT_ID_FIELD])) {
+													console.log("Item " + itemWaypointPath + " has different parent cores from DB. Continuing...");
 													abort = false;
 													break;
 												}
@@ -3555,6 +3583,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				return -1;
 			}
 
+			itemCountOffset += itemCountLimit;
+
 			if (checkpointKey) {
 				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
 					.eq("key", checkpointKey)
@@ -3583,9 +3613,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						console.error(error, "occurred when updating current offset value");
 					});
 
-				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);	
-
-				itemCountOffset += itemCountLimit;
+				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
 			}
 		}
 	}
@@ -3620,6 +3648,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 
 			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
 
+			itemCountOffset += itemCountLimit;
+
 			// Save the offset using our checkpointKey.
 			if (checkpointKey) {
 				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
@@ -3649,9 +3679,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						console.error(error, "occurred when updating current offset value");
 					});
 
-				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);		
-				
-				itemCountOffset += itemCountLimit;
+				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
 			}
 		}
 	}
@@ -3679,6 +3707,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 			
 			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+			
+			itemCountOffset += itemCountLimit;
 					
 			if (checkpointKey) {
 				let currentOffsetObject = await wixData.query(KeyConstants.KEY_VALUE_DB)
@@ -3709,8 +3739,6 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 					});
 
 				console.log("Current offset for " + checkpointKey + " updated to " + currentOffsetObject.value.offset);
-				
-				itemCountOffset += itemCountLimit;
 			}
 		}
 	}
