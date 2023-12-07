@@ -574,7 +574,8 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 	}
 
 	// Check to see if the ETag has changed, suggesting the item itself has changed.
-	const IS_KIT_ITEM_ONLY_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationIsKitItemOnlyField;
+	// We're doing this earlier in the flow now. TODO: Evaluate removal.
+	/*const IS_KIT_ITEM_ONLY_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationIsKitItemOnlyField;
 	if (existingItem
 		&& existingItem.itemETag
 		&& existingItem.itemETag != ""
@@ -585,7 +586,7 @@ export async function getCustomizationItemToSave(folderDict, headers, customizat
 
 		// The ETag is identical. No need to process further.
 		return 1;
-	}
+	}*/
 
 	// We need to get the corresponding IDs for the reference fields. Let's begin with customizationTypeReference.
 
