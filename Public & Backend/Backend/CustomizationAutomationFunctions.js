@@ -3644,6 +3644,28 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 				itemsRemainingToProcess = true;
 			}
 
+			console.log("Waypoint Groups, ", waypointGroupsToProcess, "Remaining Items", "Limit", itemCountLimit, "Offset", itemCountOffset);
+
+			// Add the remaining items.
+			if (await generateJsonsFromThemeList(
+				itemCountLimit,
+				itemCountOffset,
+				headers,
+				customizationCategory,
+				folderDict,
+				generalDictsAndArrays,
+				categorySpecificDictsAndArrays,
+				customizationItemDbArray,
+				customizationItemPathsProcessed,
+				["remainingItems"],
+				waypointGroupsToProcess
+			)) {
+				itemsRemainingToProcess = true;
+			}
+
+			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+			customizationItemDbArray = []; // Reset the items after each save.
+
 			console.log("Finished Waypoint Groups", waypointGroupsToProcess, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
 			await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
