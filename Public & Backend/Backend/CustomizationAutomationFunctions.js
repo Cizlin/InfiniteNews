@@ -2195,6 +2195,17 @@ async function processItem(headers,
 
 	let itemWaypointJson = null;
 
+	let parentCoreArray = [];
+
+	if ("itemPathToCoreDict" in options) {
+		if (itemWaypointPath.toLowerCase() in options.itemPathToCoreDict) {
+			parentCoreArray = options.itemPathToCoreDict[itemWaypointPath.toLowerCase()];
+		}
+		else {
+			parentCoreArray = ["None"];
+		}
+	}
+
 	// We should also check to see if the etag is even updated, unless forceCheck is specified.
 	if (!("forceCheck" in options && options.forceCheck) // If we aren't forced to check this.
 		&& itemType !== CustomizationConstants.ITEM_TYPES.attachment // If we aren't working with an attachment (needs to report its waypoint ID if nothing else)
@@ -2205,6 +2216,7 @@ async function processItem(headers,
 			: CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationDb;
 		const WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationWaypointIdField;
 		const ETAG_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationItemETagField;
+
 
 		// Let's query based on extracted waypoint ID from the path first.
 		let abort = false;
@@ -2252,14 +2264,35 @@ async function processItem(headers,
 			await wixData.query(CUSTOMIZATION_DB)
 				.eq(WAYPOINT_ID_FIELD, itemWaypointJson.CommonData.Id) // This should be an eq query because we directly copy this into the db.
 				.find()
-				.then((results) => {
+				.then(async (results) => {
 					if (results.items.length > 0) {
 						idFound = true;
 						// If the ETags match, we need to abort.
 						if (((ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()) in generalDictsAndArrays[4])
 						&& results.items[0][ETAG_FIELD] === generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()]) {
 							//console.log("Aborting processing for " + results.items[0][WAYPOINT_ID_FIELD] + " due to matching ETag. Item type is " + itemType);
-							abort = true;
+							// There is one more case where we might want to avoid aborting: when the list of cores is mismatched.
+							if (CustomizationConstants.ITEM_TYPES.item === itemType && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+								// Only items with core references have to worry about this.
+								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+								const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreWaypointIdField;
+								await wixData.queryReferenced(CUSTOMIZATION_DB, results.items[0], CORE_REFERENCE_FIELD)
+									.then((results) => {
+										if (results.items.length === parentCoreArray.length) {
+											abort = true;
+											// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
+											for (let i = 0; i < results.items.length; ++i) {
+												if (!parentCoreArray.includes(results.items[i][CORE_WAYPOINT_ID_FIELD])) {
+													abort = false;
+													break;
+												}
+											}
+										}
+									})
+							}
+							else {
+								abort = true; // This is the easy case.
+							}
 						}
 					}
 				})
@@ -2286,17 +2319,6 @@ async function processItem(headers,
 		if (!((ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()) in generalDictsAndArrays[4])) {
 			// Add the ETag if it wasn't already in our dictionary.
 			generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()] = etag;
-		}
-	}
-
-	let parentCoreArray = [];
-
-	if ("itemPathToCoreDict" in options) {
-		if (itemWaypointPath.toLowerCase() in options.itemPathToCoreDict) {
-			parentCoreArray = options.itemPathToCoreDict[itemWaypointPath.toLowerCase()];
-		}
-		else {
-			parentCoreArray = ["None"];
 		}
 	}
 
