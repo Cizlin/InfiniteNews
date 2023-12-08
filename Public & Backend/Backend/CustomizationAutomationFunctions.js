@@ -3518,7 +3518,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						// We want to add all customization items to this dictionary with the full list of cores they can apply to.
 						let themeJson = await ApiFunctions.getCustomizationItem(headers, waypointThemePath);
 						for (let k = 0; k < CATEGORY_ARRAY.length; ++k) {
-							if (CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD] !== "N/A") { // Ignore Kits and the Any option
+							if (waypointGroupsToProcess.includes(CustomizationConstants.KIT_PROCESSING_KEY) && CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD] !== "N/A" // We're processing Kits, so we need the full gamut of information.
+							|| waypointGroupsToProcess.includes(CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD])) { // Ignore types we aren't currently processing otherwise.
 								if (!CATEGORY_ARRAY[k][SOCKET_HAS_ATTACHMENTS_FIELD]) {
 									for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths.length; ++q) {
 										let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths[q].toLowerCase();
