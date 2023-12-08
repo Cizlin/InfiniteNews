@@ -3479,6 +3479,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		}
 		else { // If we don't want to add the cores, we just need to get the array of core JSONs.
 			const SOCKET_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
+			const SOCKET_HAS_ATTACHMENTS_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketHasAttachmentsField;
+			const TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldAttachmentParentField;
 
 			const CATEGORY_ARRAY = categorySpecificDictsAndArrays[0];
 			for (let i = 0; i < coreList.length; i++) {
@@ -3493,14 +3495,29 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						let themeJson = await ApiFunctions.getCustomizationItem(headers, waypointThemePath);
 						for (let k = 0; k < CATEGORY_ARRAY.length; ++k) {
 							if (CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD] !== "N/A") { // Ignore Kits and the Any option
-								for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths.length; ++q) {
-									let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths[q].toLowerCase();
-									if (!(itemPath in itemPathToCoreDict)) {
-										itemPathToCoreDict[itemPath] = [coreWaypointJson.CommonData.Id];
+								if (!CATEGORY_ARRAY[k][SOCKET_HAS_ATTACHMENTS_FIELD]) {
+									for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths.length; ++q) {
+										let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths[q].toLowerCase();
+										if (!(itemPath in itemPathToCoreDict)) {
+											itemPathToCoreDict[itemPath] = [coreWaypointJson.CommonData.Id];
+										}
+										else {
+											if (!itemPathToCoreDict[itemPath].includes(coreWaypointJson.CommonData.Id)) {
+												itemPathToCoreDict[itemPath].push(coreWaypointJson.CommonData.Id);
+											}
+										}
 									}
-									else {
-										if (!itemPathToCoreDict[itemPath].includes(coreWaypointJson.CommonData.Id)) {
-											itemPathToCoreDict[itemPath].push(coreWaypointJson.CommonData.Id);
+								}
+								else {
+									for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options.length; ++q) {
+										let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options[q][TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD].toLowerCase();
+										if (!(itemPath in itemPathToCoreDict)) {
+											itemPathToCoreDict[itemPath] = [coreWaypointJson.CommonData.Id];
+										}
+										else {
+											if (!itemPathToCoreDict[itemPath].includes(coreWaypointJson.CommonData.Id)) {
+												itemPathToCoreDict[itemPath].push(coreWaypointJson.CommonData.Id);
+											}
 										}
 									}
 								}
