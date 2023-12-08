@@ -3479,7 +3479,6 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 		}
 		else { // If we don't want to add the cores, we just need to get the array of core JSONs.
 			const SOCKET_WAYPOINT_FIELD_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketWaypointFieldField;
-			const SOCKET_IS_KIT_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].SocketIsKitField;
 
 			const CATEGORY_ARRAY = categorySpecificDictsAndArrays[0];
 			for (let i = 0; i < coreList.length; i++) {
@@ -3493,7 +3492,7 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 						// We want to add all customization items to this dictionary with the full list of cores they can apply to.
 						let themeJson = await ApiFunctions.getCustomizationItem(headers, waypointThemePath);
 						for (let k = 0; k < CATEGORY_ARRAY.length; ++k) {
-							if (!CATEGORY_ARRAY[k][SOCKET_IS_KIT_FIELD]) { // Kits themselves are represented uniquely and are specifically tied to particular cores.
+							if (CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD] !== "N/A") { // Ignore Kits and the Any option
 								for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths.length; ++q) {
 									let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].OptionPaths[q].toLowerCase();
 									if (!(itemPath in itemPathToCoreDict)) {
