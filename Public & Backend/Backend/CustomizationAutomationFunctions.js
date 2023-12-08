@@ -27,9 +27,12 @@ import * as ApiFunctions from 'backend/ApiFunctions.jsw';
 import * as MediaManagerFunctions from 'backend/MediaManagerFunctions.jsw';
 import * as GeneralFunctions from 'public/General.js';
 import * as InternalNotificationFunctions from 'backend/InternalNotificationFunctions.jsw';
+import * as WaypointFunctions from 'backend/WaypointBackendFunctions.jsw';
 
 import _ from 'lodash';
 //#endregion
+
+let _numCores; // This is global so we can just set it once. Not the best option but we'll only write the variable when we start the customization import of a particular type.
 
 // Retrieves an item's JSON file from the Waypoint API.
 export async function getEmblemPaletteMapping(headers) {
@@ -1955,8 +1958,9 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			}
 		}
 		else {
-			if ("parentCoreArray" in options && options.parentCoreArray.length === 1 && options.parentCoreArray[0] === "None") {
+			if ("parentCoreArray" in options && options.parentCoreArray.length !== _numCores) {
 				// Check to see if this cross-core item isn't applicable on any cores.
+				console.log("Marking the cross-core " + itemJson.Title + " " + itemJson.Type + " item as applicable on a limited number of cores.");
 				itemJson.Cores = options.parentCoreArray;
 			}
 			else {
@@ -2230,9 +2234,15 @@ async function processItem(headers,
 		let etagFound = false;
 
 		let waypointIdMatches = itemWaypointPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH);
-		await wixData.query(CUSTOMIZATION_DB)
-			.contains(WAYPOINT_ID_FIELD, waypointIdMatches[0])
-			.find()
+		
+		let customizationQuery = wixData.query(CUSTOMIZATION_DB)
+			.contains(WAYPOINT_ID_FIELD, waypointIdMatches[0]);
+
+		if (CustomizationConstants.ITEM_TYPES.item === itemType && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+			const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+			customizationQuery = customizationQuery.include(CORE_REFERENCE_FIELD);
+		}
+		await customizationQuery.find()
 			.then(async (results) => {
 				if (results.items.length > 0) {
 					idFound = true;
@@ -2243,29 +2253,31 @@ async function processItem(headers,
 							//console.log("Aborting processing for " + results.items[0][WAYPOINT_ID_FIELD] + " due to matching ETag. Item type is " + itemType);
 							if (CustomizationConstants.ITEM_TYPES.item === itemType && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 								// Only items with core references have to worry about this.
-								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
 								const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreWaypointIdField;
-								await wixData.queryReferenced(CUSTOMIZATION_DB, results.items[0], CORE_REFERENCE_FIELD)
-									.then((results) => {
-										if (results.items.length === 1 && results.items[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
-											abort = true; // This means the item is cross-core. The only time we need to worry about this is if the parent core array only contains "None".
-											if (parentCoreArray.length === 1 && parentCoreArray[0] === "None") {
-												console.log("Cross-core item " + itemWaypointPath + " is not applicable on any core. Processing...");
-												abort = false;
-											}
+								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+
+								let coreResults = results.items[0][CORE_REFERENCE_FIELD];
+								//console.log("Item " + itemWaypointPath + " currently has cores", coreResults, " ParentCoreArray:", parentCoreArray);
+
+								if (coreResults.length === 1 && coreResults[0][CORE_WAYPOINT_ID_FIELD] === "Any") {
+									abort = true; // This means the item is cross-core. The only time we need to worry about this is if the parent core array only contains "None".
+									if (parentCoreArray.length !== _numCores) {
+										// This isn't actually a true cross-core item, so we need to address that.
+										console.log("Cross-core item " + itemWaypointPath + " is not actually cross-core and only applies to these cores: ", parentCoreArray, "Processing...");
+										abort = false;
+									}
+								}
+								else if (coreResults.length === parentCoreArray.length) {
+									abort = true;
+									// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
+									for (let i = 0; i < coreResults.length; ++i) {
+										if (!parentCoreArray.includes(coreResults[i][CORE_WAYPOINT_ID_FIELD])) {
+											console.log("Item " + itemWaypointPath + " has different parent cores from DB. Processing...");
+											abort = false;
+											break;
 										}
-										else if (results.items.length === parentCoreArray.length) {
-											abort = true;
-											// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
-											for (let i = 0; i < results.items.length; ++i) {
-												if (!parentCoreArray.includes(results.items[i][CORE_WAYPOINT_ID_FIELD])) {
-													console.log("Item " + itemWaypointPath + " has different parent cores from DB. Processing...");
-													abort = false;
-													break;
-												}
-											}
-										}
-									})
+									}
+								}
 							}
 							else {
 								abort = true; // This is the easy case.
@@ -2295,9 +2307,14 @@ async function processItem(headers,
 				generalDictsAndArrays[4][ApiConstants.WAYPOINT_URL_MIDFIX_PROGRESSION + itemWaypointPath.toLowerCase()] = itemWaypointJsonResults[1]; // Store the ETag in our dict for future reference.
 			}
 
-			await wixData.query(CUSTOMIZATION_DB)
-				.eq(WAYPOINT_ID_FIELD, itemWaypointJson.CommonData.Id) // This should be an eq query because we directly copy this into the db.
-				.find()
+			let customizationQuery2 = wixData.query(CUSTOMIZATION_DB)
+				.eq(WAYPOINT_ID_FIELD, itemWaypointJson.CommonData.Id); // This should be an eq query because we directly copy this into the db.
+
+			if (CustomizationConstants.ITEM_TYPES.item === itemType && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
+				const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+				customizationQuery2 = customizationQuery2.include(CORE_REFERENCE_FIELD);
+			}
+			await customizationQuery2.find()
 				.then(async (results) => {
 					if (results.items.length > 0) {
 						idFound = true;
@@ -2308,29 +2325,30 @@ async function processItem(headers,
 							// There is one more case where we might want to avoid aborting: when the list of cores is mismatched.
 							if (CustomizationConstants.ITEM_TYPES.item === itemType && CustomizationConstants.HAS_CORE_ARRAY.includes(customizationCategory)) {
 								// Only items with core references have to worry about this.
-								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
 								const CORE_WAYPOINT_ID_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreWaypointIdField;
-								await wixData.queryReferenced(CUSTOMIZATION_DB, results.items[0], CORE_REFERENCE_FIELD)
-									.then((results) => {
-										if (results.items.length === 1 && results.items[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
-											abort = true; // This means the item is cross-core. The only time we need to worry about this is if the parent core array only contains "None".
-											if (parentCoreArray.length === 1 && parentCoreArray[0] === "None") {
-												console.log("Cross-core item " + itemWaypointPath + " is not applicable on any core. Processing...");
-												abort = false;
-											}
+								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
+
+								let coreResults = results.items[0][CORE_REFERENCE_FIELD];
+								console.log("Item " + itemWaypointPath + " currently has cores", coreResults, " ParentCoreArray:", parentCoreArray);
+
+								if (coreResults.length === 1 && coreResults[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
+									abort = true; // This means the item is cross-core. The only time we need to worry about this is if the parent core array only contains "None".
+									if (parentCoreArray.length !== _numCores) {
+										// This isn't actually a true cross-core item, so we need to address that.
+										console.log("Cross-core item " + itemWaypointPath + " is not actually cross-core and only applies to these cores: ", parentCoreArray, "Processing...");
+										abort = false;
+									}
+								}
+								else if (coreResults.length === parentCoreArray.length) {
+									// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
+									for (let i = 0; i < coreResults.length; ++i) {
+										if (!parentCoreArray.includes(coreResults[i][CORE_WAYPOINT_ID_FIELD])) {
+											console.log("Item " + itemWaypointPath + " has different parent cores from DB. Processing...");
+											abort = false;
+											break;
 										}
-										else if (results.items.length === parentCoreArray.length) {
-											abort = true;
-											// Confirm that all the contents of the DB item are in the parent item. If they match in length, this must necessarily be true for the arrays to match.
-											for (let i = 0; i < results.items.length; ++i) {
-												if (!parentCoreArray.includes(results.items[i][CORE_WAYPOINT_ID_FIELD])) {
-													console.log("Item " + itemWaypointPath + " has different parent cores from DB. Continuing...");
-													abort = false;
-													break;
-												}
-											}
-										}
-									})
+									}
+								}
 							}
 							else {
 								abort = true; // This is the easy case.
@@ -2600,6 +2618,7 @@ async function generateJsonsFromItemList(
 // customizationWaypointAttachmentIdArray: Array of Waypoint IDs for attachments, only really needed for Kit items.
 // parentThemePath: The path to the parent theme used to locate this list of items.
 // defaultPath: The path to the default item.
+// itemPathToCoreDict: A dictionary of item paths that contains a list of core waypoint IDs as values. Used to link parent cores.
 async function generateJsonsFromItemAndAttachmentList(
 	headers,
 	customizationCategory,
@@ -2619,6 +2638,7 @@ async function generateJsonsFromItemAndAttachmentList(
 	 * customizationWaypointAttachmentIdArray = []  // Required for kit attachments, kits, and items with attachments.
 	 * parentThemePath = ""							// Required for items with nothing in ParentTheme or ParentPaths.
 	 * defaultPath = ""								// Required for items with cores.
+	 * itemPathToCoreDict = {}				// Required for core-specific items.
 	 */
 
 	// We're working with an item type that has attachments. This means it's laid out a little differently. 
@@ -2674,7 +2694,7 @@ async function generateJsonsFromItemAndAttachmentList(
 						"isKitItem": ("isKitItem" in options) ? options.isKitItem : false,
 						"customizationWaypointIdArray": ("customizationWaypointAttachmentIdArray" in options) ? options.customizationWaypointAttachmentIdArray : [],
 						"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-						"isDefault": (defaultAttachmentPath.toLowerCase() == attachmentPath.toLowerCase())
+						"isDefault": (defaultAttachmentPath.toLowerCase() == attachmentPath.toLowerCase()),
 					}
 				);
 
@@ -2725,7 +2745,8 @@ async function generateJsonsFromItemAndAttachmentList(
 					"customizationWaypointIdArray": ("customizationWaypointIdArray" in options) ? options.customizationWaypointIdArray : [],
 					"forceCheck": true, // We need to force all checks to occur in case the list of attachments changed (ETag might still match in this case).
 					"parentThemePath": ("parentThemePath" in options) ? options.parentThemePath : "",
-					"isDefault": ("defaultPath" in options && options.defaultPath) ? (options.defaultPath.toLowerCase() == itemPath.toLowerCase()) : false
+					"isDefault": ("defaultPath" in options && options.defaultPath) ? (options.defaultPath.toLowerCase() == itemPath.toLowerCase()) : false,
+					"itemPathToCoreDict": ("itemPathToCoreDict" in options && options.itemPathToCoreDict) ? options.itemPathToCoreDict : {}
 				}
 			);
 
@@ -2913,6 +2934,7 @@ async function generateJsonsFromThemeList(
 								"customizationWaypointIdArray": customizationIdArray,
 								"customizationWaypointAttachmentIdArray": customizationAttachmentsIdArray,
 								"parentThemePath": themePathArray[l],
+								"itemPathToCoreDict": itemPathToCoreDict
 							}
 						);
 					}
@@ -3509,8 +3531,10 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 									}
 								}
 								else {
+									let itemPathField = CATEGORY_ARRAY[k][TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD];
+
 									for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options.length; ++q) {
-										let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options[q][TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD].toLowerCase();
+										let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options[q][itemPathField].toLowerCase();
 										if (!(itemPath in itemPathToCoreDict)) {
 											itemPathToCoreDict[itemPath] = [coreWaypointJson.CommonData.Id];
 										}
@@ -4188,6 +4212,8 @@ export async function armorImportFull(headers = null, manufacturerImportComplete
 			return -1;
 		});
 
+	_numCores = await WaypointFunctions.getNumCores(customizationCategory);
+
 	if (!returnCode) { // Return code 0 means success.
 		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
@@ -4246,6 +4272,8 @@ export async function weaponImportFull(headers = null, manufacturerImportComplet
 			return -1;
 		});
 
+	_numCores = await WaypointFunctions.getNumCores(customizationCategory);
+
 	if (!returnCode) { // Return code 0 means success.
 		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
 
@@ -4301,6 +4329,8 @@ export async function vehicleImportFull(headers = null, manufacturerImportComple
 			console.error("Error occurred while processing Cores for " + customizationCategory, error);
 			return -1;
 		});
+
+	_numCores = await WaypointFunctions.getNumCores(customizationCategory);
 
 	if (!returnCode) { // Return code 0 means success.
 		let categorySpecificDictsAndArrays = await getCategorySpecificDictsAndArraysFromDbs(customizationCategory);
