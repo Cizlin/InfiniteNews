@@ -1958,9 +1958,9 @@ export function getCustomizationDetailsFromWaypointJson(customizationCategory, w
 			}
 		}
 		else {
-			if ("parentCoreArray" in options && options.parentCoreArray.length !== _numCores) {
+			if ("parentCoreArray" in options && options.parentCoreArray.length > 0 && options.parentCoreArray.length !== _numCores) {
 				// Check to see if this cross-core item isn't applicable on any cores.
-				console.log("Marking the cross-core " + itemJson.Title + " " + itemJson.Type + " item as applicable on a limited number of cores.");
+				console.log("Marking the cross-core " + itemJson.Title + " " + itemJson.Type + " item as applicable on a limited number of cores:", options.parentCoreArray);
 				itemJson.Cores = options.parentCoreArray;
 			}
 			else {
@@ -2208,6 +2208,7 @@ async function processItem(headers,
 	let parentCoreArray = [];
 
 	if ("itemPathToCoreDict" in options) {
+
 		if (itemWaypointPath.toLowerCase() in options.itemPathToCoreDict) {
 			parentCoreArray = options.itemPathToCoreDict[itemWaypointPath.toLowerCase()];
 		}
@@ -3086,7 +3087,8 @@ async function generateJsonsFromThemeList(
 						{
 							"waypointThemePathToCoreDict": waypointThemePathToCoreDict,
 							"parentThemePath": (themePathArray[j] === "remainingItems") ? "" : themePathArray[j],
-							"defaultPath": defaultPath
+							"defaultPath": defaultPath,
+							"itemPathToCoreDict": itemPathToCoreDict
 						}
 					);
 				}
@@ -3532,9 +3534,10 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 								}
 								else {
 									let itemPathField = CATEGORY_ARRAY[k][TYPE_WAYPOINT_FIELD_ATTACHMENT_PARENT_FIELD];
+									let itemList = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options;
 
-									for (let q = 0; q < themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options.length; ++q) {
-										let itemPath = themeJson[CATEGORY_ARRAY[k][SOCKET_WAYPOINT_FIELD_FIELD]].Options[q][itemPathField].toLowerCase();
+									for (let q = 0; q < itemList.length; ++q) {
+										let itemPath = itemList[q][itemPathField].toLowerCase();
 										if (!(itemPath in itemPathToCoreDict)) {
 											itemPathToCoreDict[itemPath] = [coreWaypointJson.CommonData.Id];
 										}
@@ -3556,7 +3559,8 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			}
 		}
 	
-		console.log("Item Path to Core Dict has been generated: ", itemPathToCoreDict);
+		//console.log("Item Path to Core Dict has been generated: ", itemPathToCoreDict);
+		//console.log("Sample value", itemPathToCoreDict["Inventory/Armor/Helmets/005-001-eag-1e0b6037.json".toLowerCase()])
 
 		while (itemsRemainingToProcess) {
 			itemsRemainingToProcess = false; // This may later become true, in which case we need to continue processing.
@@ -3567,40 +3571,38 @@ async function updateDbsFromApi(headers, customizationCategory, waypointGroupsTo
 			let customizationItemPathsProcessed = {}; // If we already have a path in this object, we don't need to process it again.
 
 			try {
-				if (!groupsAreCrossCore) {
-					for (let i = 0; i < coreWaypointJsonArray.length; i++) {
-						let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
-						let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
+				for (let i = 0; i < coreWaypointJsonArray.length; i++) {
+					let coreWaypointId = coreWaypointJsonArray[i].CommonData.Id; // We need to store the core ID for future use.
+					let themePathArray = coreWaypointJsonArray[i].Themes.OptionPaths;
 
-						console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
+					console.log("Waypoint Groups, " + ((groupsAreCrossCore) ? "" : "Non-") + "Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId, "Limit", itemCountLimit, "Offset", itemCountOffset);
 
-						if (await generateJsonsFromThemeList(
-							itemCountLimit,
-							itemCountOffset,
-							headers,
-							customizationCategory,
-							folderDict,
-							generalDictsAndArrays,
-							categorySpecificDictsAndArrays,
-							customizationItemDbArray,
-							customizationItemPathsProcessed,
-							themePathArray,
-							waypointGroupsToProcess,
-							coreWaypointId,
-							waypointThemePathToCoreDict,
-							itemPathToCoreDict
-						)) {
-							itemsRemainingToProcess = true;
-						}
-
-						await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
-						customizationItemDbArray = []; // Reset the items after each save.
-
-						/*if (groupsAreCrossCore) {
-							console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
-							break; // We don't need to process cross-core items for every single core.
-						}*/
+					if (await generateJsonsFromThemeList(
+						itemCountLimit,
+						itemCountOffset,
+						headers,
+						customizationCategory,
+						folderDict,
+						generalDictsAndArrays,
+						categorySpecificDictsAndArrays,
+						customizationItemDbArray,
+						customizationItemPathsProcessed,
+						themePathArray,
+						waypointGroupsToProcess,
+						coreWaypointId,
+						waypointThemePathToCoreDict,
+						itemPathToCoreDict
+					)) {
+						itemsRemainingToProcess = true;
 					}
+
+					await saveItemsToDbFromList(customizationCategory, customizationItemDbArray, waypointGroupsToProcess);
+					customizationItemDbArray = []; // Reset the items after each save.
+
+					/*if (groupsAreCrossCore) {
+						console.log("Not processing further since these groups are Cross Core", waypointGroupsToProcess, "Core ID", coreWaypointId);
+						break; // We don't need to process cross-core items for every single core.
+					}*/
 				}
 
 				if (!waypointGroupsToProcess.includes(CustomizationConstants.KIT_PROCESSING_KEY)) {
