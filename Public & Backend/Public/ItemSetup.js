@@ -99,7 +99,7 @@ export function initialItemSetup(customizationCategory, isCore = false) {
                 .then((results) => {
                     results.items.forEach(element => {
 						console.log(element);
-						coreString += element[coreNameField] + ",";
+						coreString += element[coreNameField] + ", ";
                     });
 
                     // Remove the final comma.
@@ -123,11 +123,11 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 							console.log("Original cores found...");
 							results.items.forEach(element => {
 								console.log(element);
-								originalCoreString += element[coreNameField] + ",";
+								originalCoreString += element[coreNameField] + ", ";
 							});
 
 							// Remove the final comma.
-							originalCoreString = originalCoreString.substr(0, originalCoreString.length - 1);
+							originalCoreString = originalCoreString.substr(0, originalCoreString.length - 2);
 
 							$w("#originalCoreText").text = originalCoreString;
 						}
