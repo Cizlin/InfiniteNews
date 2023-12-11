@@ -1702,6 +1702,9 @@ export async function generateSocialNotifications(updateItemArray) {
 
 			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
 				let childItem = hcsItemArray[i].childItemInfo[j];
+				if (childItem.itemCore === "None") {
+					continue; // We don't need to report items that can't be equipped.
+				}
 				let childItemText = "- " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
