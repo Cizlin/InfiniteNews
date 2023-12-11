@@ -1805,6 +1805,10 @@ export async function generateCapstoneSocialNotifications(updateItemArray) {
 
 		for (let j = 0; j < updateItemArray[i].childItemInfo.length; ++j) {
 			let childItem = updateItemArray[i].childItemInfo[j];
+			if (childItem.itemCore === "None") {
+				continue; // We don't need to report items that can't be equipped.
+			}
+
 			let childItemText = "Reward: " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n" + childItem.itemUrl;
 			// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
 			if (childItem.itemType.includes("Nameplate") || childItem.itemType.includes("Emblem")) {
