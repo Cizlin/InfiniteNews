@@ -1109,7 +1109,7 @@ export async function initialItemListSetup(customizationCategory) {
 					if (itemData.rewardGroups) {
 						for (let i = 0; i < itemData.rewardGroups.length; ++i) {
 							for (let j = 0; j < itemData.rewardGroups[i].rewards.length; ++j) {
-								rewardListText += itemData.rewardGroups[i].rewards[j].name;
+								rewardListText += "- " + itemData.rewardGroups[i].rewards[j].name;
 
 								if (i < referencedRewards.length - 1) {
 									// Add a newline separator in all but the last case.
@@ -1121,7 +1121,7 @@ export async function initialItemListSetup(customizationCategory) {
 				}
 				else {
 					for (let i = 0; i < referencedRewards.length; ++i) {
-						rewardListText += referencedRewards[i].notificationText;
+						rewardListText += "- " + referencedRewards[i].notificationText;
 
 						if (i < referencedRewards.length - 1) {
 							// Add a newline separator in all but the last case.
