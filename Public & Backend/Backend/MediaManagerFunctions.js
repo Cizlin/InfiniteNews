@@ -1087,10 +1087,10 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		(customizationType == CustomizationConstants.ITEM_TYPES.core) ? CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreType : // If core, [CoreType].
 			customizationType; // Otherwise it is the type provided by the caller.
 
+	let fileKey = fileSystemSafeTitle.replace(/\./g, ",") + " " + filenameType + ",png";
+
 	if (folderExists) {
 		//console.log("Directory Path found.");
-
-		let fileKey = fileSystemSafeTitle.replace(/\./g, ",") + " " + filenameType + ",png";
 
 		if (fileKey in subFolderDict) {
 			// We found a matching file, but now we need to confirm that it is up-to-date by checking the ETag.
@@ -1137,11 +1137,13 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 	const MAX_RETRIES = 10;
 	while (retryCount < MAX_RETRIES) {
 		try {
+			let results = await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png");
+			subFolderDict[fileKey] = results[0]; // Add the image to our in-memory folder dict.
 			if (checkAndReturnETag) {
-				return await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png");
+				return results;
 			}
 			else {// We now return the ETag in [1], so just return [0] (the image URL) for now.
-				return (await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png"))[0];
+				return results[0];
 			}
 		}
 		catch (error) {
