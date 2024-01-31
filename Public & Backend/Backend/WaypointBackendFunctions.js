@@ -49,7 +49,7 @@ export async function getNumCores(categoryKey) {
 			console.error(error + " occurred while counting the number of cores for " + categoryKey + "; returning backup default");
 
 			const NUM_CORES_DEFAULT = {
-				[ArmorConstants.ARMOR_KEY]: 8,
+				[ArmorConstants.ARMOR_KEY]: 9,
 				[WeaponConstants.WEAPON_KEY]: 9,
 				[VehicleConstants.VEHICLE_KEY]: 7
 			};
@@ -661,10 +661,16 @@ export async function processRank(
 												SpartanIdConstants.SPARTAN_ID_KEY
 											];
 
-											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 											let waypointIdSuffix = "";
 											if (matches.length > 0) {
 												waypointIdSuffix = matches[0];
+											}
+											else {
+												matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+												if (matches.length > 0) {
+													waypointIdSuffix = matches[0];
+												}
 											}
 
 											// Fetch each of the related emblems.
@@ -699,10 +705,16 @@ export async function processRank(
 										// If this is a cross-compatible coating and this pass is from season 5 or later.
 										else if (matchingItemFound[CUSTOMIZATION_CROSS_COMPATIBLE_FIELD] && itemType.includes("Coating") && seasonAtOrAfter5(seasonNumber)) {
 											// We need to fetch all related coatings. Thankfully these don't reside in other DBs, so this can be done with one quick query.
-											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 											let waypointIdSuffix = "";
 											if (matches.length > 0) {
 												waypointIdSuffix = matches[0];
+											}
+											else {
+												matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+												if (matches.length > 0) {
+													waypointIdSuffix = matches[0];
+												}
 											}
 
 											let matchingItems = await wixData.query(CUSTOMIZATION_DB)
@@ -1416,13 +1428,23 @@ export async function getCurrentCapstoneChallengeDbJson() {
 
 				let typeCategoryArray = [typeCategory];
 
-				if (includedItemsArray[j].Type.includes("Emblem")) {
+				let newWaypointId = false;
+
+				if (includedItemsArray[j].ItemType.includes("Emblem")) {
 					// Emblems marked as cross compatible award all variants at once (Armor Emblem, Weapon Emblem, Vehicle Emblem, Nameplate).
-					// Related emblems share the tail end of their waypoint IDs.
-					let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+					// Related emblems share the tail end of their waypoint IDs (old version).
+					// New emblems share the first seven digits of their waypoint IDs. Check for this first.
+					let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
 					if (matches.length > 0) {
 						waypointId = matches[0];
+						newWaypointId = true;
+					}
+					else {
+						matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+						if (matches.length > 0) {
+							waypointId = matches[0];
+						}
 					}
 
 					let possibleTypeCategories = [
@@ -1439,17 +1461,24 @@ export async function getCurrentCapstoneChallengeDbJson() {
 					}
 				}	
 
-				if (includedItemsArray[j].Type.includes("Coating")) {
+				if (includedItemsArray[j].ItemType.includes("Coating")) {
 					// Coatings marked as cross compatible award all variants on all cores at once.
-					// Related coatings share the tail end of their waypoint IDs.
+					// Related coatings share the tail end of their waypoint IDs (old). New coatings share the first seven digits in their IDs.
 					possibleMultiCore = true;
 
-					let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+					let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
 					if (matches.length > 0) {
 						waypointId = matches[0];
+						newWaypointId = true;
 					}
-				}							
+					else {
+						matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+						if (matches.length > 0) {
+							waypointId = matches[0];
+						}
+					}
+				}									
 
 				for (let q = 0; q < typeCategoryArray.length; ++q) {
 					let currentTypeCategory = typeCategoryArray[q];
@@ -1471,7 +1500,13 @@ export async function getCurrentCapstoneChallengeDbJson() {
 						let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
 
 						if (possibleMultiCore) {
-							let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+							let matches;
+							if (!newWaypointId) {
+								matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+							}
+							else {
+								matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+							}
 
 							if (matches.length > 0) {
 								waypointId = matches[0];
@@ -1482,7 +1517,13 @@ export async function getCurrentCapstoneChallengeDbJson() {
 						else {
 							itemId = await ShopFunctions.getItemId(currentTypeCategory, itemJson.CommonData.Id);
 							
-							let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+							let matches;
+							if (!newWaypointId) {
+								matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+							}
+							else {
+								matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+							}
 
 							if (matches.length > 0) {
 								waypointId = matches[0];
@@ -1502,28 +1543,6 @@ export async function getCurrentCapstoneChallengeDbJson() {
 							challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(itemId);
 						}
 					}
-
-				/*foundType = true;
-				let waypointIdMatchArray = includedItemsArray[j].InventoryItemPath.match(GeneralConstants.REGEX_WAYPOINT_ID_FROM_PATH); // We'll be parsing this info from the path now.
-				let waypointId = "";
-				if (waypointIdMatchArray.length > 0) {
-					waypointId = waypointIdMatchArray[0]; 
-					//console.log(waypointId);
-				}
-
-				const CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[typeCategory].CapstoneChallengeReferenceField;
-				let itemId = "";
-				try {
-					itemId = await ShopFunctions.getItemId(typeCategory, waypointId);
-				}
-				catch (error) {
-					console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
-					console.log("Querying API for Waypoint ID...");
-					let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
-					itemId = await ShopFunctions.getItemId(typeCategory, itemJson.CommonData.Id);
-				}
-				
-				challengeDbJson[CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD].push(itemId);*/
 
 					if (!challengeDbJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].includes(CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD)) {
 						challengeDbJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_FIELDS_WITH_ITEMS_FIELD].push(CAPSTONE_CHALLENGE_ITEM_REFERENCE_FIELD);
