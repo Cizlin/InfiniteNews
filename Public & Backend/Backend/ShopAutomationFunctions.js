@@ -495,7 +495,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 					// Weekly bundles have excluded the Flair Text since Season 2. Let's parse empty Flair Text values as "Weekly".
 					if (!processCustomizationOptions) {
-						switch (shopWaypointJson.FlairText.toLowerCase()) {
+						switch (shopWaypointJson.FlairText.toLowerCase().trim()) {
 							case "weekly":
 							case "":
 							case "best value":
@@ -688,17 +688,18 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 								let newWaypointId = false;
 
+								let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+
+								if (matches) {
+									waypointId = matches[0];
+									newWaypointId = true;
+								}
+
 								if (includedItemsArray[j].ItemType.includes("Emblem")) {
 									// Emblems marked as cross compatible award all variants at once (Armor Emblem, Weapon Emblem, Vehicle Emblem, Nameplate).
 									// Related emblems share the tail end of their waypoint IDs (old version).
-									// New emblems share the first seven digits of their waypoint IDs. Check for this first.
-									let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
-
-									if (matches) {
-										waypointId = matches[0];
-										newWaypointId = true;
-									}
-									else {
+									// New emblems share the first seven digits of their waypoint IDs. Check for this first (done above).
+									if (!matches) {
 										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
 										if (matches) {
 											waypointId = matches[0];
@@ -724,13 +725,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 									// Related coatings share the tail end of their waypoint IDs (old). New coatings share the first seven digits in their IDs.
 									possibleMultiCore = true;
 
-									let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
-
-									if (matches) {
-										waypointId = matches[0];
-										newWaypointId = true;
-									}
-									else {
+									if (!matches) {
 										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
 										if (matches) {
 											waypointId = matches[0];
@@ -744,52 +739,50 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 									
 									let itemId = "";
 									let itemIdArray = []; // This will only be used if possibleMultiCore is set.
-									try {
-										if (possibleMultiCore) {
-											itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, exactWaypointId);
-											//console.log(itemIdArray, "Contents of item Id Array");
+									let errorOccurred = false;
+									if (!newWaypointId) {
+										try {
+											if (possibleMultiCore) {
+												itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, exactWaypointId);
+												//console.log(itemIdArray, "Contents of item Id Array");
+											}
+											else {
+												itemId = await getItemId(currentTypeCategory, waypointId);
+											}
 										}
-										else {
-											itemId = await getItemId(currentTypeCategory, waypointId);
+										catch (error) {
+											console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
+											errorOccurred = true;
 										}
 									}
-									catch (error) {
-										console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
+
+									if (errorOccurred || newWaypointId) {
 										console.log("Querying API for Waypoint ID...");
 										let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
 
+										let matches;
+										if (!newWaypointId) {
+											matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+										}
+										else
+										{
+											matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+										}
+
+										if (matches) {
+											waypointId = matches[0];
+										}
+
 										if (possibleMultiCore) {
-											let matches;
-											if (!newWaypointId) {
-												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-											}
-											else
-											{
-												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
-											}
-											
-
-											if (matches) {
-												waypointId = matches[0];
-											}
-
 											itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, itemJson.CommonData.Id);
 										}
+										else if (includedItemsArray[j].ItemType.includes("Emblem")) {
+											// Emblems will only match a portion of their ID, the first seven digits.
+											itemId = await getItemId(currentTypeCategory, waypointId);
+										}
 										else {
+											// The default case should always use the exact ID to avoid duplicate errors.
 											itemId = await getItemId(currentTypeCategory, itemJson.CommonData.Id);
-
-											let matches;
-											if (!newWaypointId) {
-												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-											}
-											else
-											{
-												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
-											}
-
-											if (matches) {
-												waypointId = matches[0];
-											}
 										}
 									}
 
