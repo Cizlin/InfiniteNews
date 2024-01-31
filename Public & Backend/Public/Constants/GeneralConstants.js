@@ -5,6 +5,7 @@ export const REGEX_WAYPOINT_ID_FROM_PATH = /\d[^.]+/;
 
 // Extracting the final characters from a Waypoint ID after the last -.
 export const REGEX_FINAL_CHARS_FROM_WAYPOINT_ID = /-(\w+)$/;
+export const REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID = /^(\d{7})-/;
 
 // The base for all haloinfinitenews.com URLs.
 export const INFINITE_NEWS_URL_BASE = "https://www.haloinfinitenews.com";
