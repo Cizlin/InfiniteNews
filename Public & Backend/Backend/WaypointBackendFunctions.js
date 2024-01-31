@@ -663,12 +663,12 @@ export async function processRank(
 
 											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 											let waypointIdSuffix = "";
-											if (matches.length > 0) {
+											if (matches) {
 												waypointIdSuffix = matches[0];
 											}
 											else {
 												matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-												if (matches.length > 0) {
+												if (matches) {
 													waypointIdSuffix = matches[0];
 												}
 											}
@@ -707,12 +707,12 @@ export async function processRank(
 											// We need to fetch all related coatings. Thankfully these don't reside in other DBs, so this can be done with one quick query.
 											let matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 											let waypointIdSuffix = "";
-											if (matches.length > 0) {
+											if (matches) {
 												waypointIdSuffix = matches[0];
 											}
 											else {
 												matches = matchingItemFound[CUSTOMIZATION_WAYPOINT_ID_FIELD].match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-												if (matches.length > 0) {
+												if (matches) {
 													waypointIdSuffix = matches[0];
 												}
 											}
@@ -1436,13 +1436,13 @@ export async function getCurrentCapstoneChallengeDbJson() {
 					// New emblems share the first seven digits of their waypoint IDs. Check for this first.
 					let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
-					if (matches.length > 0) {
+					if (matches) {
 						waypointId = matches[0];
 						newWaypointId = true;
 					}
 					else {
 						matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-						if (matches.length > 0) {
+						if (matches) {
 							waypointId = matches[0];
 						}
 					}
@@ -1468,13 +1468,13 @@ export async function getCurrentCapstoneChallengeDbJson() {
 
 					let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
-					if (matches.length > 0) {
+					if (matches) {
 						waypointId = matches[0];
 						newWaypointId = true;
 					}
 					else {
 						matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-						if (matches.length > 0) {
+						if (matches) {
 							waypointId = matches[0];
 						}
 					}
@@ -1508,7 +1508,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 								matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 							}
 
-							if (matches.length > 0) {
+							if (matches) {
 								waypointId = matches[0];
 							}
 
@@ -1525,7 +1525,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 								matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 							}
 
-							if (matches.length > 0) {
+							if (matches) {
 								waypointId = matches[0];
 							}
 						}
