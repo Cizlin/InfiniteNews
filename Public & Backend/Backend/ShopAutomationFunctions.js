@@ -686,13 +686,23 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 								let typeCategoryArray = [typeCategory];
 
+								let newWaypointId = false;
+
 								if (includedItemsArray[j].ItemType.includes("Emblem")) {
 									// Emblems marked as cross compatible award all variants at once (Armor Emblem, Weapon Emblem, Vehicle Emblem, Nameplate).
-									// Related emblems share the tail end of their waypoint IDs.
-									let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+									// Related emblems share the tail end of their waypoint IDs (old version).
+									// New emblems share the first seven digits of their waypoint IDs. Check for this first.
+									let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
 									if (matches.length > 0) {
 										waypointId = matches[0];
+										newWaypointId = true;
+									}
+									else {
+										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+										if (matches.length > 0) {
+											waypointId = matches[0];
+										}
 									}
 
 									let possibleTypeCategories = [
@@ -711,13 +721,20 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 								if (includedItemsArray[j].ItemType.includes("Coating")) {
 									// Coatings marked as cross compatible award all variants on all cores at once.
-									// Related coatings share the tail end of their waypoint IDs.
+									// Related coatings share the tail end of their waypoint IDs (old). New coatings share the first seven digits in their IDs.
 									possibleMultiCore = true;
 
-									let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+									let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
 									if (matches.length > 0) {
 										waypointId = matches[0];
+										newWaypointId = true;
+									}
+									else {
+										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+										if (matches.length > 0) {
+											waypointId = matches[0];
+										}
 									}
 								}							
 
@@ -742,7 +759,15 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 										let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
 
 										if (possibleMultiCore) {
-											let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+											let matches;
+											if (!newWaypointId) {
+												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+											}
+											else
+											{
+												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+											}
+											
 
 											if (matches.length > 0) {
 												waypointId = matches[0];
@@ -752,8 +777,15 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 										}
 										else {
 											itemId = await getItemId(currentTypeCategory, itemJson.CommonData.Id);
-											
-											let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+
+											let matches;
+											if (!newWaypointId) {
+												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+											}
+											else
+											{
+												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+											}
 
 											if (matches.length > 0) {
 												waypointId = matches[0];
