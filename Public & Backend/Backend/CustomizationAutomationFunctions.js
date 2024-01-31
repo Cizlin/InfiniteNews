@@ -88,6 +88,7 @@ async function getCoreList(headers, customizationCategory) {
 	let inventoryCatalogJson = await ApiFunctions.getCustomizationItem(headers, ApiConstants.WAYPOINT_URL_SUFFIX_PROGRESSION_INVENTORY_CATALOG);
 
 	let coreList = inventoryCatalogJson.Cores;
+	let itemList = inventoryCatalogJson.Items;
 
 	let typeToFind = "";
 	switch (customizationCategory) {
@@ -112,6 +113,13 @@ async function getCoreList(headers, customizationCategory) {
 		//console.info(coreList[i]);
 		if (coreList[i].ItemType == typeToFind) {
 			corePathArray.push(coreList[i].ItemPath);
+		}
+	}
+
+	for (let i = 0; i < itemList.length; ++i) {
+		//console.info(coreList[i]);
+		if (itemList[i].ItemType == typeToFind) {
+			corePathArray.push(itemList[i].ItemPath);
 		}
 	}
 
@@ -1788,7 +1796,7 @@ async function getCoreItemToSave(folderDict, headers, customizationCategory, cus
 		itemJson[CORE_SOURCE_FIELD] = "(Pending)";
 
 		const CORE_CURRENTLY_AVAILABLE_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreCurrentlyAvailableField;
-		itemJson[CORE_CURRENTLY_AVAILABLE_FIELD] = false; // This is false by default but may actually need to be manually or automatically updated to true.
+		itemJson[CORE_CURRENTLY_AVAILABLE_FIELD] = true; // This is true by default but may actually need to be manually or automatically updated to false.
 
 		const CORE_HIDDEN_FIELD = CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreHiddenField;
 		itemJson[CORE_HIDDEN_FIELD] = customizationDetails.HideUntilOwned;
@@ -2330,7 +2338,7 @@ async function processItem(headers,
 								const CORE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[customizationCategory].CustomizationCoreReferenceField;
 
 								let coreResults = results.items[0][CORE_REFERENCE_FIELD];
-								console.log("Item " + itemWaypointPath + " currently has cores", coreResults, " ParentCoreArray:", parentCoreArray);
+								//console.log("Item " + itemWaypointPath + " currently has cores", coreResults, " ParentCoreArray:", parentCoreArray);
 
 								if (coreResults.length === 1 && coreResults[0][CORE_WAYPOINT_ID_FIELD] == "Any") {
 									abort = true; // This means the item is cross-core. The only time we need to worry about this is if the parent core array only contains "None".
