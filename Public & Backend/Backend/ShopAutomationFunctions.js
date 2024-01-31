@@ -694,13 +694,13 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 									// New emblems share the first seven digits of their waypoint IDs. Check for this first.
 									let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
-									if (matches.length > 0) {
+									if (matches) {
 										waypointId = matches[0];
 										newWaypointId = true;
 									}
 									else {
 										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-										if (matches.length > 0) {
+										if (matches) {
 											waypointId = matches[0];
 										}
 									}
@@ -726,13 +726,13 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 									let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 
-									if (matches.length > 0) {
+									if (matches) {
 										waypointId = matches[0];
 										newWaypointId = true;
 									}
 									else {
 										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-										if (matches.length > 0) {
+										if (matches) {
 											waypointId = matches[0];
 										}
 									}
@@ -769,7 +769,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 											}
 											
 
-											if (matches.length > 0) {
+											if (matches) {
 												waypointId = matches[0];
 											}
 
@@ -787,7 +787,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 												matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
 											}
 
-											if (matches.length > 0) {
+											if (matches) {
 												waypointId = matches[0];
 											}
 										}
