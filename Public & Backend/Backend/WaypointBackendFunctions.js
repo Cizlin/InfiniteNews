@@ -1387,6 +1387,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 	let typeDict = await GeneralBackendFunctions.generateTypeDict();
 
 	let capstoneChallengeJson = await getCurrentCapstoneChallengeJson(headers);
+	console.log(capstoneChallengeJson);
 	let challengeDbJson = {};
 
 	challengeDbJson[CapstoneChallengeConstants.CAPSTONE_CHALLENGE_NAME_FIELD] = capstoneChallengeJson.Title;
@@ -1500,7 +1501,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 
 					if (errorOccurred || newWaypointId) {
 						console.log("Querying API for Waypoint ID...");
-						let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
+						let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].InventoryItemPath);
 
 						let matches;
 						if (!newWaypointId) {
