@@ -44,10 +44,18 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 			{
 				$w("#sourceText").html = "<p style=\"color:white;font-size:18px\">" + $w("#sourceText").html + "</p>";
 			}
+			else if (!$w("#sourceText").html.startsWith("<p>"))
+			{
+				$w("#sourceText").html = "<p style=\"color:white;font-size:18px\">" + $w("#sourceText").html;
+
+				let indexToInsert = $w("#sourceText").html.indexOf("<p>");
+				$w("#sourceText").html = $w("#sourceText").html.substring(0, indexToInsert) + "</p>" + $w("#sourceText").html.substring(indexToInsert);
+			}
 			while ($w("#sourceText").html.includes("<p>"))
 			{
 				$w("#sourceText").html = $w("#sourceText").html.replace("<p>", "<p style=\"color:white;font-size:18px\">");
 			}
+			console.log($w("#sourceText").html);
 		}
         //#endregion
 		
@@ -103,7 +111,7 @@ export function initialItemSetup(customizationCategory, isCore = false) {
                     });
 
                     // Remove the final comma.
-                    coreString = coreString.substr(0, coreString.length - 1);
+                    coreString = coreString.substr(0, coreString.length - 2);
 
                     $w("#cores").text = coreString;
                 })
@@ -123,11 +131,11 @@ export function initialItemSetup(customizationCategory, isCore = false) {
 							console.log("Original cores found...");
 							results.items.forEach(element => {
 								console.log(element);
-								originalCoreString += element[coreNameField] + ", ";
+								originalCoreString += element[coreNameField] + ",";
 							});
 
 							// Remove the final comma.
-							originalCoreString = originalCoreString.substr(0, originalCoreString.length - 2);
+							originalCoreString = originalCoreString.substr(0, originalCoreString.length - 1);
 
 							$w("#originalCoreText").text = originalCoreString;
 						}
