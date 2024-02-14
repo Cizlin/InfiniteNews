@@ -41,6 +41,13 @@ $w.onReady(function () {
 
 				const ATTACHMENT_DB = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationDb;
 				const ATTACHMENT_SOURCE_TYPE_REFERENCE_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationSourceTypeField;
+				const ATTACHMENT_HIDDEN_FIELD = CustomizationConstants.CUSTOMIZATION_CATEGORY_SPECIFIC_VARS[ATTACHMENT_KEY].CustomizationHiddenField;
+				let hideHiddenFilter = baseFilter.ne(ATTACHMENT_HIDDEN_FIELD, true);
+				$w("#dataset1").setFilter(hideHiddenFilter)
+					.then(() => {
+						$w("#hideHiddenButton").hide();
+						$w("#showHiddenButton").show();
+					});
 
 				$w("#listRepeater").onItemReady(($item, itemData) => {
 					$item("#image2").fitMode = "fit";
