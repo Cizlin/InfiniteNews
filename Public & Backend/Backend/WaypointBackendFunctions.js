@@ -1519,7 +1519,7 @@ export async function getCurrentCapstoneChallengeDbJson() {
 						if (possibleMultiCore) {
 							itemIdArray = await ShopFunctions.getItemId(currentTypeCategory, waypointId, possibleMultiCore, itemJson.CommonData.Id);
 						}
-						else if (includedItemsArray[j].ItemType.includes("Emblem")) {
+						else if (includedItemsArray[j].Type.includes("Emblem")) {
 							// Emblems will only match a portion of their ID, the first seven digits.
 							itemId = await ShopFunctions.getItemId(currentTypeCategory, waypointId);
 						}
