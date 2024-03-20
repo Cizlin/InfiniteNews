@@ -1122,7 +1122,7 @@ export async function importPasses() {
 					[PassConstants.PASS_TITLE_FIELD]: passWaypointJson.Name,
 					[PassConstants.PASS_WAYPOINT_ID_FIELD]: passWaypointJson.TrackId,
 					[PassConstants.PASS_IS_EVENT_FIELD]: passWaypointJson.IsRitual, // This should always be false.
-					[PassConstants.PASS_IMAGE_FIELD]: passWaypointJson.SummaryImagePath,
+					[PassConstants.PASS_IMAGE_FIELD]: passWaypointJson.BackgroundImagePath,
 					[PassConstants.PASS_DESCRIPTION_FIELD]: description,
 					[PassConstants.PASS_DATE_RANGE_TEXT_FIELD]: passWaypointJson.DateRange,
 					[PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD]: currentlyAvailable,
