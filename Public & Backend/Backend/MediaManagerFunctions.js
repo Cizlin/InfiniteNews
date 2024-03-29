@@ -1218,7 +1218,7 @@ export async function generateEmblemPaletteFolderDict() {
 		}
 
 		let customizationTypeFolderName;
-		iterations = 0;
+		let folderIterations = 0;
 		let categoryParentFolderId = parentFolderId;
 		while (customizationCategoryFolderList.length > 0)
 		{
@@ -1242,9 +1242,9 @@ export async function generateEmblemPaletteFolderDict() {
 				}
 			}
 
-			iterations++;
+			folderIterations++;
 			customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: categoryParentFolderId }, null, 
-				{ limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT * iterations });
+				{ limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT * folderIterations });
 		}
 	}
 
