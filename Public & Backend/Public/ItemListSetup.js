@@ -79,7 +79,9 @@ function expandFilterMenu() {
 }
 
 async function setSort() {
-	switch ($w("#sortDropdown").value) {
+	let sortSelection = $w("#sortDropdown").value;
+	session.setItem(KeyConstants.SORT_KEY, sortSelection);
+	switch (sortSelection) {
 		case "MostRecentlyAdded":
 			await $w("#dynamicDataset").setSort(wixData.sort().descending("_createdDate").ascending(nameField));
 			break;
