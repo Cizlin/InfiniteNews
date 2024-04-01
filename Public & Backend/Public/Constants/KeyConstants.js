@@ -34,6 +34,7 @@ export const AVAILABLE_KEY = "availableKey";
 export const RELEASE_KEY = "releaseKey";
 export const HIDDEN_KEY = "hiddenKey";
 export const QUICK_SEARCH_KEY = "quickSearchKey";
+export const SORT_KEY = "sortKey";
 
 export const DEFAULT_FILTER_VALUE = "Any";
 export const DEFAULT_HIDDEN_FILTER_VALUE = "No Hidden";
