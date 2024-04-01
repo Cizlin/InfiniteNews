@@ -78,6 +78,20 @@ function expandFilterMenu() {
 	});
 }
 
+async function setSort() {
+	switch ($w("#sortDropdown").value) {
+		case "MostRecentlyAdded":
+			await $w("#dynamicDataset").setSort(wixData.sort().descending("_createdDate").ascending(nameField));
+			break;
+		case "MostRecentlyUpdated":
+			await $w("#dynamicDataset").setSort(wixData.sort().descending("_updatedDate").ascending(nameField));
+			break;
+		default:
+			await $w("#dynamicDataset").setSort(wixData.sort().ascending(nameField));
+
+	}
+}
+
 // This function is used to set the optional filters (e.g. quality, release, etc.).
 async function setOptionalFilters(setPaginationFromSave = false) {
 	optionalFilter = filter;
@@ -817,6 +831,7 @@ export async function initialItemListSetup(customizationCategory) {
 			let savedHiddenValue = session.getItem(KeyConstants.HIDDEN_KEY);
 			let savedAvailableValue = session.getItem(KeyConstants.AVAILABLE_KEY);
 			let savedReleaseValue = session.getItem(KeyConstants.RELEASE_KEY);
+			let savedSortValue = session.getItem(KeyConstants.SORT_KEY);
 
 			$w("#qualityDataset").onReady(function () {
 				$w("#releaseDataset").onReady(function () {
@@ -840,6 +855,11 @@ export async function initialItemListSetup(customizationCategory) {
 						{
 							console.log("Found saved Release value: " + savedReleaseValue);
 							$w("#releaseDropdown").value = savedReleaseValue;
+						}
+						if (savedSortValue)
+						{
+							console.log("Found saved Sort value: " + savedSortValue);
+							$w("#sortDropdown").value = savedSortValue;
 						}
 
 						// Set up the initial checkbox states.
@@ -875,6 +895,9 @@ export async function initialItemListSetup(customizationCategory) {
 
 						// If the Release filter is set.
 						$w("#releaseDropdown").onChange(setOptionalFilters);
+
+						// If the Sort By selection is changed.
+						$w("#sortDropdown").onChange(setSort);
 
 						// If the Select All button is set, we set all checkboxes to true and then retrigger optional filters.
 						$w("#selectAllButton").onClick(function() {
