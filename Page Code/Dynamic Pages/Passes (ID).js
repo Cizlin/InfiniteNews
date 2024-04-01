@@ -55,11 +55,13 @@ $w.onReady(function () {
 			$w("#datesFeaturedExplanationText").text = "The Event Pass can only be progressed during these timeframes.";
 			showCorrectAvailability(currentPass[PassConstants.PASS_CURRENTLY_AVAILABLE_FIELD]);
 			$w("#premiumItemContainer").hide(); // Event Passes are 100% free for now, so let's not confuse fans.
+			$w("#battlePassImage").hide();
 		}
 		else {
 			$w("#passTypeText").text = PassConstants.PASS_BATTLE;
 			$w("#datesFeaturedExplanationText").text = "The Battle Pass can be progressed at any time during and after these timeframes.";
 			showCorrectAvailability(true); // Battle Passes are always available after release.
+			$w("#eventPassImage").hide();
 		}
 
 		// Next, we need to display the date intervals during which the pass is available/featured.

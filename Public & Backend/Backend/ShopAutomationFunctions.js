@@ -171,17 +171,21 @@ export async function getMainShopListFromWaypoint(headers) {
 		remakeHeaders = retry; // If we retry, remake the headers first.
 	}
 
-	let refinedOfferings = [];
+	/*let refinedOfferings = [];
 
 	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
-		/*if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
+		if (waypointJson.Offerings[i].OfferingId === "20230428-01" || waypointJson.Offerings[i].OfferingId === "20230517-00") {
 			continue;
-		}*/
+		}
 
 		refinedOfferings.push(waypointJson.Offerings[i]);
 	}
 
-	waypointJson.Offerings = refinedOfferings;
+	waypointJson.Offerings = refinedOfferings;*/
+
+	if (waypointJson.Offerings.length <= 0) {
+		throw "No offerings returned for HCS Shop; aborting to avoid data poisoning.";
+	}
 
 	return waypointJson;
 }
@@ -234,17 +238,21 @@ export async function getHcsShopListFromWaypoint(headers) {
 		remakeHeaders = retry;
 	}
 
-	let refinedOfferings = [];
+	/*let refinedOfferings = [];
 
 	for (let i = 0; i < waypointJson.Offerings.length; ++i) {
-		/*if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
+		if (waypointJson.Offerings[i].OfferingId === "20230210-02" || waypointJson.Offerings[i].OfferingId === "20230210-01") {
 			continue;
-		}*/
+		}
 
 		refinedOfferings.push(waypointJson.Offerings[i]);
 	}
 
-	waypointJson.Offerings = refinedOfferings;
+	waypointJson.Offerings = refinedOfferings;*/
+
+	if (waypointJson.Offerings.length <= 0) {
+		throw "No offerings returned for HCS Shop; aborting to avoid data poisoning.";
+	}
 
 	return waypointJson;
 }
@@ -487,7 +495,7 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 					// Weekly bundles have excluded the Flair Text since Season 2. Let's parse empty Flair Text values as "Weekly".
 					if (!processCustomizationOptions) {
-						switch (shopWaypointJson.FlairText.toLowerCase()) {
+						switch (shopWaypointJson.FlairText.toLowerCase().trim()) {
 							case "weekly":
 							case "":
 							case "best value":
@@ -678,13 +686,24 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 								let typeCategoryArray = [typeCategory];
 
+								let newWaypointId = false;
+
+								let matches = waypointId.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+
+								if (matches) {
+									waypointId = matches[0];
+									newWaypointId = true;
+								}
+
 								if (includedItemsArray[j].ItemType.includes("Emblem")) {
 									// Emblems marked as cross compatible award all variants at once (Armor Emblem, Weapon Emblem, Vehicle Emblem, Nameplate).
-									// Related emblems share the tail end of their waypoint IDs.
-									let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-
-									if (matches.length > 0) {
-										waypointId = matches[0];
+									// Related emblems share the tail end of their waypoint IDs (old version).
+									// New emblems share the first seven digits of their waypoint IDs. Check for this first (done above).
+									if (!matches) {
+										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+										if (matches) {
+											waypointId = matches[0];
+										}
 									}
 
 									let possibleTypeCategories = [
@@ -703,13 +722,14 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 
 								if (includedItemsArray[j].ItemType.includes("Coating")) {
 									// Coatings marked as cross compatible award all variants on all cores at once.
-									// Related coatings share the tail end of their waypoint IDs.
+									// Related coatings share the tail end of their waypoint IDs (old). New coatings share the first seven digits in their IDs.
 									possibleMultiCore = true;
 
-									let matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-
-									if (matches.length > 0) {
-										waypointId = matches[0];
+									if (!matches) {
+										matches = waypointId.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+										if (matches) {
+											waypointId = matches[0];
+										}
 									}
 								}							
 
@@ -719,37 +739,50 @@ export async function getConvertedShopList(processCustomizationOptions = false) 
 									
 									let itemId = "";
 									let itemIdArray = []; // This will only be used if possibleMultiCore is set.
-									try {
-										if (possibleMultiCore) {
-											itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, exactWaypointId);
-											//console.log(itemIdArray, "Contents of item Id Array");
+									let errorOccurred = false;
+									if (!newWaypointId) {
+										try {
+											if (possibleMultiCore) {
+												itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, exactWaypointId);
+												//console.log(itemIdArray, "Contents of item Id Array");
+											}
+											else {
+												itemId = await getItemId(currentTypeCategory, waypointId);
+											}
 										}
-										else {
-											itemId = await getItemId(currentTypeCategory, waypointId);
+										catch (error) {
+											console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
+											errorOccurred = true;
 										}
 									}
-									catch (error) {
-										console.error("Couldn't get item ID for waypoint ID " + waypointId + " due to " + error);
+
+									if (errorOccurred || newWaypointId) {
 										console.log("Querying API for Waypoint ID...");
 										let itemJson = await ApiFunctions.getCustomizationItem(headers, includedItemsArray[j].ItemPath);
 
+										let matches;
+										if (!newWaypointId) {
+											matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
+										}
+										else
+										{
+											matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FIRST_CHARS_FROM_NEW_WAYPOINT_ID);
+										}
+
+										if (matches) {
+											waypointId = matches[0];
+										}
+
 										if (possibleMultiCore) {
-											let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-
-											if (matches.length > 0) {
-												waypointId = matches[0];
-											}
-
 											itemIdArray = await getItemId(currentTypeCategory, waypointId, possibleMultiCore, itemJson.CommonData.Id);
 										}
+										else if (includedItemsArray[j].ItemType.includes("Emblem")) {
+											// Emblems will only match a portion of their ID, the first seven digits.
+											itemId = await getItemId(currentTypeCategory, waypointId);
+										}
 										else {
+											// The default case should always use the exact ID to avoid duplicate errors.
 											itemId = await getItemId(currentTypeCategory, itemJson.CommonData.Id);
-											
-											let matches = itemJson.CommonData.Id.match(GeneralConstants.REGEX_FINAL_CHARS_FROM_WAYPOINT_ID);
-
-											if (matches.length > 0) {
-												waypointId = matches[0];
-											}
 										}
 									}
 
@@ -910,9 +943,12 @@ export async function updateItemsCurrentlyAvailableStatus(customizationCategory,
 
 							let parentCores = (await wixData.queryReferenced(CUSTOMIZATION_DB, item._id, CORE_REFERENCE_FIELD)).items;
 
-							// We only care about the parent core if there's only one core the item works with and the core isn't the "Any" shortcut.
-							if (parentCores.length == 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
+							// We only care about the parent core if there's at least one core the item works with and the core isn't the "Any" shortcut.
+							if (parentCores.length >= 1 && parentCores[0][CORE_NAME_FIELD] != "Any") {
 								itemCore = parentCores[0][CORE_NAME_FIELD];
+								for (let q = 1; q < parentCores.length; ++q) {
+									itemCore += ", " + parentCores[q][CORE_NAME_FIELD];
+								}
 							}
 						}
 
@@ -1547,6 +1583,10 @@ export async function generateSocialNotifications(updateItemArray) {
 		}
 	}
 
+	const NUM_ARMOR_CORES = await WaypointFunctions.getNumCores(ArmorConstants.ARMOR_KEY);
+	const NUM_WEAPON_CORES = await WaypointFunctions.getNumCores(WeaponConstants.WEAPON_KEY);
+	const NUM_VEHICLE_CORES = await WaypointFunctions.getNumCores(VehicleConstants.VEHICLE_KEY);
+
 	if (mainItemListingArray.length > 0) {
 		console.log(tweetTextArray[0]);
 		let parentId = await sendTweet(tweetTextArray[0]);
@@ -1573,9 +1613,15 @@ export async function generateSocialNotifications(updateItemArray) {
 			let currentSubTweetIndex = 0;
 
 			let emblemNamesToSkip = [];
+			let armorCoatingNamesToSkip = [];
+			let weaponCoatingNamesToSkip = [];
+			let vehicleCoatingNamesToSkip = [];
 
 			for (let j = 0; j < mainItemArray[i].childItemInfo.length; ++j) {
 				let childItem = mainItemArray[i].childItemInfo[j];
+				if (childItem.itemCore === "None") {
+					continue; // We don't need to report items that can't be equipped.
+				}
 				let childItemText = "- " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
@@ -1594,6 +1640,31 @@ export async function generateSocialNotifications(updateItemArray) {
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
 						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
+					}
+				}
+
+				// We also want to abbreviate sets of coatings into a single aggregate.
+				if (childItem.itemType.includes("Coating")) {
+					if (childItem.itemType.includes("Armor Coating") && armorCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Weapon Coating") && weaponCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Vehicle Coating") && vehicleCoatingNamesToSkip.includes(childItem.itemName)) { // We already noted this Coating. Let's proceed.
+						continue;
+					}
+
+					let matchingCoatingsFound = 0; // Count the number of matching coatings in the list.
+					mainItemArray[i].childItemInfo.forEach((item) => {
+						if (item.itemName == childItem.itemName && item.itemType == childItem.itemType) {
+							++matchingCoatingsFound;
+						}
+					});
+
+					if (childItem.itemType.includes("Armor Coating") && matchingCoatingsFound >= NUM_ARMOR_CORES
+					|| childItem.itemType.includes("Weapon Coating") && matchingCoatingsFound >= NUM_WEAPON_CORES
+					|| childItem.itemType.includes("Vehicle Coating") && matchingCoatingsFound >= NUM_VEHICLE_CORES) { // If we found an instance of the coating on all available cores.
+						childItemText = "- " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n";
+						if (childItem.itemType.includes("Armor Coating")) { armorCoatingNamesToSkip.push(childItem.itemName); }
+						if (childItem.itemType.includes("Weapon Coating")) { weaponCoatingNamesToSkip.push(childItem.itemName); }
+						if (childItem.itemType.includes("Vehicle Coating")) { vehicleCoatingNamesToSkip.push(childItem.itemName); }
 					}
 				}
 
@@ -1653,9 +1724,15 @@ export async function generateSocialNotifications(updateItemArray) {
 			let currentSubTweetIndex = 0;
 
 			let emblemNamesToSkip = [];
+			let armorCoatingNamesToSkip = [];
+			let weaponCoatingNamesToSkip = [];
+			let vehicleCoatingNamesToSkip = [];
 
 			for (let j = 0; j < hcsItemArray[i].childItemInfo.length; ++j) {
 				let childItem = hcsItemArray[i].childItemInfo[j];
+				if (childItem.itemCore === "None") {
+					continue; // We don't need to report items that can't be equipped.
+				}
 				let childItemText = "- " + childItem.itemName + " " + childItem.itemType + ((childItem.itemCore != "") ? (" (" + childItem.itemCore + ")") : "") + "\n";
 				
 				// We want to abbreviate sets of four identical emblem types as "Emblem Set". This will shorten our Tweet count considerably.
@@ -1674,6 +1751,28 @@ export async function generateSocialNotifications(updateItemArray) {
 					if (matchingEmblemsFound >= 4) { // If we found all four types of emblem in the list.
 						childItemText = "- " + childItem.itemName + " Emblem Set\n";
 						emblemNamesToSkip.push(childItem.itemName);
+					}
+				}
+
+				// We also want to abbreviate sets of coatings into a single aggregate.
+				if (childItem.itemType.includes("Coating")) {
+					if (childItem.itemType.includes("Armor Coating") && armorCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Weapon Coating") && weaponCoatingNamesToSkip.includes(childItem.itemName)
+					|| childItem.itemType.includes("Vehicle Coating") && vehicleCoatingNamesToSkip.includes(childItem.itemName)) { // We already noted this Coating. Let's proceed.
+						continue;
+					}
+
+					let matchingCoatingsFound = 0; // Count the number of matching coatings in the list.
+					hcsItemArray[i].childItemInfo.forEach((item) => {
+						if (item.itemName == childItem.itemName && item.itemType == childItem.itemType) {
+							++matchingCoatingsFound;
+						}
+					});
+
+					if (childItem.itemType.includes("Armor Coating") && matchingCoatingsFound >= NUM_ARMOR_CORES
+					|| childItem.itemType.includes("Weapon Coating") && matchingCoatingsFound >= NUM_WEAPON_CORES
+					|| childItem.itemType.includes("Vehicle Coating") && matchingCoatingsFound >= NUM_VEHICLE_CORES) { // If we found an instance of the coating on all available cores.
+						childItemText = "- " + childItem.itemName + " " + childItem.itemType + " (All Cores)\n";
 					}
 				}
 
@@ -1915,8 +2014,16 @@ export async function refreshCustomizationShopListings() {
 							newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]); 
 							newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
 						}
+						else if (newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD] != newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD][0]) {
+							// If the current cost doesn't match the last available cost, then we need to add a new record.
+							let currentDate = new Date();
+
+							newShopListingsToUpdate[i][ShopConstants.SHOP_AVAILABLE_DATE_ARRAY_FIELD].unshift(currentDate);
+							newShopListingsToUpdate[i][ShopConstants.SHOP_PRICE_HISTORY_ARRAY_FIELD].unshift(newShopListingsToUpdate[i][ShopConstants.SHOP_COST_CREDITS_FIELD]);
+						}
 						else {
-							newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD] = item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD]; // This isn't newly available.
+							newShopListingsToUpdate[i][ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD] = item[ShopConstants.SHOP_LAST_AVAILABLE_DATETIME_FIELD];
+							// This isn't newly available, and the price hasn't changed.
 						}
 
 						newShopListingsToUpdate[i][ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD] = item[ShopConstants.SHOP_CURRENTLY_AVAILABLE_FIELD]; // This listing may be available through the normal shop, too.

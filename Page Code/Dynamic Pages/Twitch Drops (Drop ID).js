@@ -48,11 +48,10 @@ $w.onReady(function () {
 				let name = rewardGroupArray[i].rewards[j].name;
 				let code = rewardGroupArray[i].rewards[j].code;
 
-				console.log("Checking for " + name + " and " + code);
+				console.log("Checking for " + code);
 
 				let rewardDefinition = await wixData.query("TwitchDropRewards")
 					.eq("waypointId", code)
-					.contains("title", name)
 					.find()
 					.then((results) => {
 						if (results.items.length > 1) {

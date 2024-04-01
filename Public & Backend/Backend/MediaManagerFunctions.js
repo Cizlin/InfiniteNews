@@ -1087,10 +1087,10 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 		(customizationType == CustomizationConstants.ITEM_TYPES.core) ? CustomizationConstants.CORE_CATEGORY_SPECIFIC_VARS[customizationCategory].CoreType : // If core, [CoreType].
 			customizationType; // Otherwise it is the type provided by the caller.
 
+	let fileKey = fileSystemSafeTitle.replace(/\./g, ",") + " " + filenameType + ",png";
+
 	if (folderExists) {
 		//console.log("Directory Path found.");
-
-		let fileKey = fileSystemSafeTitle.replace(/\./g, ",") + " " + filenameType + ",png";
 
 		if (fileKey in subFolderDict) {
 			// We found a matching file, but now we need to confirm that it is up-to-date by checking the ETag.
@@ -1137,11 +1137,13 @@ export async function getCustomizationImageUrl(folderDict, headers, title, waypo
 	const MAX_RETRIES = 10;
 	while (retryCount < MAX_RETRIES) {
 		try {
+			let results = await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png");
+			subFolderDict[fileKey] = results[0]; // Add the image to our in-memory folder dict.
 			if (checkAndReturnETag) {
-				return await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png");
+				return results;
 			}
 			else {// We now return the ETag in [1], so just return [0] (the image URL) for now.
-				return (await addCustomizationImageToMediaManager(headers, waypointPath, mimeType, mediaPath, fileSystemSafeTitle + " " + filenameType + ".png"))[0];
+				return results[0];
 			}
 		}
 		catch (error) {
@@ -1157,7 +1159,7 @@ export async function generateEmblemPaletteFolderDict() {
 	// We will also store the files in this dictionary with the user-readable filename as the key (with . replaced by , since JSON) and the file Name as the value. 
 	// Still need to fetch the file URL, but that should be quick. Speed. I am speed.
 
-	console.log("Starting Emblem Palette folder dict generation.");
+	console.log("Starting emblem palette folder dict generation.");
 	let folderDict = {
 		"/": {}
 	};
@@ -1183,6 +1185,7 @@ export async function generateEmblemPaletteFolderDict() {
 		});
 
 		iterations++;
+
 		customizationImagesFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
 			{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
 	}
@@ -1199,12 +1202,12 @@ export async function generateEmblemPaletteFolderDict() {
 			continue;
 		}
 
-		// We need to get the Emblem Palette Configuration ID folders within. There's a ton of them, so we need to increase the limit to several hundred (might need to make this more future-proof later).
-		const EMBLEM_PALETTE_FOLDER_ID = parentFolderId;
+		// For each of these category folders, we need to get the folders within.
 		let customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT });
 		let customizationCategoryFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
 		iterations = 0;
-		while (customizationCategoryFileList.length > 0) {
+		while (customizationCategoryFileList.length > 0)
+		{
 			customizationCategoryFileList.forEach((file) => {
 				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
 			});
@@ -1214,31 +1217,33 @@ export async function generateEmblemPaletteFolderDict() {
 				{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
 		}
 
-		let emblemConfigurationIdFolderName;
+		let customizationTypeFolderName;
 		let folderIterations = 0;
-		while (customizationCategoryFolderList.length > 0) {
+		let categoryParentFolderId = parentFolderId;
+		while (customizationCategoryFolderList.length > 0)
+		{
 			for (let j = 0; j < customizationCategoryFolderList.length; j++) {
-				let waypointId = customizationCategoryFolderList[j];
-				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][waypointId.folderName + "/"] = { "_id": waypointId.folderId }
-				parentFolderId = waypointId.folderId;
-				emblemConfigurationIdFolderName = waypointId.folderName;
+				let typeElement = customizationCategoryFolderList[j];
+				folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][typeElement.folderName + "/"] = { "_id": typeElement.folderId }
+				parentFolderId = typeElement.folderId;
+				customizationTypeFolderName = typeElement.folderName;
 
-				// We can just list the files now.
-				let emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
+				let customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, { limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT });
 				iterations = 0;
-				while (emblemConfigurationIdFileList.length > 0) {
-					emblemConfigurationIdFileList.forEach((file) => {
-						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][emblemConfigurationIdFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
+				while (customizationTypeFileList.length > 0)
+				{
+					customizationTypeFileList.forEach((file) => {
+						folderDict["/"][customizationImageFolderName + "/"][customizationCategoryFolderName + "/"][customizationTypeFolderName + "/"][file.originalFileName.replace(/\./g, ",")] = file.fileName;
 					});
 
 					iterations++;
-					emblemConfigurationIdFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
+					customizationTypeFileList = await mediaManager.listFiles({ parentFolderId: parentFolderId }, null, 
 						{ limit: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FILES_LIMIT * iterations });
 				}
 			}
 
 			folderIterations++;
-			customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: EMBLEM_PALETTE_FOLDER_ID }, null, 
+			customizationCategoryFolderList = await mediaManager.listFolders({ parentFolderId: categoryParentFolderId }, null, 
 				{ limit: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT, skip: GeneralConstants.FILE_DICT_RETURNED_FOLDERS_LIMIT * folderIterations });
 		}
 	}
