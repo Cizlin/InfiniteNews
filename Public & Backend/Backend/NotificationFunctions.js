@@ -36,9 +36,21 @@ export function sendNewsNotification(articleTitle, articleShortDescription, arti
     DiscordFunctions.sendDiscordMessage("news", articleTitle + "\n" + articleShortDescription + "\n" + articleUrl, true);
 }
 
-export function sendPromotionNotification(articleTitle, articleShortDescription, articleUrl, isTwitchDrop = false, isNewTwitchDrop = false) {
+export function sendPromotionNotification(articleTitle, articleShortDescription, articleUrl, isTwitchDrop = false, isNewTwitchDrop = false, game = null) {
     sendPushNotification(articleTitle, articleShortDescription, "Promotion", articleUrl, "Promotion Articles");
-    DiscordFunctions.sendDiscordMessage(((isTwitchDrop) ? "twitch-drops" : "promotions"), articleTitle + "\n" + articleShortDescription + "\n" + articleUrl, true, isNewTwitchDrop);
+
+    let twitchDropChannelName = "";
+
+    if (game === "Halo Infinite")
+    {
+        twitchDropChannelName = "infinite-twitch-drops";
+    }
+    else if (game === "Halo: The Master Chief Collection")
+    {
+        twitchDropChannelName = "mcc-twitch-drops";
+    }
+
+    DiscordFunctions.sendDiscordMessage(((isTwitchDrop) ? twitchDropChannelName : "promotions"), articleTitle + "\n" + articleShortDescription + "\n" + articleUrl, true, isNewTwitchDrop);
 }
 
 // How to use:
@@ -46,7 +58,7 @@ export function sendPromotionNotification(articleTitle, articleShortDescription,
 // In push notifications, these will be replaced with PST or PDT strings. 
 // In Discord notifications, they will be replaced with dynamic timestamps
 // The startTimeSecSinceEpoch and endTimeSecSinceEpoch should be retrieved from https://hammertime.cyou/, with the desired start date input.
-export function sendPromotionNotificationWithStartEndTime(title, shortDescription, url, startTimeSecSinceEpoch, endTimeSecSinceEpoch, isTwitchDrop = false, isNewTwitchDrop = false) {
+export function sendPromotionNotificationWithStartEndTime(title, shortDescription, url, startTimeSecSinceEpoch, endTimeSecSinceEpoch, isTwitchDrop = false, isNewTwitchDrop = false, game = null) {
     let startDate = new Date(startTimeSecSinceEpoch * 1000); // Initialize the date object.
     let startString = startDate.toLocaleString("en-US", {
         year: "numeric",
@@ -93,6 +105,17 @@ export function sendPromotionNotificationWithStartEndTime(title, shortDescriptio
     console.log(discordTitle);
     console.log(discordShortDescription);
 
+    let twitchDropChannelName = "";
+
+    if (game === "Halo Infinite")
+    {
+        twitchDropChannelName = "infinite-twitch-drops";
+    }
+    else if (game === "Halo: The Master Chief Collection")
+    {
+        twitchDropChannelName = "mcc-twitch-drops";
+    }
+
     sendPushNotification(pushTitle, pushShortDescription, "Promotion", url, "Promotion Articles");
-    DiscordFunctions.sendDiscordMessage(((isTwitchDrop) ? "twitch-drops" : "promotions"), discordTitle + "\n" + discordShortDescription + "\n" + url, true, isNewTwitchDrop);
+    DiscordFunctions.sendDiscordMessage(((isTwitchDrop) ? (twitchDropChannelName) : "promotions"), discordTitle + "\n" + discordShortDescription + "\n" + url, true, isNewTwitchDrop);
 }
