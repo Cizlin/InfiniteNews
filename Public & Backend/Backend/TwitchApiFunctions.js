@@ -15,8 +15,7 @@ const gameIdToGameName = {
 export async function makeTwitchHeaders() {
     return {
         "authorization": await wixSecretsBackend.getSecret("TwitchOAuth"),
-        "client-id": await wixSecretsBackend.getSecret("TwitchClientId"),
-        "x-device-id": "NonSiteAccess"
+        "Content-Type": "text/plain;charset=UTF-8"
     };
 }
 
@@ -51,7 +50,7 @@ export async function getDropList(returnIdsOnly = false) {
             "extensions": {
                 "persistedQuery": {
                     "version": 1,
-                    "sha256Hash": "8d5d9b5e3f088f9d1ff39eb2caab11f7a4cf7a3353da9ce82b5778226ff37268"
+                    "sha256Hash": "e8b98b52bbd7ccd37d0b671ad0d47be5238caa5bea637d2a65776175b4a23a64"
                 }
             },
             "variables": {
@@ -99,8 +98,8 @@ export async function getDropList(returnIdsOnly = false) {
 // Retrieves specific drop information based on a provided drop ID.
 export async function getDropInfo(dropId) {
     let headers = await makeTwitchHeaders();
-    let clientIntegrityObject = await getClientIntegrity();
-    headers["client-integrity"] = clientIntegrityObject.token;
+    //let clientIntegrityObject = await getClientIntegrity();
+    //headers["client-integrity"] = clientIntegrityObject.token;
     let channelLogin = await wixSecretsBackend.getSecret("TwitchChannelLogin");
 
     return await wixFetch.fetch("https://gql.twitch.tv/gql", {
@@ -115,7 +114,7 @@ export async function getDropInfo(dropId) {
             "extensions": {
                 "persistedQuery": {
                     "version": 1,
-                    "sha256Hash": "f6396f5ffdde867a8f6f6da18286e4baf02e5b98d14689a69b5af320a4c7b7b8"
+                    "sha256Hash": "e5916665a37150808f8ad053ed6394b225d5504d175c7c0b01b9a89634c57136"
                 }
             }
         })
@@ -1010,7 +1009,9 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
             "TWITCH DROP NOW AVAILABLE, " + drop.game + ": " + drop.campaignName,
             "Click here for more details.",
             "https://www.twitch.tv/drops/campaigns?dropID=" + drop.dropId,
-            true
+            true,
+            false,
+            drop.game
         );
 
         return true;
@@ -1153,7 +1154,8 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
                 startDate,
                 endDate,
                 true, // Is Twitch Drop.
-                containsNew // Contains a new reward, so notify the new drop users.
+                containsNew, // Contains a new reward, so notify the new drop users.
+                drop.game
             );
         }
         else {
@@ -1163,7 +1165,8 @@ async function sendDiscordAndPushNotification(drop, isUpcoming = true, isCorrect
                 bodyText,
                 "https://www.haloinfinitenews.com" + drop["link-twitch-drops-1-campaignName"],
                 true,
-                containsNew
+                containsNew,
+                drop.game
             );
         }
 
